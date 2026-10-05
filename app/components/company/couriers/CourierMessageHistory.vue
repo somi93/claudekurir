@@ -14,11 +14,16 @@
     </div>
 
     <p v-if="!courierId" class="msg-history-state">Izaberi kurira za pregled poslatih poruka.</p>
-    <div v-else-if="loadingHistory" class="msg-history-state">
+    <div v-else-if="loading" class="msg-history-state">
       <v-progress-circular indeterminate size="20" color="primary" />
     </div>
-    <p v-else-if="historyError" class="msg-history-state">{{ historyError }}</p>
-    <p v-else-if="dispatcherMessages.length === 0" class="msg-history-state">
+    <p v-else-if="error && items.length === 0" class="msg-history-state">
+      {{ error }}
+      <v-btn variant="text" size="small" @click="courierId && open(courierId, categoryFilter)">
+        Pokušaj ponovo
+      </v-btn>
+    </p>
+    <p v-else-if="items.length === 0" class="msg-history-state">
       {{
         categoryFilter
           ? "Nema poslatih poruka u ovoj kategoriji."
@@ -26,7 +31,7 @@
       }}
     </p>
     <div v-else class="msg-history-list">
-      <div v-for="msg in dispatcherMessages" :key="msg.id" class="msg-history-item">
+      <div v-for="msg in items" :key="msg.id" class="msg-history-item">
         <div class="msg-history-head">
           <span class="msg-history-title">{{ msg.title }}</span>
           <v-btn
@@ -50,69 +55,57 @@
         <p class="msg-history-body">{{ msg.body }}</p>
       </div>
 
+      <p v-if="error" class="msg-history-state">{{ error }}</p>
       <v-btn
-        v-if="hasMoreHistory"
+        v-if="!end"
         variant="tonal"
         size="small"
         block
         :loading="loadingMore"
-        @click="courierId && loadMoreHistory(courierId, categoryFilter)"
+        @click="more()"
       >
-        Prikaži još
+        Prikaži starije
       </v-btn>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { useCourierMessaging } from "~/composables/useCourierMessaging";
+import { ref, watch } from "vue";
+import { useCourierMessages } from "~/composables/useCourierMessages";
+import { useAlertStore } from "~/stores/alert";
 import { useConfirmStore } from "~/stores/confirm";
 import { formatDateTime } from "~/utils/datetime";
 import { CATEGORY_META, DISPATCHER_MESSAGE_CATEGORIES } from "~/utils/inbox";
-import type { InboxCategory, InboxMessage } from "~/types/inbox";
+import type { DispatcherMessageCategory, InboxMessage } from "~/types/inbox";
 
 const props = defineProps<{ courierId: number | null }>();
 
 const confirmStore = useConfirmStore();
+const alertStore = useAlertStore();
 
-const {
-  history,
-  loadingHistory,
-  loadingMore,
-  historyError,
-  hasMoreHistory,
-  loadHistory,
-  loadMoreHistory,
-  deleteMessage,
-} = useCourierMessaging();
+const { items, loading, loadingMore, error, end, open, more, remove } = useCourierMessages();
 
-// null = "Sve kategorije" (šalje se bez ?category=).
-const categoryFilter = ref<InboxCategory | null>(null);
-const categoryFilterOptions: { label: string; value: InboxCategory | null }[] = [
+// null = "Sve kategorije" (tri zahtjeva, po jedan za svaku kategoriju koju dispečer šalje).
+const categoryFilter = ref<DispatcherMessageCategory | null>(null);
+const categoryFilterOptions: { label: string; value: DispatcherMessageCategory | null }[] = [
   { label: "Sve kategorije", value: null },
   ...DISPATCHER_MESSAGE_CATEGORIES.map((c) => ({ label: c.label, value: c.value })),
 ];
 
 const deletingId = ref<number | null>(null);
 
-// GET .../inbox vraća SVE poruke kurira (i platform i dispečerske) - prikazujemo
-// samo one koje je poslao dispečer.
-const dispatcherMessages = computed(() =>
-  history.value.filter((m) => m.sender === "dispatcher")
-);
-
 watch(
   () => props.courierId,
   (id) => {
     categoryFilter.value = null;
-    if (id) loadHistory(id, null);
+    if (id) open(id, null);
   },
   { immediate: true }
 );
 
 watch(categoryFilter, (value) => {
-  if (props.courierId) loadHistory(props.courierId, value);
+  if (props.courierId) open(props.courierId, value);
 });
 
 const onDelete = async (msg: InboxMessage) => {
@@ -126,8 +119,9 @@ const onDelete = async (msg: InboxMessage) => {
     return; // Otkazano
   }
   deletingId.value = msg.id;
-  await deleteMessage(msg.id);
+  const ok = await remove(msg.id);
   deletingId.value = null;
+  if (!ok) alertStore.error("Ne mogu da obrišem poruku.");
 };
 </script>
 

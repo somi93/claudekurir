@@ -32,7 +32,8 @@ export const useRecentMessages = (courierId: Ref<number | null>) => {
       for (let page = 1; page <= MAX_PAGES; page++) {
         const { messages, meta } = await fetchCourierInboxPage(id, { page, perPage: PAGE_SIZE });
         if (mine !== token) return;
-        found.push(...messages.filter((m) => m.sender === "dispatcher"));
+        // Ponuda za dostavu nije poruka dispečera, ma koji pošiljalac stajao na njoj.
+        found.push(...messages.filter((m) => m.sender === "dispatcher" && m.category !== "offer"));
         if (found.length >= WANTED || !meta || meta.current_page >= meta.last_page) break;
       }
       items.value = found.slice(0, WANTED);

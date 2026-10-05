@@ -23,6 +23,8 @@ export const useCompanyCouriers = (
 
   const couriers = ref<CompanyCourier[]>([]);
   const loadingCouriers = ref(false);
+  // Lista je bar jednom stigla. Dok nije (učitavanje, pad) se ne tvrdi "nema kurira".
+  const couriersLoaded = ref(false);
   const savingCourier = ref(false);
   const errorMessage = ref("");
 
@@ -30,6 +32,8 @@ export const useCompanyCouriers = (
     loadingCouriers.value = true;
     try {
       couriers.value = await fetchCompanyCouriers(id);
+      couriersLoaded.value = true;
+      errorMessage.value = "";
     } catch (error) {
       errorMessage.value = toFriendlyErrorMessage(error, "Ne mogu da učitam listu kurira.");
     } finally {
@@ -119,14 +123,23 @@ export const useCompanyCouriers = (
     [companyId, () => options.enabled?.value ?? true],
     ([id, enabled]) => {
       if (!id || !enabled) return;
+      // Druga firma: lista prethodne ne smije da prođe kao učitana.
+      couriersLoaded.value = false;
       fetchCouriers(id);
     },
     { immediate: true }
   );
 
+  // "Pokušaj ponovo" poslije pada.
+  const reloadCouriers = async () => {
+    if (companyId.value && !loadingCouriers.value) await fetchCouriers(companyId.value);
+  };
+
   return {
     couriers,
     loadingCouriers,
+    couriersLoaded,
+    reloadCouriers,
     savingCourier,
     errorMessage,
     setSuspended,

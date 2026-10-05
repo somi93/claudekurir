@@ -26,8 +26,12 @@
         <GlobalTextField
           v-model="form.title"
           label="Naslov"
+          enterkeyhint="next"
           :rules="[rules.required()]"
           hide-details="auto"
+          @keydown.enter.exact.prevent="focusBody"
+          @keydown.ctrl.enter.prevent="submit"
+          @keydown.meta.enter.prevent="submit"
         />
         <GlobalTextarea
           v-model="form.body"
@@ -36,6 +40,8 @@
           auto-grow
           :rules="[rules.required()]"
           hide-details="auto"
+          @keydown.ctrl.enter.prevent="submit"
+          @keydown.meta.enter.prevent="submit"
         />
         <GlobalAutocomplete
           v-model="selectedIds"
@@ -50,18 +56,19 @@
           label="Primaoci"
           placeholder="Pretraži kurira po imenu ili ID-u..."
           no-data-text="Nema kurira za zadatu pretragu."
+          :custom-filter="matchOption"
           :error="showRecipientError"
           :error-messages="recipientErrorText"
           hide-details="auto"
         />
 
         <div class="composer-foot">
-          <span class="composer-count">{{ recipientSummary }}</span>
+          <span class="composer-count">{{ couriersReady ? recipientSummary : "Spisak kurira nije učitan." }}</span>
           <GlobalButtonPrimary
             type="submit"
             prepend-icon="mdi-send-outline"
             :loading="broadcasting"
-            :disabled="couriers.length === 0"
+            :disabled="!couriersReady || couriers.length === 0"
           >
             Pošalji
           </GlobalButtonPrimary>
@@ -87,7 +94,14 @@
         class="mt-2"
       />
 
-      <div v-if="filteredHistoryCouriers.length > 0" class="history-courier-list mt-2">
+      <p v-if="loadingCouriers && !couriersLoaded" class="history-empty mt-3" role="status">
+        Učitavam kurire…
+      </p>
+      <div v-else-if="!couriersLoaded" class="history-empty mt-3" role="alert">
+        Ne mogu da učitam listu kurira.
+        <v-btn variant="text" size="small" @click="reloadCouriers()">Pokušaj ponovo</v-btn>
+      </div>
+      <div v-else-if="filteredHistoryCouriers.length > 0" class="history-courier-list mt-2">
         <button
           v-for="courier in filteredHistoryCouriers"
           :key="courier.courier_id"
@@ -172,6 +186,7 @@ import {
   formatRelativeTime,
 } from "~/utils/inbox";
 import { fetchInboxSummary } from "~/services/courierInboxService";
+import { buildRoster, matchCourier } from "~/utils/courierRoster";
 import type { BroadcastMessagePayload, InboxSummaryEntry } from "~/types/inbox";
 import type { CompanyCourier } from "~/types/company-courier";
 
@@ -183,8 +198,26 @@ companiesStore.ensureLoaded();
 
 const companyId = computed(() => selectedCompanyId.value);
 
-const { couriers, errorMessage: couriersError } = useCompanyCouriers(companyId);
+const {
+  couriers,
+  loadingCouriers,
+  couriersLoaded,
+  reloadCouriers,
+  errorMessage: couriersError,
+} = useCompanyCouriers(companyId);
+// Dok se zna samo da se spisak učitava (ili je pao), ne tvrdi se ništa o kuririma.
+const couriersReady = computed(() => couriersLoaded.value);
 const { broadcasting, broadcast } = useCourierMessaging();
+
+// Isti oblik reda i ista pretraga kao na Kuriri (matchCourier): bez dijakritika, ćirilica,
+// telefon u svakom zapisu, #ID, bilo koji redoslijed riječi.
+const rosterById = computed(
+  () => new Map(buildRoster(couriers.value).map((courier) => [courier.id, courier]))
+);
+const matchOption = (_value: unknown, query: string, item?: { raw?: { value?: number } }) => {
+  const courier = rosterById.value.get(item?.raw?.value ?? -1);
+  return courier ? matchCourier(courier, query) : false;
+};
 
 const courierOptions = computed(() =>
   couriers.value.map((courier) => ({
@@ -225,8 +258,14 @@ watch(selectedIds, () => {
   if (selectedIds.value.length > 0) showRecipientError.value = false;
 });
 
+// Enter u naslovu ide na tekst poruke; šalje samo dugme ili Ctrl+Enter.
+const focusBody = () => {
+  const el = (formRef.value as unknown as { $el?: HTMLElement } | null)?.$el;
+  el?.querySelector<HTMLTextAreaElement>("textarea")?.focus();
+};
+
 const submit = async () => {
-  if (!companyId.value) return;
+  if (!companyId.value || !couriersReady.value) return;
 
   const { valid } = (await formRef.value?.validate()) ?? { valid: false };
   if (selectedIds.value.length === 0) showRecipientError.value = true;
@@ -283,13 +322,12 @@ watch(companyId, () => loadSummary(), { immediate: true });
 const historySearch = ref("");
 
 const filteredHistoryCouriers = computed(() => {
-  const query = historySearch.value.trim().toLowerCase();
+  const query = historySearch.value.trim();
   if (!query) return couriers.value;
-  return couriers.value.filter(
-    (courier) =>
-      toLatin(courier.name).toLowerCase().includes(query) ||
-      String(courier.courier_id).includes(query)
-  );
+  return couriers.value.filter((courier) => {
+    const row = rosterById.value.get(courier.courier_id);
+    return row ? matchCourier(row, query) : false;
+  });
 });
 
 const showHistory = ref(false);

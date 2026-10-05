@@ -6,7 +6,7 @@ import type {
 } from "~/types/company-courier";
 import type { DispatcherCourierLocation, DispatcherCourierLocationPoint } from "~/types/courier";
 import type { CourierBalance } from "~/types/courier-balance";
-import type { InboxSummaryEntry } from "~/types/inbox";
+import type { InboxCategory, InboxSummaryEntry } from "~/types/inbox";
 import type { VehicleKey } from "~/types/vehicle";
 import { summarizeCashLimit } from "~/utils/cashLimit";
 import { courierState, relativeTime } from "~/utils/courierStatus";
@@ -65,7 +65,7 @@ export type RosterCourier = {
   wage: number | null;
   // Poruke (inbox-summary).
   unread: number;
-  lastMsg: { title: string; sentAt: string } | null;
+  lastMsg: { title: string; sentAt: string; category: InboxCategory } | null;
 };
 
 const text = (value: unknown): string => String(value ?? "").trim();
@@ -145,9 +145,16 @@ export const buildRoster = (rows: CompanyCourier[], sources: RosterSources = {})
       cash: balancesKnown ? (toAmount(balance?.cash_owed_to_company) ?? 0) : null,
       wage: balancesKnown ? (toAmount(balance?.wage_owed_to_courier) ?? 0) : null,
       unread: summary?.dispatcherUnreadCount ?? 0,
-      lastMsg: summary?.lastMessage
-        ? { title: summary.lastMessage.title, sentAt: summary.lastMessage.sentAt }
-        : null,
+      // Ponuda za dostavu nije poruka dispečera: inbox-summary je zna vratiti kao zadnju poruku
+      // (dokument 21.09, R11), pa se ovdje ne čuva ("Zadnja poruka" tada pada na čitanje sandučeta).
+      lastMsg:
+        summary?.lastMessage && summary.lastMessage.category !== "offer"
+          ? {
+              title: summary.lastMessage.title,
+              sentAt: summary.lastMessage.sentAt,
+              category: summary.lastMessage.category,
+            }
+          : null,
     };
   });
 };
