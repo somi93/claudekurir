@@ -1,0 +1,745 @@
+<title>Dizajn stranice Firma</title>
+<style>
+/* Layout: dokument-tabla kao "Dizajn istorije kurira". Gore zaključci, pa snimci stvarne aplikacije sa oznakama i mjerenjima, predlog (prototip koji radi),
+   stanja, dijelovi, podaci, specifikacija, odluke i redosled izrade. Tabla ima svoje tokene (svijetla i tamna tema). Prototip i telefoni prikazuju aplikaciju,
+   koja je samo svijetla, pa imaju zasebne tokene u app.css koji se ne mijenjaju sa temom. */
+:root{
+  --bg:#f2f3f6; --surface:#ffffff; --surface-2:#f7f8fa; --fg:#0b1220; --fg-2:#46505f; --fg-3:#5d6879;
+  --line:#e2e5ea; --accent:#2459c7; --accent-soft:#e9f0ff; --good:#0a7650; --good-soft:#e0f5ec;
+  --warn:#8f4406; --warn-soft:#fff1dc; --bad:#b42318; --bad-soft:#fde8e6; --stage:#e6e9ef; --code:#eceff4;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1017; --surface:#141a24; --surface-2:#19202c; --fg:#e8ecf3; --fg-2:#b4bdca; --fg-3:#8e99a9;
+    --line:#252d3b; --accent:#7aa2ff; --accent-soft:#1a2740; --good:#4cd6a0; --good-soft:#12302a; --warn:#ffb866; --warn-soft:#33270f;
+    --bad:#ff8a80; --bad-soft:#3a1c19; --stage:#10151d; --code:#1c2330; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1017; --surface:#141a24; --surface-2:#19202c; --fg:#e8ecf3; --fg-2:#b4bdca; --fg-3:#8e99a9;
+  --line:#252d3b; --accent:#7aa2ff; --accent-soft:#1a2740; --good:#4cd6a0; --good-soft:#12302a; --warn:#ffb866; --warn-soft:#33270f;
+  --bad:#ff8a80; --bad-soft:#3a1c19; --stage:#10151d; --code:#1c2330; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);-webkit-font-smoothing:antialiased;line-height:1.5}
+.wrap{max-width:1240px;margin-inline:auto;padding-inline:16px;padding-block:28px 72px;display:grid;gap:68px}
+h1,h2,h3,h4,p{margin:0}
+h1{font-size:clamp(1.9rem,4.4vw,2.8rem);font-weight:800;letter-spacing:-.025em;line-height:1.08;text-wrap:balance}
+h2{font-size:1.45rem;font-weight:800;letter-spacing:-.02em;line-height:1.2;text-wrap:balance}
+h3{font-size:1rem;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:.9rem;font-weight:800}
+.eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-3)}
+.lede{color:var(--fg-2);font-size:1.02rem;max-width:72ch}
+.small{font-size:.86rem;color:var(--fg-2);max-width:78ch}
+code,.mono{font-family:var(--mono);font-size:.84em;background:var(--code);padding:1px 6px;border-radius:6px;overflow-wrap:anywhere}
+a{color:var(--accent)}
+.top{display:grid;gap:18px}
+.nav{display:flex;flex-wrap:wrap;gap:8px}
+.nav a{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--fg);text-decoration:none;font-size:.84rem;font-weight:700}
+.nav a:hover{border-color:var(--accent);color:var(--accent)}
+.nav a:focus-visible,.bb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:14px}
+.fact{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:grid;gap:6px;align-content:start}
+.fact b{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.fact span{color:var(--fg-2);font-size:.88rem}
+.fact .tag{font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--bad)}
+
+.sec{display:grid;gap:24px}
+.sec-head{display:grid;gap:8px}
+.sub-head{display:grid;gap:4px;padding-top:6px}
+.sub-head h3{font-size:1.12rem}
+.group-title{font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-3)}
+
+.pill{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.pill--bad{background:var(--bad-soft);color:var(--bad)} .pill--good{background:var(--good-soft);color:var(--good)}
+.pill--warn{background:var(--warn-soft);color:var(--warn)} .pill--acc{background:var(--accent-soft);color:var(--accent)}
+.pill--mute{background:var(--code);color:var(--fg-2)}
+
+/* snimci aplikacije sa oznakama */
+.shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),380px));gap:28px 26px;align-items:start}
+.shots--wide{grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))}
+.shot{display:grid;gap:12px;align-content:start;margin:0;min-width:0}
+.shot-frame{position:relative;border-radius:22px;overflow:hidden;border:1px solid rgba(11,18,32,.16);box-shadow:0 18px 40px -18px rgba(11,18,32,.38),0 0 0 5px rgba(11,18,32,.05);background:#fff;line-height:0}
+.shot-frame--desk{border-radius:14px}
+.shot-frame img{display:block;width:100%;height:auto}
+.shot figcaption{display:grid;gap:2px}
+.shot figcaption b{font-size:.94rem}
+.shot figcaption span{font-size:.84rem;color:var(--fg-3)}
+.leg{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.leg--2{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:8px 28px}
+.leg li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:start;font-size:.84rem;color:var(--fg-2);line-height:1.4}
+.leg li::before{content:attr(data-n);width:20px;height:20px;border-radius:50%;background:#e5484d;color:#fff;font:800 .68rem/20px var(--font);text-align:center;margin-top:1px}
+.leg li b{color:var(--fg)}
+
+/* tabele i kartice */
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-3);text-align:left;font-weight:800;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--fg-2)}
+td:first-child{color:var(--fg)}
+tr:last-child td{border-bottom:0}
+.scroll-x{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:16px}
+.scroll-x table.wide{min-width:760px}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.sw{display:inline-block;width:16px;height:16px;border-radius:5px;border:1px solid rgba(0,0,0,.14);vertical-align:-3px;margin-right:8px}
+.ok{color:var(--good);font-weight:800}.no{color:var(--bad);font-weight:800}
+.cols-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}
+.cols-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:grid;gap:12px;align-content:start;min-width:0}
+.card--rec{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.card p{font-size:.88rem;color:var(--fg-2)}
+.opts{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.opts li{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;font-size:.88rem;color:var(--fg-2)}
+.opts li b{color:var(--fg)}
+.opts li i{font-style:normal;font-weight:800;color:var(--fg-3)}
+.opts li.rec i{color:var(--accent)}
+.undo{font-size:.8rem;color:var(--fg-3);border-top:1px dashed var(--line);padding-top:10px}
+.phases{display:grid;gap:12px;padding:0;margin:0;list-style:none;counter-reset:ph}
+.phases>li{counter-increment:ph;display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.phases>li::before{content:counter(ph);width:36px;height:36px;border-radius:12px;background:var(--accent-soft);color:var(--accent);font-weight:800;display:grid;place-items:center}
+.phases b{display:block;font-size:.95rem}.phases span{font-size:.86rem;color:var(--fg-2)}
+.phases ul{margin:6px 0 0;padding-left:18px;font-size:.84rem;color:var(--fg-2);display:grid;gap:2px}
+.verify{display:grid;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px}
+.verify ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:.88rem;color:var(--fg-2)}
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px}
+.flow>div{flex:1 1 150px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:12px;font-size:.84rem;color:var(--fg-2);display:grid;gap:4px;align-content:start}
+.flow>div b{color:var(--fg);font-size:.88rem}
+.flow>i{align-self:center;color:var(--fg-3);font-style:normal;font-weight:800}
+.td-note{font-size:.8rem;color:var(--fg-3)}
+
+/* prototip */
+.proto{display:grid;gap:18px}
+.stage{background:var(--stage);border-radius:28px;padding:24px 14px;display:grid;justify-items:center;gap:18px;width:100%}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.bb{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 15px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:700 .84rem/1 var(--font);cursor:pointer}
+.bb:hover{border-color:var(--accent);color:var(--accent)}
+.bb[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.proto-frame{border-radius:36px;border:1px solid rgba(11,18,32,.14);box-shadow:0 30px 60px -20px rgba(11,18,32,.35),0 0 0 6px rgba(11,18,32,.06)}
+.proto-frame.phone-mode{width:min(390px,100%);height:780px}
+.proto-frame.desk-mode{width:100%;max-width:1180px;height:780px;border-radius:18px}
+.now{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:grid;gap:10px}
+.now ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:.88rem;color:var(--fg-2)}
+.now li b{color:var(--fg)}
+.row-phones{display:flex;flex-wrap:wrap;justify-content:center;gap:34px 26px}
+.row-phones .pw{width:min(372px,100%);display:grid;gap:12px;justify-items:center}
+.phone{position:relative;width:100%;height:700px;border-radius:34px;border:1px solid rgba(11,18,32,.14);box-shadow:0 30px 60px -20px rgba(11,18,32,.35),0 0 0 6px rgba(11,18,32,.06)}
+.cap{display:grid;gap:4px;justify-items:center;text-align:center;max-width:372px}
+.cap b{font-size:.92rem}
+.cap span{font-size:.82rem;color:var(--fg-3)}
+
+@media (max-width:700px){
+  .wrap{gap:54px}
+  .proto-frame.phone-mode{border-radius:32px}
+  .stage{padding:18px 8px}
+  .scroll-x table.stack,.scroll-x table.stack tbody,.scroll-x table.stack tr,.scroll-x table.stack td{display:block;min-width:0!important}
+  .scroll-x table.stack thead{display:none}
+  .scroll-x table.stack tr{padding:12px 14px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+  .scroll-x table.stack tr:last-child{border-bottom:0}
+  .scroll-x table.stack td{padding:0;border:0;white-space:normal;grid-column:1/-1}
+  .scroll-x table.stack td[data-half]{grid-column:auto}
+  .scroll-x table.stack td::before{content:attr(data-l);display:block;font-size:.66rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-3);margin-bottom:1px}
+  .scroll-x table.stack td:first-child::before{display:none}
+  .scroll-x table.stack td.num{white-space:normal}
+}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
+/*__APP_CSS__*/
+</style>
+
+<main class="wrap">
+
+<header class="top">
+  <span class="eyebrow">Dispečer · Firma · 05.10.2026</span>
+  <h1>Dizajn stranice Firma</h1>
+  <p class="lede">Dispečer otvara Firmu da odredi koliko gotovine kurir smije držati, kako se dijele narudžbe i sa kojim restoranima radi. Pokrenuo sam aplikaciju (grana <span class="mono">master</span>) u pravom Chrome-u nad lažnim API-jem oblikovanim po tipovima iz koda i izmjerio šta stranica radi. Na telefonu ne piše koja je firma, a dugme Sačuvaj je tek na trećem ekranu. Isključi li se i ponovo uključi limit gotovine, upiše se 0 KM. Poruka o grešci pri čuvanju nastane 196 px iznad onoga što dispečer vidi. Promjena firme u meniju tiho briše unos. Ispod je predlog: stranica kao radni prostor sa istim redovima, listovima i bojama kao Profil, Kuriri i Poruke, uz prototip koji radi.</p>
+  <nav class="nav" aria-label="Sadržaj">
+    <a href="#analiza">Analiza</a><a href="#predlog">Predlog</a><a href="#stanja">Stanja</a><a href="#dijelovi">Dijelovi</a><a href="#podaci">Podaci</a><a href="#spec">Specifikacija</a><a href="#odluke">Odluke</a><a href="#izrada">Redosled izrade</a><a href="#backend">Backend</a><a href="#provjera">Provjera</a>
+  </nav>
+</header>
+
+<section class="facts" aria-label="Ključni nalazi">
+  <div class="fact"><span class="tag">Limit</span><b>0 KM</b><span>postaje limit kad se prekidač „Ograniči gotovinu“ isključi i ponovo uključi, a Sačuvaj uz „Blokiraj“ šalje <span class="mono">cash_limit_amount: 0</span>. Backend 0 tretira kao strogi limit (dokument od 26.08). Nigdje se ne pita „Jesi li siguran?“.</span></div>
+  <div class="fact"><span class="tag">Poruka</span><b>−196 px</b><span>iznad vidljivog dijela je poruka „Ne mogu da sačuvam finansijske postavke.“ kad dispečer klikne Sačuvaj na dnu forme. Nijedno polje nije označeno, a serverova poruka za polje se baca.</span></div>
+  <div class="fact"><span class="tag">Kontrast</span><b>2.3 : 1</b><span>imaju opisi i podnaslovi (<span class="mono">#9aa4b2</span>). „Aktivna saradnja“ je 2.55 : 1, „Restoran vas je isključio“ 2.27 : 1. Granica je 4.5 : 1.</span></div>
+  <div class="fact"><span class="tag">Lista</span><b>10 527 px</b><span>je visina liste sa 150 restorana (70 px po redu), bez brojeva i straničenja. Svih 150 prekidača nema ime za čitač ekrana. Pretraga: 195 ms pri 4× sporijem procesoru.</span></div>
+  <div class="fact"><span class="tag">Valuta</span><b>11 od 12</b><span>restorana dobije upozorenje „Valuta: KM ≠ EUR“ čim se u formi izabere EUR, prije snimanja. Limit ostaje 200, samo se piše „EUR“.</span></div>
+</section>
+
+<!-- ============================================ ANALIZA -->
+<section class="sec" id="analiza">
+  <div class="sec-head">
+    <span class="eyebrow">Analiza</span>
+    <h2>Šta danas ne radi, na stvarnim snimcima</h2>
+    <p class="small">Snimci su iz aplikacije (grana <span class="mono">master</span>, <span class="mono">nuxt dev</span>, računar 1440×900 i telefon 390×844). API je lažan: oblici tačno po <span class="mono">types/finance-settings.ts</span> i <span class="mono">types/restaurant-cooperation.ts</span>, vrijednosti izmišljene (firma 24, 12 restorana, 150 za mjerenje liste). Brojevi na slikama odgovaraju spisku ispod slike. Svaki broj koji zavisi od količine podataka (12, 150, 196) važi za te probne podatke, ponašanje koje ga izaziva je u kodu. Nalazi koji dolaze iz dokumenata, a ne iz mjerenja, označeni su kao takvi. Prvi pokušaj ovog dokumenta pretpostavljao je tabove Kuriri i Kase kurira. Stvarna stranica ima samo dva taba (Finansijske postavke i Saradnja sa restoranima), a kuriri i kase žive na stranicama Kuriri i Finansije.</p>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Okvir i prvi ekran</span><h3>Na telefonu ne piše koja je firma, a Sačuvaj je tek na trećem ekranu</h3></div>
+  <div class="shots">
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_p-top__" alt="Telefon: vrh stranice Firma, zaglavlje Firma #24, dva taba i prekidač Ograniči gotovinu" width="780" height="1688"></div>
+      <figcaption><b>Vrh stranice, 390×844</b><span>Prvi ekran, bez ijednog polja za unos osim prekidača.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Firma se bira u ladici.</b> Izbor je u <span class="mono">DispatcherSidebar</span>, a ispod 1280 px sidebar je skrivena ladica. Na ovoj stranici dispečer nigdje ne vidi koju firmu uređuje.</span></li>
+        <li data-n="2"><span><b>Naslov je „Firma #24“.</b> Kod: <span class="mono">`Firma #${companyId}`</span>. Naziv firme postoji u spremištu (<span class="mono">selectedCompany.name</span>), ali se ovdje ne koristi.</span></li>
+        <li data-n="3"><span><b>Dvije pločice kao donji meni kurira.</b> Natpis 11.2 px; aktivni je plavi na plavom, 4.12 : 1. Strelica desno ne mijenja tab (<span class="mono">aria-selected</span> ostaje isti), nema <span class="mono">tabpanel</span> ni <span class="mono">tabindex</span>.</span></li>
+        <li data-n="4"><span><b>Prekidač bez imena, 33×40 px.</b> Čitač ekrana kaže samo „checkbox“. Isto za prekidač cijene i svaki red restorana (na tabu Restorani 14 neimenovanih polja: 12 prekidača, pretraga i izbor filtera).</span></li>
+        <li data-n="5"><span><b>Obje poruke o ponašanju su stalno prikazane</b>, uz izabranu vrijednost „Blokiraj (BLOCK)“. Šifra iz baze je u natpisu.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_p-save__" alt="Telefon: dno stranice Firma sa dugmetom Sačuvaj postavke" width="780" height="1688"></div>
+      <figcaption><b>Dno forme, 390×844</b><span>Dugme je na 1 545 px od vrha, dakle na trećem ekranu.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Drugi neimenovani prekidač</b> (raspis cijene). Opis ispod je 12.5 px, <span class="mono">#9aa4b2</span> na <span class="mono">#f5f6f8</span>: 2.33 : 1.</span></li>
+        <li data-n="2"><span><b>Sačuvaj postavke:</b> 36 px visoko, uvijek aktivno, i kad nema izmjene. Nigdje ne piše da postoje nesačuvane izmjene. Dok je dispečer u sredini forme, dugme nije na ekranu.</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Finansijske postavke, računar</span><h3>Jedna forma od 1 117 px miješa novac, dodjelu narudžbi i ono što vidi kupac</h3></div>
+  <figure class="shot">
+    <div class="shot-frame shot-frame--desk"><img src="__IMG_d-finance__" alt="Računar: tab Finansijske postavke sa svim poljima i dugmetom Sačuvaj postavke" width="1176" height="1117"></div>
+    <figcaption><b>Finansijske postavke, 1440×900 (bez sidebara)</b><span>11 polja, 9 stalnih pomoćnih tekstova, dugme Sačuvaj na 1 037 px (ispod prvog ekrana).</span></figcaption>
+    <ul class="leg leg--2">
+      <li data-n="1"><span><b>Isti naslov „Firma #24“.</b> Na računaru sidebar pokazuje naziv, ali strana koja se zove Firma ne nosi ni naziv, ni grad, ni valutu.</span></li>
+      <li data-n="2"><span><b>Dva taba od po 548 px.</b> Dvije pločice za dvije opcije, visina 57 px, natpis 11.8 px.</span></li>
+      <li data-n="3"><span><b>„Ograniči gotovinu“.</b> Prekidač bez imena. Isključi pa uključi: polje postaje <b>0</b> i Sačuvaj šalje 0 KM uz Blokiraj (izmjereno, vidi tabelu).</span></li>
+      <li data-n="4"><span><b>„Blokiraj (BLOCK)“ i oba objašnjenja.</b> „Samo upozori – kurir dobija upozorenje“ ne važi: prema dokumentu od 28.09 upozorenje ne stiže nikome.</span></li>
+      <li data-n="5"><span><b>Dodjela narudžbi:</b> siva kartica sa bijelim poljima u sivoj kartici u bijeloj kartici. Natpis „bez provjere dostupnosti“ je samo djelimično tačan (dokument od 21.09).</span></li>
+      <li data-n="6"><span><b>Sačuvaj postavke</b> je poslije svega, 36 px visoko. Sedam polja i dva prekidača prije njega, a nijedno se ne označi kad server odbije.</span></li>
+      <li data-n="7"><span><b>Period isplate:</b> broj bez pravila. Prazno polje se šalje kao <span class="mono">""</span>. Hint „1 = dnevno, 7 = nedeljno“ umjesto izbora.</span></li>
+    </ul>
+  </figure>
+
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Nalaz</th><th>Kako je izmjereno</th><th>Šta to znači dispečeru</th></tr></thead>
+    <tbody>
+      <tr><td><b>Limit 0 KM bez pitanja</b></td><td data-l="Kako je izmjereno">Isključen pa uključen prekidač: polje <span class="mono">0</span>. Sačuvaj poslao <span class="mono">{cash_limit_amount: 0, cash_limit_enforcement: "BLOCK", payout_period_days: 1, currency: "KM", daily_handover_time: "14:16", …}</span>. U kodu: <span class="mono">settings.cash_limit_amount ?? 0</span>.</td><td data-l="Značenje">Svaki kurir koji drži ijedan iznos ostane bez novih narudžbi. Prozor ne pokazuje koliko je kurira pogođeno.</td></tr>
+      <tr><td><b>Promjena firme briše unos</b></td><td data-l="Kako je izmjereno">Limit upisan 350, tab Restorani i nazad: ostao 350. Firma 27 u meniju: polje 150, bez dijaloga. Naslov „Firma #27“.</td><td data-l="Značenje">Prebacivanje taba čuva izmjenu, promjena firme u ladici ne. Dispečer koji vodi više firmi gubi izmjenu bez znaka.</td></tr>
+      <tr><td><b>Nesnimljena valuta mijenja drugi tab</b></td><td data-l="Kako je izmjereno">Izabran EUR u formi: natpis „Limit gotovine (EUR)“, vrijednost 200, a na tabu Restorani 11 od 12 redova nosi „Valuta: KM ≠ EUR“.</td><td data-l="Značenje">Upozorenja se računaju iz izabrane, a ne iz sačuvane valute. Limit se ne preračunava, samo mijenja jedinica.</td></tr>
+      <tr><td><b>Greška pri čuvanju je van vidokruga</b></td><td data-l="Kako je izmjereno">Server vrati 422 za <span class="mono">payout_period_days</span>. Poruka „Ne mogu da sačuvam finansijske postavke.“ u <span class="mono">PageAlert</span> na vrhu, gornja ivica 196 px iznad prozora (korisnik je na dnu). 0 polja sa greškom. <span class="mono">getValidationMessage</span> postoji u <span class="mono">utils/errorMessage.ts</span>, ali ga <span class="mono">useFinanceSettings</span> ne koristi.</td><td data-l="Značenje">Dispečer klikne Sačuvaj, ništa se ne desi na ekranu koji gleda. Ne zna šta je pogrešno.</td></tr>
+      <tr><td><b>Pad učitavanja: prazna kartica</b></td><td data-l="Kako je izmjereno">GET <span class="mono">finance-settings</span> vrati 500: kartica od 82 px sa naslovom i podnaslovom, 0 dugmadi, poruka na vrhu.</td><td data-l="Značenje">Nema „Pokušaj ponovo“. Jedini izlaz je osvježiti stranicu.</td></tr>
+      <tr><td><b>Sporo učitavanje</b></td><td data-l="Kako je izmjereno">Odgovor od 2.5 s: kartica „Učitavanje…“ visoka 197 px, poslije 919 px.</td><td data-l="Značenje">Nema skeletona, sadržaj skoči za 722 px.</td></tr>
+      <tr><td><b>Tastatura</b></td><td data-l="Kako je izmjereno">Strelica desno na prvom tabu: <span class="mono">aria-selected</span> ostaje [true, false]. <span class="mono">role=tablist</span> postoji, ali tabovi nemaju <span class="mono">tabindex</span>, a sadržaj nema <span class="mono">role=tabpanel</span>.</td><td data-l="Značenje">Obrazac tabova nije potpun za čitač ekrana ni za tastaturu.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Stanja koja danas postoje</span><h3>Pad učitavanja i ono što se vidi dok se čeka</h3></div>
+  <div class="shots shots--wide">
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-loadfail__" alt="Računar: kartica Finansijske postavke bez sadržaja poslije greške učitavanja" width="1176" height="300"></div>
+      <figcaption><b>Pad učitavanja (500)</b><span>Kartica sa naslovom i ništa više. Poruka je na vrhu stranice, ne u kartici.</span></figcaption>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-422__" alt="Računar: dno forme poslije klika na Sačuvaj, bez vidljive poruke o grešci" width="1176" height="900"></div>
+      <figcaption><b>Server odbio izmjenu (422)</b><span>Prozor je na dnu forme, poruka je 196 px iznad.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Sačuvaj je pritisnuto</b>, a na ekranu se ništa nije promijenilo.</span></li>
+        <li data-n="2"><span><b>Polje sa greškom nije označeno.</b> Prazno „Period isplate“ je poslato kao <span class="mono">""</span>.</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Šta forma obećava</span><h3>Natpisi koji tvrde više nego što backend potvrđuje</h3></div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Natpis na ekranu</th><th>Šta kažu dokumenti</th><th>Izvor</th></tr></thead>
+    <tbody>
+      <tr><td>„Samo upozori – kurir prihvata narudžbu, dobija samo upozorenje.“</td><td data-l="Dokument">Odgovor na <span class="mono">offer-response</span> nema <span class="mono">warning</span>. Kurir danas nema nijedan tok kojim bi saznao da je prešao limit (28.09, potvrđeno).</td><td data-l="Izvor"><span class="mono">otvorene-stavke-tracker.md</span></td></tr>
+      <tr><td>„Blokiraj – kurir ne može prihvatiti novu narudžbu.“</td><td data-l="Dokument">Kandidat preko BLOCK limita svejedno dobije ponudu, backend ga odbije tek pri prihvatanju (409).</td><td data-l="Izvor"><span class="mono">otvorene-stavke-tracker.md</span></td></tr>
+      <tr><td>„Sve aktivne kurire firme (bez provjere dostupnosti)“</td><td data-l="Dokument">Front je 21.09 sam zapisao da je natpis samo djelimično tačan (kurir na drugoj dostavi se i dalje isključuje, a ručna ponuda ima svoju provjeru). Odgovor backenda nije u repou.</td><td data-l="Izvor"><span class="mono">21_09_2026_Frontend_pitanja_za_backend.textile</span></td></tr>
+      <tr><td>„Vreme dnevne predaje“, „Period isplate“</td><td data-l="Dokument">Efekat ovih polja nisam našao ni u jednom dokumentu u repou. Znamo da se čuvaju, ne znamo šta pokreću.</td><td data-l="Izvor">pretraga docs/2026</td></tr>
+      <tr><td>(komentar u kodu) „TRENUTNO NEMA stvarnog efekta na dodjelu“</td><td data-l="Dokument">Zastarjelo: automatska runda radi od 21.09, a <span class="mono">OPEN_TO_ALL</span> od 28.09. Komentar u <span class="mono">types/finance-settings.ts</span> to ne zna.</td><td data-l="Izvor"><span class="mono">otvorene-stavke-tracker.md</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Saradnja sa restoranima</span><h3>Prekidač je jedina radnja, a status se čita jedva</h3></div>
+  <figure class="shot">
+    <div class="shot-frame shot-frame--desk"><img src="__IMG_d-rest__" alt="Računar: tab Saradnja sa restoranima, lista restorana sa prekidačima" width="1176" height="800"></div>
+    <figcaption><b>Saradnja sa restoranima, 1440×900</b><span>12 restorana, svaki red 70 px, iznad liste samo pretraga i izbor Svi / Aktivni / Suspendovani.</span></figcaption>
+    <ul class="leg leg--2">
+      <li data-n="1"><span><b>Opet „Firma #24“.</b> Nigdje ne piše koliko restorana je aktivno, a koliko ne.</span></li>
+      <li data-n="2"><span><b>Filter bez brojeva.</b> Svi / Aktivni / Suspendovani. „Aktivni“ vraća 10 redova: 8 piše „Aktivna saradnja“, jedan „Restoran vas je isključio“, jedan „Sopstvena dostava“.</span></li>
+      <li data-n="3"><span><b>„Aktivna saradnja“ zelena na blago zelenoj</b> (<span class="mono">#00b37e</span>): 2.55 : 1. Status je glavna informacija reda.</span></li>
+      <li data-n="4"><span><b>Narandžasti čip „Valuta: EUR ≠ KM“</b> je jedini znak da se cijene ne preračunavaju. Nema filtera za takve restorane.</span></li>
+      <li data-n="5"><span><b>„Restoran vas je isključio“</b> žuto 2.27 : 1, a prekidač stoji uključen. Red izgleda kao da radi.</span></li>
+      <li data-n="6"><span><b>Prekidač suspenduje saradnju jednim dodirom</b> (zatim dijalog sa neobaveznim razlogom). Radnja koja zaustavlja narudžbe restorana je u istom redu kao informacija.</span></li>
+      <li data-n="7"><span><b>Info dugme</b> otvara dijalog „Kontakt podaci restorana“ sa 11 redova.</span></li>
+    </ul>
+  </figure>
+
+  <div class="shots">
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_p-rest__" alt="Telefon: tab Saradnja sa restoranima" width="780" height="1688"></div>
+      <figcaption><b>Lista na telefonu, 390×844</b><span>Prvih pet redova. Pretraga i filter dijele jedan red.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Naslov bez naziva.</b> Isto kao na tabu Finansije.</span></li>
+        <li data-n="2"><span><b>Pretraga je odsječena:</b> „Pretraži po na…“. Polje nema labelu, samo placeholder.</span></li>
+        <li data-n="3"><span><b>Status 2.55 : 1</b> na zelenoj pozadini, a zelena traka lijevo i zelena pozadina čine red „aktivnim“.</span></li>
+        <li data-n="4"><span><b>Čip „Valuta“</b> narandžast na bež.</span></li>
+        <li data-n="5"><span><b>Prekidač je 33×40 px.</b> Uključen = saradnja radi. Jedan dodir ga isključuje i otvara dijalog.</span></li>
+        <li data-n="6"><span><b>Info dugme 40×40 px stoji tik uz prekidač.</b> Dva mala cilja jedan do drugog: promašaj ide u suspenziju.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_p-detail__" alt="Telefon: dijalog Kontakt podaci restorana" width="780" height="1688"></div>
+      <figcaption><b>Kontakt podaci restorana</b><span>Središnji dijalog od 11 redova.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Tri od četiri kontakt polja su „-“.</b> Praznina izgleda kao greška, a ne kao „nije upisano“. JIB, PIB, kontakt osoba i telefon su prazni.</span></li>
+        <li data-n="2"><span><b>Dijalog, ne donji list.</b> Profil, Kuriri i Poruke koriste <span class="mono">AppSheet</span>. Ovdje je <span class="mono">v-dialog</span> sa tekstualnim dugmetom „Zatvori“.</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <figure class="shot">
+    <div class="shot-frame shot-frame--desk"><img src="__IMG_d-unsaved-eur__" alt="Računar: tab Saradnja sa restoranima sa upozorenjima Valuta KM ≠ EUR na većini redova" width="1176" height="640"></div>
+    <figcaption><b>Poslije izbora EUR u formi, prije snimanja</b><span>Isti restorani, nova upozorenja.</span></figcaption>
+    <ul class="leg leg--2">
+      <li data-n="1"><span><b>Prvi čip</b> „Valuta: KM ≠ EUR“.</span></li>
+      <li data-n="2"><span><b>Peti čip.</b> 11 od 12 redova nosi upozorenje; jedini bez njega je restoran koji je zaista u EUR. Rezultat nesnimljenog izbora.</span></li>
+    </ul>
+  </figure>
+
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Nalaz</th><th>Izmjereno</th><th>Posljedica</th></tr></thead>
+    <tbody>
+      <tr><td><b>Lista bez straničenja</b></td><td data-l="Izmjereno">150 restorana: 10 527 px visine, 153 polja za unos. Upis upita „ko“ u pretragu traje 195 ms pri 4× sporijem procesoru (<span class="mono">Emulation.setCPUThrottlingRate</span>).</td><td data-l="Posljedica">Dispečer sa velikom bazom skroluje, a ne vidi koliko ih ima. Podnošljivo, ali bez brojeva.</td></tr>
+      <tr><td><b>Neimenovana polja</b></td><td data-l="Izmjereno">Svih 12 prekidača, i pretraga, i izbor filtera: 14 vidljivih polja bez imena. Mete: prekidač 33×40, info dugme 40×40, „Nazad na početnu“ 36×36, Sačuvaj 36 px.</td><td data-l="Posljedica">Čitač ekrana ne zna koji restoran uključuje. Prst promašuje.</td></tr>
+      <tr><td><b>Greška u redu je zdrava</b></td><td data-l="Izmjereno">PATCH vrati 403: prekidač se vrati, piše „Nemaš pristup ovoj vezi - restoran je vezan za drugu firmu za dostavu.“</td><td data-l="Posljedica">Ovo radi dobro. Poruka je opet na vrhu stranice, ne uz red.</td></tr>
+      <tr><td><b>Suspenzija bez posljedice</b></td><td data-l="Izmjereno">Dijalog: „Narudžbe restorana … neće biti vidljive kuririma“ i neobavezan razlog, bez brzog izbora kakav ima Suspenduj kurira.</td><td data-l="Posljedica">Razlog se piše ručno svaki put. Vidi ga ko otvori red, ali ne i ko je suspendovao ni kada.</td></tr>
+      <tr><td><b>Dva neovisna prekidača, jedan se vidi</b></td><td data-l="Izmjereno">Restoran vas je isključio (<span class="mono">active_company: false</span>), vi niste (<span class="mono">active_restoran: true</span>): prekidač uključen, status žut. „Suspendovali ste“ i „isključio vas je restoran“ istovremeno: piše samo prvo.</td><td data-l="Posljedica">Dispečer ne može da filtrira restorane koji su ga isključili.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Šta stranica ne pokazuje i šta je dobro</span><h3>Zvuči kao profil firme, a ne nosi nijedan podatak o firmi</h3></div>
+  <div class="cols-2">
+    <div class="card">
+      <h3>Nedostaje</h3>
+      <ul class="opts">
+        <li><i>•</i><span><b>Naziv, grad i valuta firme</b> u zaglavlju. Dostupni su u <span class="mono">my-companies</span> (<span class="mono">name</span>, <span class="mono">city_name</span>, <span class="mono">currency</span>), samo se ne koriste.</span></li>
+        <li><i>•</i><span><b>Posljedica limita.</b> Dispečer bira iznos a ne vidi koliko kurira je odmah preko njega, iako <span class="mono">couriers-balance</span> to zna.</span></li>
+        <li><i>•</i><span><b>Brojevi saradnje:</b> koliko restorana radi, koliko je suspendovano, koliko ih je isključilo vas.</span></li>
+        <li><i>•</i><span><b>Provizija</b> je zaključano polje umjesto teksta. Pojavljuje se kao polje koje se ne može uređivati.</span></li>
+        <li><i>•</i><span><b>Profil firme</b> (telefon, e-pošta, kontakt osoba, JIB, PIB) ne postoji ni u jednom dispečerskom odgovoru; vidi pitanje B2.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Dobro i ostaje</h3>
+      <ul class="opts">
+        <li class="rec"><i>✓</i><span><b>Lijeni tabovi</b> (<span class="mono">openedTabs</span>): tab povlači podatke tek kad se otvori.</span></li>
+        <li class="rec"><i>✓</i><span><b>Optimistički prekidač sa povratkom</b> i posebnim porukama za 403 i 404 (<span class="mono">useRestaurantCooperation</span>).</span></li>
+        <li class="rec"><i>✓</i><span><b>Razlika između bez limita i limita 0</b> (<span class="mono">limitEnabled</span>), pravila 1–50 i 5–120, zavisna polja skrivena za „Svi kuriri“, zadržana stara vrijednost <span class="mono">BEST_MATCH</span>.</span></li>
+        <li class="rec"><i>✓</i><span><b>Valuta firme</b> sa liste iz API-ja (<span class="mono">available_currencies</span>), zadržana snimljena vrijednost van liste.</span></li>
+        <li class="rec"><i>✓</i><span><b>Imena latinicom</b> (<span class="mono">toLatin</span>), pretraga bez dijakritika, validacija prije slanja.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ PREDLOG -->
+<section class="sec" id="predlog">
+  <div class="sec-head">
+    <span class="eyebrow">Predlog</span>
+    <h2>Firma kao radni prostor: pravila, restorani i njihove posljedice</h2>
+    <p class="small">Isti jezik kao Profil, Kuriri i Poruke: bijele kartice radijusa 20, redovi od 64 px sa ikonom, donji listovi, tonirane poruke, tamno dugme od 52 px, mete od 44 px. Postavke prestaju da budu jedna forma i postaju redovi, a svaka postavka ima svoj editor sa Sačuvaj uz polje. Restorani prestaju da budu prekidači i postaju lista sa stanjem, a radnja se prebacuje u detalj. Na računaru je spisak lijevo (400 px) a editor ili detalj desno, kao na stranici Kuriri.</p>
+  </div>
+
+  <div class="cols-3">
+    <div class="card"><h3>Pravilo uz posljedicu</h3><p>Dok dispečer kuca limit, ekran računa nad <span class="mono">couriers-balance</span> koliko kurira je odmah preko njega i šta im se tada dešava. Nula dobija crveno upozorenje sa brojem pogođenih.</p></div>
+    <div class="card"><h3>Opasno nije na prvom dodiru</h3><p>Suspenzija restorana je dugme u detalju, uz brz izbor razloga i rečenicu šta se dešava sa narudžbama. Prekidač u redu nestaje.</p></div>
+    <div class="card"><h3>Svaka izmjena ima mjesto za grešku</h3><p>Polje uz grešku je označeno, poruka stoji ispod njega, a ono što server odbije dolazi uz isto polje. Dugme Sačuvaj je u istom prozoru, uvijek na vidiku.</p></div>
+  </div>
+
+  <div class="proto">
+    <div class="ctl" role="group" aria-label="Izbor uređaja i početak">
+      <button type="button" class="bb" id="dev-phone" aria-pressed="true">Telefon</button>
+      <button type="button" class="bb" id="dev-desk" aria-pressed="false">Računar</button>
+      <button type="button" class="bb" id="proto-reset">Počni ispočetka</button>
+    </div>
+    <div class="stage"><div class="apx proto-frame phone-mode" id="proto"></div></div>
+    <div class="now">
+      <h4>Šta probati (podaci su izmišljeni)</h4>
+      <ul>
+        <li><b>Limit gotovine.</b> Otvori red, upiši 150 pa 0, pa obriši polje. Prikaz „preko limita“ se računa uživo iz osam primjernih kurira.</li>
+        <li><b>Nesačuvano.</b> Promijeni vrijednost pa izaberi drugi red ili tab: pita se šta sa izmjenom (na telefonu: X ili pozadina).</li>
+        <li><b>Dodjela.</b> Izaberi „Prvih N najbližih“: pojave se broj kurira, vrijeme čekanja i šta se desi kad niko ne odgovori, uz rečenicu šta će se desiti.</li>
+        <li><b>Valuta.</b> Izaberi EUR: piše šta se ne preračunava i koliko restorana je u drugoj valuti. Tek Sačuvaj mijenja stranicu.</li>
+        <li><b>Restorani.</b> Filtriraj „Isključio vas“, otvori Pekaru, pa Suspenduj. Otvori i „Pizzeria Napoli“ i uključi saradnju. Tab sa računara pokazuje i listu i detalj.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Šta se mijenja i zašto</span><h3>Svaki nalaz iz analize ima rješenje u prototipu</h3></div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Nalaz</th><th>Rješenje</th><th>Gdje se vidi</th></tr></thead>
+    <tbody>
+      <tr><td>Na telefonu ne piše koja je firma; naslov „Firma #24“</td><td data-l="Rješenje">Naslov je naziv firme (latinicom), podnaslov grad i valuta.</td><td data-l="Gdje">Zaglavlje</td></tr>
+      <tr><td>Forma od 1 117 px, Sačuvaj na dnu</td><td data-l="Rješenje">Pet grupa redova; svaka postavka ima svoj editor i svoje Sačuvaj.</td><td data-l="Gdje">Postavke</td></tr>
+      <tr><td>Limit postaje 0 pri ponovnom uključivanju</td><td data-l="Rješenje">Polje je prazno, Sačuvaj onemogućen, poruka „0 znači da kurir ne smije držati nikakvu gotovinu“. Nula dobija crveno upozorenje.</td><td data-l="Gdje">Limit gotovine, isključi pa uključi</td></tr>
+      <tr><td>Nema posljedice izmjene limita</td><td data-l="Rješenje">Računa se nad <span class="mono">couriers-balance</span>: „Sa 150,00 KM: 2 kurira su odmah preko limita.“</td><td data-l="Gdje">Limit gotovine</td></tr>
+      <tr><td>„Blokiraj (BLOCK)“, obje poruke stalno vidljive</td><td data-l="Rješenje">Dvije kartice za izbor sa po jednim opisom. „Samo obavijesti“ kaže samo da kurir i dalje prima narudžbe.</td><td data-l="Gdje">Limit gotovine</td></tr>
+      <tr><td>Greška izvan vidokruga, bez polja</td><td data-l="Rješenje">Tonirana poruka na vrhu lista i poruka uz polje; Sačuvaj uvijek u istom prozoru.</td><td data-l="Gdje">Stanja: greška servera</td></tr>
+      <tr><td>Nesnimljeno nestaje pri promjeni firme</td><td data-l="Rješenje">Pitanje „Imaš nesačuvane izmjene“ (isto kao <span class="mono">AppSheet</span>), i pri promjeni reda, taba i firme.</td><td data-l="Gdje">Nesačuvane izmjene</td></tr>
+      <tr><td>Period isplate je broj bez pravila</td><td data-l="Rješenje">Izbor: svaki dan, sedmično, svakih 15 dana, ili „Drugo“ sa poljem (cijeli broj, najmanje 1).</td><td data-l="Gdje">Isplata zarade</td></tr>
+      <tr><td>Valuta se mijenja bez upozorenja</td><td data-l="Rješenje">Izbor i upozorenje: „Iznosi se ne preračunavaju“, uz limit i broj restorana u drugoj valuti. Brojač „Druga valuta“ računa iz sačuvane valute.</td><td data-l="Gdje">Valuta firme</td></tr>
+      <tr><td>Pad učitavanja: prazna kartica</td><td data-l="Rješenje">Poruka sa „Pokušaj ponovo“ u mjestu liste; skeleton dok se čeka.</td><td data-l="Gdje">Stanja</td></tr>
+      <tr><td>Status restorana 2.3–2.5 : 1; prekidač je radnja</td><td data-l="Rješenje">Pilula sa tačkom i tekstom (tamni tekst na blagom tonu, ≥ 5.3 : 1); radnja je dugme „Suspenduj“ u detalju.</td><td data-l="Gdje">Restorani</td></tr>
+      <tr><td>Filter bez brojeva; „isključio vas“ nije filter</td><td data-l="Rješenje">Pločice stanja sa brojevima: Svi, Aktivna, Suspendovali ste, Isključio vas, Sopstvena dostava; oznaka „Druga valuta“.</td><td data-l="Gdje">Restorani</td></tr>
+      <tr><td>Prazna polja kao „-“, dijalog od 11 redova</td><td data-l="Rješenje">Detalj sa ikonama, „Nije upisano“ sivo, brzim radnjama (Pozovi, E-pošta, Mapa, Suspenduj) kao kod kurira.</td><td data-l="Gdje">Restorani, detalj</td></tr>
+      <tr><td>Prekidači bez imena, mete 33–40 px</td><td data-l="Rješenje">Prekidač sa labelom, mete 44 px, redovi su dugmad sa punim opisom za čitač ekrana.</td><td data-l="Gdje">Cijeli ekran</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================ STANJA -->
+<section class="sec" id="stanja">
+  <div class="sec-head">
+    <span class="eyebrow">Stanja</span>
+    <h2>Učitavanje, greška, prazno, nesačuvano</h2>
+    <p class="small">Isti prototip u deset trenutaka. Svaki telefon je živa instanca, pa se može kliknuti. Tekstovi poruka servera u stanju „server odbio“ su primjer; stvarni tekst stiže u <span class="mono">errors.polje</span>.</p>
+  </div>
+  <div class="row-phones">
+    <div class="pw"><div class="phone apx" data-st="loading"></div><div class="cap"><b>Učitavanje</b><span>Skeleton u obliku liste, ne tekst „Učitavanje…“.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="error"></div><div class="cap"><b>Pad učitavanja</b><span>Poruka u mjestu liste, „Pokušaj ponovo“ je dugme.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="field"></div><div class="cap"><b>Greška u polju</b><span>Polje i poruka su označeni prije slanja; Sačuvaj je onemogućen.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="server"></div><div class="cap"><b>Server odbio</b><span>Tonirana poruka na vrhu lista i poruka uz polje.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="ask"></div><div class="cap"><b>Nesačuvane izmjene</b><span>Zatvaranje pita; „Nastavi uređivanje“ ima fokus.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="zero"></div><div class="cap"><b>Limit 0</b><span>Crveno upozorenje sa brojem pogođenih kurira.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="theirs"></div><div class="cap"><b>Restoran vas je isključio</b><span>Jasno čija je odluka; radnja ostaje dostupna.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="suspend"></div><div class="cap"><b>Suspenzija</b><span>Brzi razlozi i rečenica o posljedici.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="empty"></div><div class="cap"><b>Nema restorana</b><span>Kaže šta će se pojaviti i odakle poziv dolazi.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="noresult"></div><div class="cap"><b>Nema rezultata</b><span>Pretraga bez pogotka, uz „Očisti filtere“.</span></div></div>
+  </div>
+</section>
+
+<!-- ============================================ DIJELOVI -->
+<section class="sec" id="dijelovi">
+  <div class="sec-head">
+    <span class="eyebrow">Dijelovi</span>
+    <h2>Šta se koristi što već postoji, a šta je novo</h2>
+    <p class="small">Skoro sve su već gotove komponente iz Profila, Kuriri i Poruka. Novo su editori postavki, prikaz posljedice limita, red i detalj restorana. Prototip nije Vue, pa se portuju ponašanje i tekstovi, ne markup.</p>
+  </div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Dio</th><th>Stanje</th><th>Gdje</th><th>Šta radi</th></tr></thead>
+    <tbody>
+      <tr><td><b>Zaglavlje firme</b></td><td data-l="Stanje"><span class="pill pill--acc">izmjena</span></td><td data-l="Gdje"><span class="mono">PageHeader.vue</span>, <span class="mono">company.vue</span></td><td data-l="Šta radi">Naslov <span class="mono">toLatin(selectedCompany.name)</span>, podnaslov <span class="mono">city_name · valuta</span>. Bez „Firma #id“.</td></tr>
+      <tr><td><b>Tabovi</b></td><td data-l="Stanje"><span class="pill pill--acc">izmjena</span></td><td data-l="Gdje"><span class="mono">GlobalTabBar.vue</span></td><td data-l="Šta radi">Varijanta „pilule“ (kao <span class="mono">GlobalFilterPill</span>), 44 px, <span class="mono">tabindex</span> i strelice, <span class="mono">role=tabpanel</span>, brojač uz Restorani.</td></tr>
+      <tr><td><b>Grupa i red postavke</b></td><td data-l="Stanje"><span class="pill pill--good">postoji</span></td><td data-l="Gdje"><span class="mono">courier/profile/ProfileSection.vue</span>, <span class="mono">ProfileRow.vue</span></td><td data-l="Šta radi">Eyebrow + kartica radijusa 20, red 64 px sa ikonom, vrijednošću, oznakom i strelicom. Preporuka: premjestiti u <span class="mono">common/</span> (odluka D8).</td></tr>
+      <tr><td><b>Editor postavke</b></td><td data-l="Stanje"><span class="pill pill--warn">novo</span></td><td data-l="Gdje"><span class="mono">company/CompanySettingEditor.vue</span> + sedam formi</td><td data-l="Šta radi">Računar: panel desno. Telefon: <span class="mono">AppSheet</span>. Forme: limit, predaja, isplata, dodjela, skup kurira, cijena, valuta. Provizija je samo tekst.</td></tr>
+      <tr><td><b>Uticaj limita</b></td><td data-l="Stanje"><span class="pill pill--warn">novo</span></td><td data-l="Gdje"><span class="mono">company/CashLimitImpact.vue</span></td><td data-l="Šta radi">Ulaz: iznos, ponašanje, <span class="mono">couriers-balance</span>. Izlaz: tonirana poruka + do 4 kurira sa trakom. Koristi <span class="mono">summarizeCashLimit</span> iz <span class="mono">utils/cashLimit.ts</span> (isto pravilo kao Novčanik i Kuriri).</td></tr>
+      <tr><td><b>Izbor jednog od više</b></td><td data-l="Stanje"><span class="pill pill--good">postoji</span></td><td data-l="Gdje"><span class="mono">common/ChoiceGroup.vue</span></td><td data-l="Šta radi">Kartice (ponašanje, način dodjele, skup) i pilule (isplata, valuta, akcija po isteku). Treba dodati <span class="mono">columns: 1</span>.</td></tr>
+      <tr><td><b>Polje, dugme, poruka, list</b></td><td data-l="Stanje"><span class="pill pill--good">postoji</span></td><td data-l="Gdje"><span class="mono">SheetField</span>, <span class="mono">SheetTextarea</span>, <span class="mono">AppButton</span>, <span class="mono">TintAlert</span>, <span class="mono">AppSheet</span></td><td data-l="Šta radi">Bez izmjena. <span class="mono">useSheetDraft</span> / <span class="mono">useSheetSave</span> / <span class="mono">useSheetGuard</span> daju nacrt, čuvanje i pitanje o nesačuvanom.</td></tr>
+      <tr><td><b>Filteri restorana</b></td><td data-l="Stanje"><span class="pill pill--warn">novo</span></td><td data-l="Gdje"><span class="mono">company/restaurants/RestaurantFilters.vue</span></td><td data-l="Šta radi">Pločice po uzoru na <span class="mono">RosterFilters</span>: Svi, Aktivna, Suspendovali ste, Isključio vas, Sopstvena dostava + oznaka Druga valuta, sa brojevima.</td></tr>
+      <tr><td><b>Red i detalj restorana</b></td><td data-l="Stanje"><span class="pill pill--warn">novo</span></td><td data-l="Gdje"><span class="mono">RestaurantRow.vue</span>, <span class="mono">RestaurantDetail.vue</span></td><td data-l="Šta radi">Obrazac <span class="mono">RosterRow</span> i <span class="mono">RosterDetail</span> (avatar sa tačkom stanja, 72 px, brze radnje).</td></tr>
+      <tr><td><b>Suspenzija i uključivanje</b></td><td data-l="Stanje"><span class="pill pill--acc">izmjena</span></td><td data-l="Gdje"><span class="mono">SuspendCooperationDialog</span> → <span class="mono">SuspendCooperationSheet</span></td><td data-l="Šta radi">Donji list sa brzim razlozima, kao <span class="mono">SuspendSheet</span> kod kurira. Isto za uključivanje. <span class="mono">RestaurantDetailDialog</span> se briše kad ga niko ne uvozi.</td></tr>
+      <tr><td><b>Podaci i čuvanje</b></td><td data-l="Stanje"><span class="pill pill--acc">izmjena</span></td><td data-l="Gdje"><span class="mono">useFinanceSettings.ts</span>, <span class="mono">useRestaurantCooperation.ts</span></td><td data-l="Šta radi"><span class="mono">saveSection(keys)</span>, greške po polju (<span class="mono">getValidationMessage</span>), <span class="mono">reload()</span>; za restorane brojači, filter i stranica od 12 po uzoru na pogled Kuriri.</td></tr>
+      <tr><td><b>Stanje saradnje</b></td><td data-l="Stanje"><span class="pill pill--acc">izmjena</span></td><td data-l="Gdje"><span class="mono">utils/restaurantCooperation.ts</span></td><td data-l="Šta radi"><span class="mono">coopState(r)</span> sa redom prednosti kao današnji <span class="mono">statusFor</span>: sopstvena, ours, theirs, aktivna. Jedan izvor za red, filter i brojač.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================ PODACI -->
+<section class="sec" id="podaci">
+  <div class="sec-head">
+    <span class="eyebrow">Podaci</span>
+    <h2>Šta ekran čita i šta piše</h2>
+    <p class="small">Ništa novo od backenda ne treba za prvu verziju. Sve što prototip pokazuje dolazi iz poziva koje stranica već pravi, uz <span class="mono">couriers-balance</span>, koji koristi Finansije i Kuriri.</p>
+  </div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Element</th><th>Izvor</th><th>Polja</th><th>Napomena</th></tr></thead>
+    <tbody>
+      <tr><td>Zaglavlje</td><td data-l="Izvor"><span class="mono">GET /dispatcher/my-companies</span></td><td data-l="Polja"><span class="mono">name</span>, <span class="mono">city_name</span>, <span class="mono">currency</span></td><td data-l="Napomena">Već u <span class="mono">useDeliveryCompaniesStore</span>.</td></tr>
+      <tr><td>Postavke</td><td data-l="Izvor"><span class="mono">GET/PATCH …/finance-settings</span></td><td data-l="Polja">11: <span class="mono">cash_limit_amount</span>, <span class="mono">cash_limit_enforcement</span>, <span class="mono">payout_period_days</span>, <span class="mono">currency</span>, <span class="mono">daily_handover_time</span>, <span class="mono">assignment_mode</span>, <span class="mono">assignment_courier_count</span>, <span class="mono">assignment_timeout_action</span>, <span class="mono">assignment_courier_pool</span>, <span class="mono">offer_timeout_seconds</span>, <span class="mono">show_price_breakdown</span></td><td data-l="Napomena">PATCH i dalje šalje svih 11 (stanje iz spremišta + izmijenjeni ključevi), jer djelimično tijelo nije potvrđeno (B3).</td></tr>
+      <tr><td>Provizija</td><td data-l="Izvor"><span class="mono">finance-settings</span></td><td data-l="Polja"><span class="mono">commission_percentage</span></td><td data-l="Napomena">Samo tekst. <span class="mono">commission_percentage_editable</span> se ne čita.</td></tr>
+      <tr><td>Uticaj limita</td><td data-l="Izvor"><span class="mono">GET …/couriers-balance</span></td><td data-l="Polja"><span class="mono">courier_id</span>, <span class="mono">name</span>, <span class="mono">cash_owed_to_company</span></td><td data-l="Napomena">Uključuje i neaktivne kurire (objašnjeno 21.09), što je tačno za dug. Negativan saldo se ne računa u limit.</td></tr>
+      <tr><td>Lista i detalj restorana</td><td data-l="Izvor"><span class="mono">GET /dispatcher/{id}/restaurants</span></td><td data-l="Polja"><span class="mono">restaurant_name</span>, <span class="mono">active_restoran</span>, <span class="mono">active_company</span>, <span class="mono">internal</span>, <span class="mono">suspension_reason</span>, <span class="mono">restaurant_currency</span>, kontakt i JIB/PIB, <span class="mono">cooperation_started_at</span></td><td data-l="Napomena">Bez parametara vraća sve veze. <span class="mono">record_status</span> se i dalje ne prikazuje (B7).</td></tr>
+      <tr><td>Suspenzija / uključivanje</td><td data-l="Izvor"><span class="mono">PATCH /dispatcher/restaurant-delivery-company/{id}</span></td><td data-l="Polja"><span class="mono">active_restoran</span>, <span class="mono">suspension_reason</span></td><td data-l="Napomena">Isto tijelo kao danas. Optimistički prikaz i povratak ostaju.</td></tr>
+      <tr><td>Brojači, stanje, „Druga valuta“</td><td data-l="Izvor">izvedeno na frontu</td><td data-l="Polja">iz liste restorana i sačuvane valute</td><td data-l="Napomena">Bez novog poziva.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="card">
+    <h3>Šta se ne može prikazati dok backend ne vrati</h3>
+    <ul class="opts">
+      <li><i>•</i><span><b>Profil firme</b>: telefon, e-pošta, kontakt osoba, JIB i PIB ne postoje u dispečerskim odgovorima (B2).</span></li>
+      <li><i>•</i><span><b>Uslovi saradnje sa restoranom</b>: <span class="mono">settlement_route</span>, <span class="mono">delivery_fee_payer</span>, <span class="mono">paying</span> postoje na vezi u admin API-ju (<span class="mono">companies-delivery.json</span>), ali ih dispečerska lista ne vraća (B6).</span></li>
+      <li><i>•</i><span><b>Ko je suspendovao i kada</b>, razlog koji je upisao restoran, broj otvorenih narudžbi po restoranu (B6).</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================ SPECIFIKACIJA -->
+<section class="sec" id="spec">
+  <div class="sec-head">
+    <span class="eyebrow">Specifikacija</span>
+    <h2>Mjere, boje, ponašanje i tekstovi</h2>
+  </div>
+  <div class="cols-2">
+    <div class="card">
+      <h3>Raspored</h3>
+      <ul class="opts">
+        <li><i>•</i><span><b>Računar</b> (stranica ≥ 720 px): zaglavlje, tabovi, pa dvije kolone <b>400 px | ostatak</b>, razmak 20 px. Desna kolona je ljepljiva. Najveća širina 1200 px (<span class="mono">GlobalPage</span>).</span></li>
+        <li><i>•</i><span><b>Telefon:</b> jedna kolona. Postavka otvara <span class="mono">AppSheet</span> (najviše 560 px, 90% visine). Restoran otvara detalj preko cijelog ekrana; strelica nazad vraća na listu (<span class="mono">intercept-back</span>, kao Kuriri).</span></li>
+        <li><i>•</i><span><b>Redovi:</b> postavka najmanje 64 px, restoran 72 px, ikona 40 / avatar 44 px. Mete ≥ 44×44. Razmak između grupa 18 px.</span></li>
+        <li><i>•</i><span><b>Zaglavlje:</b> naslov 1.05rem / 800, podnaslov .76rem / 600 u <span class="mono">#5b6676</span>.</span></li>
+        <li><i>•</i><span><b>Dugme Sačuvaj:</b> tamno, 52 px, u podnožju lista; na računaru ljepljivo na dnu panela.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Boje (iz aplikacije)</h3>
+      <div class="scroll-x" style="border:0;background:transparent"><table>
+        <tbody>
+          <tr><td><span class="sw" style="background:#0b1220"></span><span class="mono">#0b1220</span></td><td>tekst, glavno dugme</td><td class="num">18.7 : 1</td></tr>
+          <tr><td><span class="sw" style="background:#5b6676"></span><span class="mono">#5b6676</span></td><td>opisi (umjesto <span class="mono">#9aa4b2</span>)</td><td class="num">5.8 / 5.4 : 1</td></tr>
+          <tr><td><span class="sw" style="background:#2459c7"></span><span class="mono">#2459c7</span> na <span class="mono">#eef4ff</span></td><td>izabrano</td><td class="num">5.7 : 1</td></tr>
+          <tr><td><span class="sw" style="background:#00734f"></span><span class="mono">#00734f</span> na <span class="mono">#e3f8ef</span></td><td>Aktivna saradnja</td><td class="num">5.3 : 1</td></tr>
+          <tr><td><span class="sw" style="background:#b42318"></span><span class="mono">#b42318</span> na <span class="mono">#fde8e6</span></td><td>Suspendovali ste, preko limita</td><td class="num">5.6 : 1</td></tr>
+          <tr><td><span class="sw" style="background:#9a4a07"></span><span class="mono">#9a4a07</span> na <span class="mono">#fff2df</span></td><td>Isključio vas, druga valuta</td><td class="num">5.7 : 1</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="card">
+      <h3>Ponašanje</h3>
+      <ul class="opts">
+        <li><i>•</i><span><b>Čuvanje po postavci.</b> Sačuvaj je onemogućen dok nema izmjene ili dok je neko polje nevažeće. Enter u polju čuva. Dok se čuva: „Čuvam…“, dugme ostaje tamno.</span></li>
+        <li><i>•</i><span><b>Nesačuvano:</b> promjena reda, taba, zatvaranje (X, pozadina, Esc) pitaju „Imaš nesačuvane izmjene“ sa „Nastavi uređivanje“ (fokus) i „Odbaci izmjene“. Isto pri promjeni firme u ladici.</span></li>
+        <li><i>•</i><span><b>Greška servera:</b> tonirana poruka na vrhu lista + poruka uz polje iz <span class="mono">errors.polje</span>; polje dobija <span class="mono">aria-invalid</span>. Greška bez polja ostaje samo u tonu.</span></li>
+        <li><i>•</i><span><b>Tabovi:</b> <span class="mono">role=tablist</span>, jedan tab u Tab redoslijedu, strelice, Home, End, <span class="mono">tabpanel</span> sa <span class="mono">aria-labelledby</span>.</span></li>
+        <li><i>•</i><span><b>Izbor:</b> <span class="mono">radiogroup</span> sa strelicama kao <span class="mono">ChoiceGroup</span>. Prekidač ima labelu i <span class="mono">role=switch</span>.</span></li>
+        <li><i>•</i><span><b>Pretraga</b> bez dijakritika i ćirilice (<span class="mono">searchNeedle</span>), po nazivu i broju; 12 redova po stranici, „Prikaži još“.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Validacije</h3>
+      <ul class="opts">
+        <li><i>•</i><span><b>Limit:</b> kad je uključen, obavezan iznos ≥ 0; prazno je greška. 0 je dozvoljeno uz crveno upozorenje (postojeće pravilo backenda).</span></li>
+        <li><i>•</i><span><b>Broj kurira:</b> cijeli broj 1–50, samo za „Prvih N“ (postojeće).</span></li>
+        <li><i>•</i><span><b>Vrijeme čekanja:</b> 5–120 s za „Najbliži“ i „Prvih N“ (postojeće).</span></li>
+        <li><i>•</i><span><b>Period isplate:</b> cijeli broj ≥ 1 (novo na frontu; gornja granica nepoznata, B3).</span></li>
+        <li><i>•</i><span><b>Valuta:</b> samo iz <span class="mono">available_currencies</span>; snimljena vrijednost van liste ostaje izabrana.</span></li>
+        <li><i>•</i><span><b>Zavisna polja</b> se skrivaju (ne onemogućavaju). Prelaz sa „Prvih N“ na drugi način šalje <span class="mono">assignment_courier_count: null</span>, kao danas.</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Tekstovi</h3>
+    <div class="scroll-x" style="border:0;background:transparent"><table class="wide stack">
+      <thead><tr><th>Mjesto</th><th>Tekst</th></tr></thead>
+      <tbody>
+        <tr><td>Limit, ponašanje</td><td data-l="Tekst">„Samo obavijesti“ / „Kurir i dalje prima narudžbe.“ · „Blokiraj nove narudžbe“ / „Ne može da prihvati ponudu dok ne preda gotovinu.“</td></tr>
+        <tr><td>Limit, prazno polje</td><td data-l="Tekst">„Unesi iznos. 0 znači da kurir ne smije držati nikakvu gotovinu.“</td></tr>
+        <tr><td>Limit 0</td><td data-l="Tekst">„0 KM blokira svakoga ko drži ijedan iznos“ + „Sada bi 5 od 8 kurira odmah ostalo bez novih narudžbi.“</td></tr>
+        <tr><td>Valuta</td><td data-l="Tekst">„Iznosi se ne preračunavaju“ + „Limit gotovine od 200 KM postaje 200 EUR.“</td></tr>
+        <tr><td>Greška servera</td><td data-l="Tekst">„Ne mogu da sačuvam“ + poruka servera uz polje; bez poruke: „Server nije prihvatio izmjenu.“</td></tr>
+        <tr><td>Restoran isključio</td><td data-l="Tekst">„Restoran je isključio saradnju. Njihova odluka, ne vaša. Narudžbe ne stižu dok ga restoran ponovo ne uključi.“</td></tr>
+        <tr><td>Suspenzija</td><td data-l="Tekst">„Narudžbe restorana … neće biti vidljive kuririma dok saradnju ponovo ne uključiš.“ Razlozi: Dug za proviziju, Restoran zatvoren, Na zahtjev restorana, Kasne isplate.</td></tr>
+        <tr><td>Prazno polje u detalju</td><td data-l="Tekst">„Nije upisano“ (sivo), ne „-“.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- ============================================ ODLUKE -->
+<section class="sec" id="odluke">
+  <div class="sec-head">
+    <span class="eyebrow">Odluke</span>
+    <h2>Šta treba da odlučite</h2>
+    <p class="small">Za svako pitanje je preporuka uz opis posljedice. D1, D3 i D5 mijenjaju navike dispečera; ako kažete drugačije, prati se vaš izbor.</p>
+  </div>
+  <div class="cols-2">
+    <div class="card card--rec">
+      <h3>D1 · Gdje se uređuju postavke <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Jedna duga forma kao danas.</span></li>
+        <li class="rec"><i>b</i><span><b>Redovi sa vrijednošću, editor pored (računar) ili u listu (telefon).</b> Vidi se šta važi, mijenja se jedna stvar.</span></li>
+        <li><i>c</i><span>Više tabova (Novac, Dodjela, Cijena, Firma). Više klikova, ista kratka forma.</span></li>
+      </ul>
+      <p class="undo">Povratak: forma se ponovo sastavi od istih polja; podaci i pozivi su isti.</p>
+    </div>
+    <div class="card card--rec">
+      <h3>D2 · Šta se desi kad se limit ponovo uključi <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Polje postaje 0 (danas). Sačuvaj bez pitanja blokira svakoga sa gotovinom.</span></li>
+        <li class="rec"><i>b</i><span><b>Prazno polje, Sačuvaj onemogućen dok se ne upiše iznos.</b> 0 je dozvoljeno, ali uz upozorenje i broj pogođenih.</span></li>
+        <li><i>c</i><span>Vrati se posljednji snimljeni iznos. Brzo, ali nije svjesna odluka.</span></li>
+      </ul>
+      <p class="undo">Povratak: jedan red u <span class="mono">limitEnabled</span> setter-u.</p>
+    </div>
+    <div class="card card--rec">
+      <h3>D3 · Gdje živi suspenzija restorana <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Prekidač u redu (danas). Najbrže, ali nalik na „uključeno/isključeno“ a ne na zaustavljanje narudžbi.</span></li>
+        <li class="rec"><i>b</i><span><b>Dugme „Suspenduj“ u detalju</b>, uz razlog i rečenicu o posljedici. Dva dodira više.</span></li>
+      </ul>
+      <p class="undo">Povratak: prekidač se vrati u red; list ostaje.</p>
+    </div>
+    <div class="card card--rec">
+      <h3>D4 · Valuta firme <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Slobodna promjena, bez ikakve poruke (danas).</span></li>
+        <li class="rec"><i>b</i><span><b>Izbor sa upozorenjem</b> šta se ne preračunava i koliko restorana je u drugoj valuti; brojač restorana prati sačuvanu valutu.</span></li>
+        <li><i>c</i><span>Zabrana promjene dok postoje iznosi. Treba odgovor backenda (B3), ne gradi se sada.</span></li>
+      </ul>
+    </div>
+    <div class="card card--rec">
+      <h3>D5 · Čuvanje <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Jedno Sačuvaj na dnu kao danas.</span></li>
+        <li class="rec"><i>b</i><span><b>Sačuvaj po postavci.</b> Greška je uz ono što se mijenja. Svaki PATCH i dalje nosi svih 11 polja.</span></li>
+        <li><i>c</i><span>Automatsko čuvanje: ne, opasno za gotovinu.</span></li>
+      </ul>
+    </div>
+    <div class="card card--rec">
+      <h3>D6 · Tekst „Samo obavijesti“ <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>„Kurir dobija upozorenje“ (danas). Prema dokumentu od 28.09 to ne važi.</span></li>
+        <li class="rec"><i>b</i><span><b>„Kurir i dalje prima narudžbe.“</b> Ne obećava ništa što ne postoji. Vratiti upozorenje kad backend potvrdi (B1).</span></li>
+      </ul>
+    </div>
+    <div class="card card--rec">
+      <h3>D7 · Naslov stranice <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>„Firma #24“ (danas).</span></li>
+        <li class="rec"><i>b</i><span><b>Naziv firme</b>, podnaslov „Banja Luka · valuta KM“. Broj firme nije potreban dispečeru.</span></li>
+      </ul>
+    </div>
+    <div class="card card--rec">
+      <h3>D8 · Gdje žive <span class="mono">ProfileSection</span> i <span class="mono">ProfileRow</span> <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Uvoz iz <span class="mono">courier/profile/</span>. Brzo, ali dispečerska stranica uvozi iz kurirskog foldera.</span></li>
+        <li class="rec"><i>b</i><span><b>Premjesti u <span class="mono">common/</span></b> i preimenuj u <span class="mono">SettingSection</span> / <span class="mono">SettingRow</span>. Profil se prilagodi istim importima.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ REDOSLED -->
+<section class="sec" id="izrada">
+  <div class="sec-head">
+    <span class="eyebrow">Redosled izrade</span>
+    <h2>Od popravki koje ne mijenjaju izgled do nove stranice</h2>
+    <p class="small">Faza 0 može posebno i odmah, na postojećoj stranici. Faze 1 i 2 grade novi izgled. Svaka faza se mjeri istim mjerilom kao analiza (mete, kontrast, tastatura, telefon, 150 restorana).</p>
+  </div>
+  <ol class="phases">
+    <li><div><b>Faza 0 · popravke na postojećoj stranici</b><span>Mali, nezavisni popravci. Svaki vrijedi bez nove strukture.</span>
+      <ul>
+        <li>0.1 Naslov: <span class="mono">pageTitle</span> = naziv firme, podnaslov grad i valuta.</li>
+        <li>0.2 Imena prekidačima (<span class="mono">aria-label</span> / labela) i pretrazi; mete 44 px.</li>
+        <li>0.3 Kontrast: <span class="mono">#9aa4b2</span> → <span class="mono">#5b6676</span> u <span class="mono">.switch-hint</span>, <span class="mono">.section-hint</span>, <span class="mono">panel-subtitle</span>; statusi restorana na tamniji ton.</li>
+        <li>0.4 Limit pri ponovnom uključivanju: prazno polje + pravilo umjesto 0.</li>
+        <li>0.5 Greške: serverov <span class="mono">errors.polje</span> u polje (<span class="mono">getValidationMessage</span>); poruka uz Sačuvaj, ne samo na vrhu.</li>
+        <li>0.6 Pad učitavanja: „Pokušaj ponovo“ i skeleton umjesto „Učitavanje…“.</li>
+        <li>0.7 Pitanje pri promjeni firme sa nesačuvanim unosom.</li>
+        <li>0.8 „Blokiraj (BLOCK)“ → „Blokiraj nove narudžbe“; jedna poruka uz izabranu vrijednost; tekst „Samo obavijesti“ bez obećanja (D6).</li>
+        <li>0.9 Tastatura na tabovima (roving <span class="mono">tabindex</span>, strelice, <span class="mono">tabpanel</span>).</li>
+        <li>0.10 Upozorenje o valuti računati iz sačuvane valute, ne iz izabrane.</li>
+      </ul></div></li>
+    <li><div><b>Faza 1 · Postavke kao redovi i editori</b><span>Utils i komponente prije stranice.</span>
+      <ul>
+        <li><span class="mono">SettingSection</span> / <span class="mono">SettingRow</span> (D8); <span class="mono">ChoiceGroup</span> <span class="mono">columns: 1</span>.</li>
+        <li><span class="mono">useFinanceSettings</span>: <span class="mono">saveSection</span>, greške po polju, <span class="mono">reload</span>.</li>
+        <li><span class="mono">CompanySettingEditor</span> + sedam formi + <span class="mono">CashLimitImpact</span> (nad <span class="mono">couriers-balance</span>).</li>
+        <li>Stranica: zaglavlje sa nazivom, tabovi kao pilule, lista + panel (računar) / <span class="mono">AppSheet</span> (telefon).</li>
+      </ul></div></li>
+    <li><div><b>Faza 2 · Restorani</b><span>Poslije Faze 1, nezavisno od postavki.</span>
+      <ul>
+        <li><span class="mono">coopState</span>, brojači i pogled (filter, pretraga, stranica 12) u utils / composable.</li>
+        <li><span class="mono">RestaurantFilters</span>, <span class="mono">RestaurantRow</span>, <span class="mono">RestaurantDetail</span>.</li>
+        <li><span class="mono">SuspendCooperationSheet</span> i list za uključivanje; brisanje <span class="mono">RestaurantDetailDialog</span> tek kad <span class="mono">grep</span> pokaže da ga niko ne uvozi.</li>
+      </ul></div></li>
+    <li><div><b>Faza 3 · Provjera</b><span>Ne samo tipovi.</span>
+      <ul>
+        <li><span class="mono">nuxi typecheck</span> (izlaz 0).</li>
+        <li>E2E u pravom Chrome-u nad lažnim API-jem (alati u <span class="mono">docs/2026/10/poruke-prototip/e2e/</span>): sva stanja iz ove table, 150 restorana pri 4× sporijem procesoru, telefon 390 i 320 dodirom, kontrast svakog teksta, mete 44 px, tastatura.</li>
+      </ul></div></li>
+  </ol>
+</section>
+
+<!-- ============================================ BACKEND -->
+<section class="sec" id="backend">
+  <div class="sec-head">
+    <span class="eyebrow">Backend</span>
+    <h2>Pitanja koja nisu blokatori</h2>
+    <p class="small">Prva verzija se gradi bez ijednog odgovora. Pitanja idu u dnevni dokument <span class="mono">*_Frontend_pitanja_za_backend.textile</span>, po formatu (legenda, „Šta vidimo / Prijedlog / Pitanja“).</p>
+  </div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>#</th><th>Pitanje</th><th>Zašto je važno</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill pill--bad">🔴 B1</span></td><td data-l="Pitanje">Šta tačno radi <span class="mono">NOTIFY_ONLY</span>? Dobija li kurir ili dispečer ikakvo upozorenje kad se pređe limit?</td><td data-l="Zašto">Tekst „Samo obavijesti“. Dok nema odgovora ne obećava se upozorenje (D6). Stavka je već otvorena u trackeru (28.09).</td></tr>
+      <tr><td><span class="pill pill--warn">🟠 B2</span></td><td data-l="Pitanje">Može li <span class="mono">my-companies</span> ili <span class="mono">finance-settings</span> vratiti profil firme: telefon, e-pošta, kontakt osoba, JIB, PIB?</td><td data-l="Zašto">Stranica se zove Firma a ne nosi nijedan podatak o firmi.</td></tr>
+      <tr><td><span class="pill pill--warn">🟠 B3</span></td><td data-l="Pitanje">Prima li PATCH <span class="mono">finance-settings</span> djelimično tijelo? Koje su granice (<span class="mono">payout_period_days</span> najmanje/najviše, <span class="mono">cash_limit_amount</span> najviše) i kakav je oblik <span class="mono">errors.polje</span> za svako polje?</td><td data-l="Zašto">Čuvanje po postavci i poruka uz polje. Do odgovora se šalje svih 11 polja.</td></tr>
+      <tr><td><span class="pill pill--warn">🟠 B4</span></td><td data-l="Pitanje">Šta pokreću <span class="mono">daily_handover_time</span> i <span class="mono">payout_period_days</span>? Podsjetnik kuriru, automatska isplata, samo prikaz?</td><td data-l="Zašto">Editor mora reći šta postavka radi, a to danas ne znamo.</td></tr>
+      <tr><td><span class="pill pill--mute">🟡 B5</span></td><td data-l="Pitanje">Važi li <span class="mono">ALL_ACTIVE</span> samo za automatsku dodjelu i da li isključuje kurira na drugoj dostavi? (21.09, otvoreno)</td><td data-l="Zašto">Tekst uz „Svi aktivni kuriri“.</td></tr>
+      <tr><td><span class="pill pill--mute">🟡 B6</span></td><td data-l="Pitanje">Može li lista restorana vratiti <span class="mono">suspended_at</span> (naša suspenzija), razlog koji je upisao restoran, broj otvorenih narudžbi i uslove saradnje (<span class="mono">settlement_route</span>, <span class="mono">delivery_fee_payer</span>, <span class="mono">paying</span>)?</td><td data-l="Zašto">Detalj restorana bi tada rekao ko je i kada suspendovao i šta se gubi.</td></tr>
+      <tr><td><span class="pill pill--mute">🟡 B7</span></td><td data-l="Pitanje">Šta znači <span class="mono">record_status: 0</span> kod aktivne saradnje (7 od 12 kod firme 24, 01.09)? Treba li ga prikazati?</td><td data-l="Zašto">Danas se ne koristi ni za prikaz ni za filter.</td></tr>
+      <tr><td><span class="pill pill--good">🟢 B8</span></td><td data-l="Pitanje">Postaje li provizija ikad uređiva (<span class="mono">commission_percentage_editable</span>)?</td><td data-l="Zašto">Provizija je red bez strelice; ako postane uređiva, dobija editor.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================ PROVJERA -->
+<section class="sec" id="provjera">
+  <div class="sec-head">
+    <span class="eyebrow">Provjera</span>
+    <h2>Šta sam pokrenuo, a šta nije provjereno</h2>
+  </div>
+  <div class="cols-2">
+    <div class="verify">
+      <h3>Pokrenuto</h3>
+      <ul>
+        <li>Aplikacija sa grane <span class="mono">master</span> (commit <span class="mono">9316280</span>), <span class="mono">nuxt dev</span>, pravi Chrome (headless, CDP), API presretnut i odgovara skripta, oblici po tipovima iz koda.</li>
+        <li>Računar 1440×900 i telefon 390×844 (dodir, razmjera 2). Isti alat kao u <span class="mono">poruke-prototip/e2e</span>, proširen za finance-settings, restorane i PATCH.</li>
+        <li>Izmjereno: visina forme i položaj dugmeta, neimenovana polja, mete, najmanji font, kontrast teksta (WCAG), tastatura na tabovima, tijela PATCH poziva, gubitak izmjena pri promjeni firme, ponašanje pri 422, 500 i sporom odgovoru, 150 restorana pri 4× sporijem procesoru.</li>
+        <li>Prototip istim mjerilom, u osam stanja (telefon i računar): najniži kontrast teksta 4.55 : 1 (onemogućeno dugme izuzeto), nijedna meta ispod 44×44 px, svako polje ima labelu, najmanji font 11.5 px (sitni naslovi grupa, kao u aplikaciji). Konzola bez grešaka.</li>
+      </ul>
+    </div>
+    <div class="verify">
+      <h3>Nije provjereno</h3>
+      <ul>
+        <li>Pravi backend: tačan oblik grešaka (422), šta rade <span class="mono">NOTIFY_ONLY</span>, <span class="mono">daily_handover_time</span> i <span class="mono">payout_period_days</span>.</li>
+        <li>iOS / pravi telefon, čitači ekrana, širina 320 px, produkcijski build.</li>
+        <li>Prototip nije Vue; ne dokazuje ponašanje aplikacije, samo daje tekst, logiku i izgled za portovanje.</li>
+        <li>Podaci u prototipu (kuriri, restorani, iznosi) su izmišljeni. Brojevi iz analize važe za probne podatke opisane gore.</li>
+        <li>Mjere na stvarnoj stranici nakon izrade nisu snimljene (ne postoji još).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+<script>
+/*__APP_JS__*/
+</script>
+<script>
+(function () {
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  /* glavni prototip: telefon ili računar */
+  var proto = $("#proto"), inst = null;
+  var start = function () { inst = FirmaProto.create(proto); };
+  var mode = function (m) {
+    proto.classList.toggle("phone-mode", m === "phone"); proto.classList.toggle("desk-mode", m === "desk");
+    $("#dev-phone").setAttribute("aria-pressed", String(m === "phone")); $("#dev-desk").setAttribute("aria-pressed", String(m === "desk"));
+  };
+  $("#dev-phone").onclick = function () { mode("phone"); };
+  $("#dev-desk").onclick = function () { mode("desk"); };
+  $("#proto-reset").onclick = function () { start(); };
+  start();
+  /* stanja */
+  var P = {
+    loading: { loading: true, loadingMs: 0, fixed: true },
+    error: { error: "settings", fixed: true },
+    field: { edit: "mode", draft: { mode: "TOP_N", count: "60" }, fixed: true },
+    server: { edit: "payout", draft: { payout: "other", payoutOther: "45" }, server: { payoutOther: "Period isplate ne može biti duži od 31 dana." }, alert: "Server nije prihvatio izmjenu. Provjeri označeno polje.", fixed: true },
+    ask: { edit: "limit", draft: { limit: "150" }, ask: true, fixed: true },
+    zero: { edit: "limit", draft: { limit: "0" }, fixed: true },
+    theirs: { tab: "restorani", sel: 118, fixed: true },
+    suspend: { tab: "restorani", sel: 106, sheet: { type: "suspend", id: 106, reason: "Dug za proviziju" }, fixed: true },
+    empty: { tab: "restorani", rest: "none", fixed: true },
+    noresult: { tab: "restorani", q: "zzz", fixed: true }
+  };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-st]"), function (el) {
+    var o = P[el.getAttribute("data-st")]; if (o) FirmaProto.create(el, o);
+  });
+})();
+</script>
