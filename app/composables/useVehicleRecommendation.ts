@@ -9,21 +9,18 @@ const NO_ANSWER = "Server ne odgovara.";
 
 // options.enabled - lazy gate za tabove (vidi useFinanceSettings). Dok je false
 // se ne šalje ni prvi (prazan) recommend-vehicle poziv.
-// options.zoneId / options.distanceKm - spoljašnji refovi (npr. Primjer narudžbe, koji dijele sva tri
-// taba); ako nisu dati, composable ima svoje i ponaša se kao ranije.
+// options.zoneId / options.distanceKm - ulaz Primjera narudžbe, koji dijele sva tri taba (živi u radnom prostoru).
 export const useVehicleRecommendation = (
   companyId: ComputedRef<number | null>,
   options: {
     enabled?: ComputedRef<boolean>;
-    zoneId?: Ref<number | null>;
-    distanceKm?: Ref<number | null>;
-  } = {}
+    zoneId: Ref<number | null>;
+    distanceKm: Ref<number | null>;
+  }
 ) => {
-  const zoneId = options.zoneId ?? ref<number | null>(null);
-  const distanceKm = options.distanceKm ?? ref<number | null>(null);
+  const { zoneId, distanceKm } = options;
   const recommendation = ref<VehicleRecommendation | null>(null);
   const loading = ref(false);
-  const errorMessage = ref("");
   // Zadnji poziv je pao. `recommendation` ostaje zadnji uspješan odgovor (ne gasi se), pa ekran može da
   // pokaže da primjer nije osvježen umjesto da ga izgubi.
   const loadFailed = ref(false);
@@ -51,14 +48,10 @@ export const useVehicleRecommendation = (
       recommendation.value = result;
       loadFailed.value = false;
       loadReason.value = "";
-      errorMessage.value = "";
     } catch (error) {
       if (controller.signal.aborted) return;
       loadFailed.value = true;
-      const reason = toFriendlyErrorMessage(error, NO_ANSWER);
-      loadReason.value = reason;
-      // STARI EKRAN: errorMessage ukloniti kad pricing.vue pređe na novi.
-      errorMessage.value = reason === NO_ANSWER ? "Ne mogu da učitam simulaciju narudžbe." : reason;
+      loadReason.value = toFriendlyErrorMessage(error, NO_ANSWER);
     } finally {
       if (!controller.signal.aborted) loading.value = false;
     }
@@ -90,7 +83,6 @@ export const useVehicleRecommendation = (
     recommendation.value = null;
     loadFailed.value = false;
     loadReason.value = "";
-    errorMessage.value = "";
   });
 
   watch(
@@ -105,11 +97,8 @@ export const useVehicleRecommendation = (
   });
 
   return {
-    zoneId,
-    distanceKm,
     recommendation,
     loading,
-    errorMessage,
     loadFailed,
     loadReason,
     reload,

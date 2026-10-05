@@ -7,7 +7,7 @@
       <p class="eyebrow">Dispečer{{ userName ? ` · ${userName}` : "" }}</p>
       <h1>Pregled dostavne mreže</h1>
       <p class="lede">
-        Prati kurire uživo, podešavaj cenovnik i dodeljuj porudžbine najpogodnijem kuriru.
+        Prati kurire uživo, podešavaj cjenovnik i dodeljuj porudžbine najpogodnijem kuriru.
       </p>
     </v-card>
 

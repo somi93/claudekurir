@@ -3,12 +3,17 @@ import { useRoute, useRouter } from "nuxt/app";
 
 export type PricingTab = "price" | "surcharges" | "rules";
 
-// Računarski raspored (rad | Primjer narudžbe) počinje na prvom prozoru gdje radna kolona, a to je
-// širina minus bočna traka (264), ivice (64), Primjer (372) i razmak (20), ima najmanje 480 px.
-// Taj račun daje 1200; 1180 je polazna vrijednost koju integracija mjeri i podešava. Bočna traka je stalna
-// tek od 1280 (lgAndUp), pa ispod toga stvarna granica može biti niža. Ispod granice je jedna kolona,
-// a Primjer je traka na dnu koja otvara donji list.
-export const PRICING_WIDE_QUERY = "(min-width: 1180px)";
+// Računarski raspored (rad | Primjer narudžbe 372 px, razmak 20 px) traži radnu kolonu od najmanje 480 px.
+// Izmjereno u pravom Chrome-u na stranici /dispatcher/pricing (bez klasične trake za skrol); radna kolona u px:
+//   prozor   912  960  1000  1100  1144 | 1145  1180  1199  1200  1216  1279  1366  1440
+//   kolona   480  528  544   644   688  | 425   460   479   480   496   559   646   720
+//   traka    privremena (v-navigation-drawer temporary)          | stalna (264 px)
+// Bočna traka postaje stalna na Vuetify `lg` = 1145 px (Vuetify 4; ne 1280), pa je kolona najuža odmah poslije
+// toga i upit nije jedan prag: širok je u rasponu 960 do 1144 px (privremena traka) i od 1216 px. Klasična traka za
+// skrol (15 px) oduzima od sadržaja, pa se pragovi podižu sa 912 na 960 i sa 1200 na 1216 (kolona tada ima
+// najmanje 481 px). Izvan toga je jedna kolona, a Primjer je traka na dnu koja otvara donji list. 1144,98 umjesto
+// 1144 da nema pukotine za prozore sa razlomljenom širinom.
+export const PRICING_WIDE_QUERY = "(min-width: 960px) and (max-width: 1144.98px), (min-width: 1216px)";
 
 // Naziv taba u adresi (?t=). Cijena je zadani tab pa nema parametra.
 const TAB_QUERY: Record<PricingTab, string | null> = {

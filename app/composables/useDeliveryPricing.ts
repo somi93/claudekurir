@@ -32,8 +32,6 @@ export const useDeliveryPricing = (companyId: ComputedRef<number | null>) => {
   const pricing = ref<Pricing | null>(null);
   const loadingPricing = ref(false);
   const savingPricing = ref(false);
-  const pricingSaved = ref(false);
-  const errorMessage = ref("");
   // Pad učitavanja: ekran pokazuje poruku sa "Pokušaj ponovo" umjesto prazne kartice.
   const loadFailed = ref(false);
   // Kratak razlog uz naslov ("Server ne odgovara." / nema veze).
@@ -53,10 +51,7 @@ export const useDeliveryPricing = (companyId: ComputedRef<number | null>) => {
     } catch (error) {
       if (mine !== seq) return;
       loadFailed.value = true;
-      const reason = toFriendlyErrorMessage(error, NO_ANSWER);
-      loadReason.value = reason;
-      // STARI EKRAN: errorMessage ukloniti kad pricing.vue pređe na novi.
-      errorMessage.value = reason === NO_ANSWER ? "Ne mogu da učitam cenu dostave." : reason;
+      loadReason.value = toFriendlyErrorMessage(error, NO_ANSWER);
     } finally {
       if (mine === seq) loadingPricing.value = false;
     }
@@ -65,25 +60,6 @@ export const useDeliveryPricing = (companyId: ComputedRef<number | null>) => {
   const reload = async () => {
     const id = companyId.value;
     if (id) await fetchPricing(id);
-  };
-
-  // STARI EKRAN: ukloniti kad pricing.vue pređe na novi (zamjenjuje ga savePrice).
-  const savePricing = async () => {
-    if (!companyId.value || !pricing.value) return;
-    savingPricing.value = true;
-    pricingSaved.value = false;
-    try {
-      pricing.value = await updateDeliveryPricing(companyId.value, {
-        base_price: pricing.value.base_price,
-        price_per_km: pricing.value.price_per_km,
-        currency: pricing.value.currency,
-      });
-      pricingSaved.value = true;
-    } catch (error) {
-      errorMessage.value = toFriendlyErrorMessage(error, "Ne mogu da sačuvam cenu dostave.");
-    } finally {
-      savingPricing.value = false;
-    }
   };
 
   // Čuva cijenu iz nacrta (utils/pricingDrafts.toPricingBody): BROJEVI, ne tekst. Sačuvano stanje (`pricing`)
@@ -118,7 +94,6 @@ export const useDeliveryPricing = (companyId: ComputedRef<number | null>) => {
   watch(
     companyId,
     (id, previous) => {
-      pricingSaved.value = false;
       if (previous !== undefined && previous !== id) {
         pricing.value = null;
         loadFailed.value = false;
@@ -138,11 +113,8 @@ export const useDeliveryPricing = (companyId: ComputedRef<number | null>) => {
     pricing,
     loadingPricing,
     savingPricing,
-    pricingSaved,
-    errorMessage,
     loadFailed,
     loadReason,
-    savePricing,
     savePrice,
     reload,
   };

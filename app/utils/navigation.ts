@@ -65,8 +65,8 @@ export const dispatcherNavItems: NavItem[] = [
   },
   {
     to: "/dispatcher/pricing",
-    title: "Cenovnik",
-    subtitle: "Cene, naknade, pravila za vozila",
+    title: "Cjenovnik",
+    subtitle: "Cijene, doplate, pravila za vozila",
     icon: "mdi-cash-multiple",
   },
   {

@@ -1,256 +1,214 @@
 <template>
   <GlobalPage :max-width="1200">
     <template #header>
-      <PageHeader title="Cenovnik" back-to="/" back-label="Nazad na početnu" />
+      <PageHeader :title="ws.header.title" back-to="/" back-label="Nazad na početnu">
+        <template v-if="ws.header.subtitle" #subtitle>{{ ws.header.subtitle }}</template>
+        <template v-if="ws.saveState" #actions>
+          <SaveStateChip :state="ws.saveState" />
+        </template>
+      </PageHeader>
     </template>
 
-    <PageAlert v-if="errorMessage" closable class="mb-4" @close="clearError">
-      {{ errorMessage }}
+    <PageAlert v-if="ws.company.error" closable class="mb-4" @close="ws.company.error = ''">
+      {{ ws.company.error }}
     </PageAlert>
 
-    <GlobalTabBar v-model="activeTab" :tabs="pricingTabs" class="mb-4" />
+    <div class="pr" data-pricing="page">
+      <GlobalTabBar
+        variant="pills"
+        label="Sekcije cjenovnika"
+        id-base="pr"
+        panel-id="pr-panel"
+        :model-value="ws.view.tab"
+        :tabs="ws.tabs"
+        @update:model-value="onTab"
+      />
 
-    <v-window v-model="activeTab">
-      <!-- TAB 1: Osnovna cena po firmi -->
-      <v-window-item value="base">
-        <v-row>
-          <v-col cols="12" md="7">
-            <PricingForm
-              v-model:pricing="pricing"
-              :saving-pricing="savingPricing"
-              :pricing-saved="pricingSaved"
-              :loading="loadingPricing"
-              @save="savePricing"
-            />
-          </v-col>
-          <v-col cols="12" md="5">
-            <PricingCalculator :pricing="pricing" :active-surcharges="activeSurcharges" />
-          </v-col>
-        </v-row>
-      </v-window-item>
+      <!-- Jedna struktura za oba prozora: promjena širine ne montira tab iznova. Primjer narudžbe je desna
+           kolona samo na računaru; na telefonu ga zamjenjuju traka na dnu i donji list. -->
+      <div class="pr-grid" :class="{ 'pr-grid--wide': ws.view.wide }" :style="barStyle">
+        <div class="pr-l">
+          <div v-if="ws.leave.asking" ref="guardBox" class="pr-guard">
+            <UnsavedGuard :message="guardMessage" @keep="onKeep" @discard="onDiscard" />
+          </div>
 
-      <!-- TAB 2: Dodatni parametri (surcharges) -->
-      <v-window-item value="surcharges">
-        <SurchargesPanel
-          v-if="openedTabs.has('surcharges')"
-          v-model:new-surcharge="newSurcharge"
-          v-model:show-add-surcharge="showAddSurcharge"
-          :surcharges="surcharges"
-          :condition-tags="conditionTags"
-          :local-presets="localPresets"
-          :saving-surcharge="savingSurcharge"
-          :loading="loadingSurcharges"
-          :currency="companyCurrency"
-          @select-tag="selectConditionTag"
-          @select-preset="selectPreset"
-          @select-custom="selectCustomParameter"
-          @add-surcharge="addSurcharge"
-          @toggle="toggleSurcharge"
-          @remove="onRemoveSurcharge"
-        />
-      </v-window-item>
+          <div id="pr-panel" role="tabpanel" :aria-labelledby="`pr-tab-${ws.view.tab}`">
+            <!-- Samo aktivan tab je montiran: editori se odjavljuju iz nesačuvanog kad se tab zatvori, a
+                 ključ po firmi gasi editore kad se firma promijeni. -->
+            <PricingPriceTab v-if="ws.view.tab === 'price'" :key="ws.company.id ?? 0" :ws="ws" />
+            <SurchargesTab v-else-if="ws.view.tab === 'surcharges'" :key="ws.company.id ?? 0" :ws="ws" />
+            <VehicleRulesTab v-else :key="ws.company.id ?? 0" :ws="ws" />
+          </div>
+        </div>
 
-      <!-- TAB 3: Vozila i pravila -->
-      <v-window-item value="vehicles">
-        <v-row v-if="openedTabs.has('vehicles')">
-          <v-col cols="12" md="7">
-            <VehicleRulesPanel
-              v-model:new-rule="newRule"
-              v-model:show-add-rule="showAddRule"
-              :vehicle-rules="vehicleRules"
-              :saving-rule="savingRule"
-              :loading="loadingVehicleRules"
-              :zones="zones"
-              :surcharges="surcharges"
-              :matched-rule-id="vehicleRecommendation?.matchedRule?.id ?? null"
-              :editing-rule-id="editingRuleId"
-              :is-distance-range-valid="isDistanceRangeValid"
-              @save-rule="saveVehicleRule"
-              @new-rule="startNewRule"
-              @edit-rule="startEditRule"
-              @cancel="closeRuleForm"
-              @remove-rule="onRemoveRule"
-              @move-rule="moveRule"
-            />
-          </v-col>
-          <v-col cols="12" md="5">
-            <VehicleSimulationPanel
-              v-model:zone-id="simulationZoneId"
-              v-model:distance-km="simulationDistanceKm"
-              :zones="zones"
-              :loading="loadingRecommendation"
-              :recommendation="vehicleRecommendation"
-              :currency="companyCurrency"
-            />
-          </v-col>
-        </v-row>
-      </v-window-item>
-    </v-window>
+        <aside v-if="ws.view.wide" class="pr-r" aria-label="Primjer narudžbe">
+          <PricingSimulator :ws="ws" />
+        </aside>
+      </div>
+
+      <!-- Zadnje dijete: traka na telefonu ostavlja prazan prostor svoje visine, pa kraj sadržaja ostaje dostupan. -->
+      <SimulatorBar :ws="ws" />
+    </div>
+
+    <SimulatorSheet :ws="ws" />
   </GlobalPage>
 </template>
 
 <script setup lang="ts">
-definePageMeta({ title: "Cenovnik" });
+definePageMeta({ title: "Cjenovnik" });
 
-import { computed, ref, watch } from "vue";
-import { storeToRefs } from "pinia";
-import { useDeliveryCompaniesStore } from "~/stores/deliveryCompanies";
-import { useDeliveryPricing } from "~/composables/useDeliveryPricing";
-import { useSurcharges } from "~/composables/useSurcharges";
-import { useVehicleRules } from "~/composables/useVehicleRules";
-import { useVehicleRecommendation } from "~/composables/useVehicleRecommendation";
-import { useDispatcherZones } from "~/composables/useDispatcherZones";
-import { useConfirmStore } from "~/stores/confirm";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { useRouter } from "nuxt/app";
+import { onBeforeRouteLeave, onBeforeRouteUpdate } from "vue-router";
+import { usePricingWorkspace } from "~/composables/usePricingWorkspace";
+import type { PricingTab } from "~/composables/usePricingView";
+import { interceptLeaving, registerCompanyChangeGuard } from "~/composables/useSheetGuard";
 import GlobalPage from "~/components/common/GlobalPage.vue";
 import PageHeader from "~/components/common/PageHeader.vue";
 import PageAlert from "~/components/common/PageAlert.vue";
-import GlobalTabBar, { type GlobalTabBarItem } from "~/components/common/GlobalTabBar.vue";
-import { resolveCurrency } from "~/utils/currency";
-import PricingForm from "~/components/pricing/PricingForm.vue";
-import PricingCalculator from "~/components/pricing/PricingCalculator.vue";
-import SurchargesPanel from "~/components/pricing/SurchargesPanel.vue";
-import VehicleRulesPanel from "~/components/pricing/VehicleRulesPanel.vue";
-import VehicleSimulationPanel from "~/components/pricing/VehicleSimulationPanel.vue";
+import GlobalTabBar from "~/components/common/GlobalTabBar.vue";
+import SaveStateChip from "~/components/common/SaveStateChip.vue";
+import UnsavedGuard from "~/components/pricing/UnsavedGuard.vue";
+import PricingPriceTab from "~/components/pricing/PricingPriceTab.vue";
+import SurchargesTab from "~/components/pricing/SurchargesTab.vue";
+import VehicleRulesTab from "~/components/pricing/VehicleRulesTab.vue";
+import PricingSimulator from "~/components/pricing/PricingSimulator.vue";
+import SimulatorBar from "~/components/pricing/SimulatorBar.vue";
+import SimulatorSheet from "~/components/pricing/SimulatorSheet.vue";
 
-type PricingTab = "base" | "surcharges" | "vehicles";
+// Cjenovnik: tri taba (Cijena, Doplate, Vozila) i Primjer narudžbe uz njih. Stranica samo slaže ekran: sve podatke
+// i radnje daje radni prostor (usePricingWorkspace), a komponente ga primaju kao jedini prop. Ovdje su još i zaštite
+// nesačuvanog unosa (promjena taba, firme i odlazak sa stranice), isto kao na Firmi.
+const ws = usePricingWorkspace();
+const router = useRouter();
 
-const activeTab = ref<PricingTab>("base");
+// --- Pitanje pri napuštanju nesačuvanog --------------------------------------------------------------
 
-// Lazy tabovi: panel + njegovi pozivi (vehicle-rules, recommend-vehicle, zone)
-// idu tek kad dispečer prvi put otvori "Vozila i pravila". Set pamti otvarane
-// tabove pa povratak ne refetch-uje.
-const openedTabs = ref(new Set<PricingTab>([activeTab.value]));
-watch(activeTab, (tab) => openedTabs.value.add(tab));
-const vehiclesOpen = computed(() => openedTabs.value.has("vehicles"));
+// Šta je pokrenulo pitanje: tekst kaže šta se gubi ako dispečer ode.
+type Cause = "tab" | "company" | "page";
+const cause = ref<Cause>("tab");
+const CAUSE_TEXT: Record<Cause, string> = {
+  tab: "Ako pređeš na drugi tab, izmjene se gube.",
+  company: "Ako promijeniš firmu, izmjene se gube.",
+  page: "Ako napustiš stranicu, izmjene se gube.",
+};
+const guardMessage = computed(() => CAUSE_TEXT[cause.value]);
+const guardBox = ref<HTMLElement | null>(null);
 
-const companiesStore = useDeliveryCompaniesStore();
-const { selectedCompanyId, errorMessage: companiesError } = storeToRefs(companiesStore);
-companiesStore.ensureLoaded();
+const reducedMotion = (): boolean =>
+  typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const companyId = computed(() => selectedCompanyId.value);
-
-const {
-  pricing,
-  loadingPricing,
-  savingPricing,
-  pricingSaved,
-  errorMessage: pricingError,
-  savePricing,
-} = useDeliveryPricing(companyId);
-
-// Valuta firme za prikaz jedinica/fallback-a na ovom ekranu. `pricing.currency`
-// (delivery-pricing endpoint) je isti pojam kao finance-settings currency
-// (odgovor 1.1) - koristimo već učitani pricing, bez dodatnog poziva.
-const companyCurrency = computed(() => resolveCurrency(pricing.value?.currency));
-
-const {
-  surcharges,
-  loadingSurcharges,
-  activeSurcharges,
-  errorMessage: surchargesError,
-  toggleSurcharge,
-  newSurcharge,
-  showAddSurcharge,
-  savingSurcharge,
-  addSurcharge,
-  removeSurcharge,
-  conditionTags,
-  localPresets,
-  selectConditionTag,
-  selectPreset,
-  selectCustomParameter,
-} = useSurcharges(companyId);
-
-const pricingTabs = computed<GlobalTabBarItem<PricingTab>[]>(() => [
-  { value: "base", label: "Cena dostave", icon: "mdi-cash-multiple" },
-  {
-    value: "surcharges",
-    label: "Dodatni parametri",
-    icon: "mdi-tune-variant",
-    badge: activeSurcharges.value.length,
-  },
-  { value: "vehicles", label: "Vozila i pravila", icon: "mdi-moped-outline" },
-]);
-
-const {
-  vehicleRules,
-  loadingVehicleRules,
-  errorMessage: vehicleRulesError,
-  newRule,
-  showAddRule,
-  editingRuleId,
-  savingRule,
-  isDistanceRangeValid,
-  saveVehicleRule,
-  startNewRule,
-  startEditRule,
-  closeRuleForm,
-  removeVehicleRule,
-  moveRule,
-} = useVehicleRules(companyId, { enabled: vehiclesOpen });
-
-const {
-  zoneId: simulationZoneId,
-  distanceKm: simulationDistanceKm,
-  recommendation: vehicleRecommendation,
-  loading: loadingRecommendation,
-  errorMessage: recommendationError,
-} = useVehicleRecommendation(companyId, { enabled: vehiclesOpen });
-
-// Zone treba samo tab "Vozila i pravila" (birač zone u pravilu + simulacija) -
-// učitaj ih tek kad se taj tab prvi put otvori.
-const { zones, load: loadZones } = useDispatcherZones();
+// Pitanje stoji iznad sadržaja taba; ako je dispečer skrolovao (Nazad, firma u ladici), dovedi ga u vidno polje.
 watch(
-  vehiclesOpen,
-  (open) => {
-    if (open) loadZones();
-  },
-  { immediate: true }
+  () => ws.leave.asking,
+  (asking) => {
+    if (!asking) return;
+    // Donji list Primjera ne smije prekriti pitanje.
+    ws.view.simOpen = false;
+    void nextTick(() =>
+      guardBox.value?.scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" })
+    );
+  }
 );
 
-const confirmStore = useConfirmStore();
-
-const onRemoveSurcharge = async (id: number) => {
-  const surcharge = surcharges.value.find((s) => s.id === id);
-  try {
-    await confirmStore.confirm(
-      "Obriši naknadu",
-      `Obrisati naknadu "${surcharge?.name ?? ""}"?`,
-      { color: "error" }
-    );
-    removeSurcharge(id);
-  } catch {
-    // Otkazano
-  }
+// Poslije odgovora tipka sa pitanja nestaje, pa fokus ide na aktivan tab da ne ostane na nečemu što više ne postoji.
+const focusTab = () => {
+  void nextTick(() => document.getElementById(`pr-tab-${ws.view.tab}`)?.focus({ preventScroll: true }));
+};
+const onKeep = () => {
+  ws.leave.keep();
+  focusTab();
+};
+const onDiscard = () => {
+  ws.leave.discard();
+  focusTab();
 };
 
-const onRemoveRule = async (id: number) => {
-  const rule = vehicleRules.value.find((r) => r.id === id);
-  try {
-    await confirmStore.confirm(
-      "Obriši pravilo",
-      `Obrisati pravilo "${rule?.condition_text ?? ""}"?`,
-      { color: "error" }
-    );
-    removeVehicleRule(id);
-  } catch {
-    // Otkazano
-  }
+// Promjena taba dok ima nesačuvanog prvo pita.
+const onTab = (next: PricingTab) => {
+  if (next === ws.view.tab) return;
+  cause.value = "tab";
+  ws.leave.run(() => ws.view.setTab(next));
 };
 
-const errorMessage = computed(
-  () =>
-    companiesError.value ||
-    pricingError.value ||
-    surchargesError.value ||
-    vehicleRulesError.value ||
-    recommendationError.value
+// Druga firma u ladici dok ima nesačuvanog: ladica pita ovu stranicu, a firma se mijenja tek poslije
+// "Odbaci izmjene". List sa unosom (telefon) pita sam, pa ga treba pitati prije stranice.
+const stopCompanyGuard = registerCompanyChangeGuard((next) => {
+  if (interceptLeaving()) return true;
+  cause.value = "company";
+  return ws.leave.stop(() => ws.company.select(next));
+});
+onBeforeUnmount(stopCompanyGuard);
+
+// Dugme Nazad i odlazak sa stranice. Prvo list sa unosom (telefon), pa nacrt cijene i inline editori.
+onBeforeRouteLeave((to) => {
+  if (interceptLeaving()) return false;
+  cause.value = "page";
+  if (ws.leave.stop(() => void router.push(to.fullPath))) return false;
+});
+
+// Tab se mijenja i mimo trake sa tabovima ("Otvori pravilo" u Primjeru): isti zaštitni put, pa editor sa unosom
+// ne nestaje bez pitanja. Ostale promjene adrese (ista stranica, isti tab) prolaze.
+onBeforeRouteUpdate((to, from) => {
+  if (to.query.t === from.query.t) return;
+  cause.value = "tab";
+  if (ws.leave.stop(() => void router.replace(to.fullPath))) return false;
+});
+
+// --- Telefon ---------------------------------------------------------------------------------------------
+
+// Ljepljiva traka nesačuvane cijene stoji iznad trake Primjera (64 px + sigurna zona) kad se ona vidi.
+const barStyle = computed(() =>
+  !ws.view.wide && ws.calc !== null
+    ? {
+        "--pricing-bar-bottom":
+          "calc(64px + max(var(--v-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)))",
+      }
+    : undefined
 );
-const clearError = () => {
-  companiesError.value = "";
-  pricingError.value = "";
-  surchargesError.value = "";
-  vehicleRulesError.value = "";
-  recommendationError.value = "";
-};
 </script>
+
+<style scoped>
+.pr {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.pr > * {
+  min-width: 0;
+}
+
+/* Jedna kolona; na računaru rad (fleksibilno) | Primjer narudžbe 372 px. Kolone se NE poravnavaju na vrh:
+   desna kolona je visoka kao red mreže, pa se kartica Primjera u njoj lijepi uz vrh dok se lijeva strana skroluje. */
+.pr-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-width: 0;
+}
+
+.pr-grid--wide {
+  grid-template-columns: minmax(0, 1fr) 372px;
+}
+
+.pr-l {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
+}
+
+.pr-r {
+  min-width: 0;
+}
+
+/* Skrol do pitanja ne smije ostati ispod ljepljivog zaglavlja. */
+.pr-guard {
+  scroll-margin-top: 88px;
+}
+
+#pr-panel {
+  min-width: 0;
+}
+</style>

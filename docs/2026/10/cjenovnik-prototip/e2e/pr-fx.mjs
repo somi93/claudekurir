@@ -118,7 +118,13 @@ export const handlePricing = async (mode, { pth, method, body, u, fulfill }) => 
       const list = W.surcharges[cid]; const i = list.findIndex((s) => s.id === Number(m[1]));
       if (i < 0) continue;
       if (method === "DELETE") { list.splice(i, 1); await fulfill(200, { success: true }); return true; }
-      if (method === "PUT") { Object.assign(list[i], body, { activated_at: body.active ? (list[i].activated_at ?? iso(new Date())) : null }); await fulfill(200, { success: true, data: list[i] }); return true; }
+      if (method === "PUT") {
+        // activated_at se dira SAMO kad tijelo nosi `active` (prekidač); izmjena sa punim tijelom bez `active` ga ne mijenja.
+        const prev = list[i].activated_at;
+        Object.assign(list[i], body);
+        if ("active" in body) list[i].activated_at = body.active ? (prev ?? iso(new Date())) : null;
+        await fulfill(200, { success: true, data: list[i] }); return true;
+      }
     }
     await fulfill(404, { message: "No query results" }); return true;
   }

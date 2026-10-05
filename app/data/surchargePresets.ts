@@ -1,7 +1,7 @@
 import type { SurchargePreset } from "~/types/pricing";
 
 // Gužva/Kiša/Sneg/Noćna dostava uklonjeni 14.08 - sad dolaze iz
-// condition_tags kataloga (vidi useSurcharges.conditionTags), ne odavde.
+// condition_tags kataloga (vidi useSurcharges.catalog), ne odavde.
 // Ostaju samo lokalni predlozi koji nisu deo kataloga.
 export const SURCHARGE_PRESETS: SurchargePreset[] = [
   {
