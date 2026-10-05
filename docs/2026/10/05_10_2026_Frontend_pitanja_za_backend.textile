@@ -1,0 +1,157 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja (5. oktobar 2026)
+
+Legenda: 🔴 blokira/kvari podatak · 🟠 kvari/ograničava funkciju · 🟡 nejasno/treba potvrda ·
+🟢 niži prioritet
+
+Tema: dispečerski ekran *"Kuriri"* (@/dispatcher/couriers@). Frontend ga je preradio od temelja: lista sa stanjem uživo,
+dugom i porukama u svakom redu, detalj kurira uz listu (na telefonu kao zasebna stranica), svaka izmjena u donjem listu
+koji šalje *samo ono što je izmijenjeno*, kartica sa podacima za prijavu poslije kreiranja kurira i nove lozinke, jedan
+list za poruku jednom, izabranom ili svim kuririma. Sve što može bez backenda je urađeno i provjereno u pravom browseru
+nad probnim odgovorima. Ispod je ono što front sam ne može da završi, po prioritetu. Dokumenti od ranijih dana se ne
+mijenjaju.
+
+---
+
+h2. ✅ Šta front od danas šalje: ekran Kuriri (informativno, nema pitanja)
+
+Ovo je bitno za opterećenje i za provjeru na vašoj strani, pa navodimo tačno:
+
+* Pri otvaranju ekrana, svaki izvor posebno: @GET .../delivery-companies/{id}/couriers-status@, @courier-locations@,
+  @couriers-balance@, @inbox-summary@ i @finance-settings@. Spajaju se po @courier_id@.
+* Osvježavanje samo dok je kartica vidljiva: @courier-locations@ *svakih 15 s*, @couriers-balance@ i @inbox-summary@
+  *svakih 60 s*. Spisak (@couriers-status@) se ponovo čita kad se kartica vrati u prvi plan ako je starije od 60 s, i na
+  dugme "Osvježi". Kad se promijeni firma, odgovori za prethodnu firmu se odbacuju.
+* Ako jedan izvor padne, ostali rade: bez @courier-locations@ stranica pokazuje napomenu da stanje uživo nije pouzdano,
+  bez @couriers-balance@ i @inbox-summary@ filteri "Duguju gotovinu" i "Nepročitane poruke" se onemogućavaju. Ako padne
+  sam spisak, stranica pokazuje grešku i dugme "Pokušaj ponovo", ne "Još nema kurira".
+* Izmjena kurira: @PATCH .../couriers/{id}@ sa *samo izmijenjenim poljima*. Primjeri: telefon → @{ "phone": ... }@, ime i
+  prezime → @{ "name", "lastname" }@, vozilo → @{ "vehicle_type" }@, ugovor → @{ "paying_type", "paying", ... }@,
+  datum rođenja → @{ "date_of_birth": "1990-03-15" }@, napomena → @{ "note" }@, nova lozinka → @{ "password" }@.
+  (Do danas je ista izmjena slala 14 polja i mogla je pregaziti svježiju vrijednost koju je unio sam kurir.)
+* Novi kurir: @POST .../couriers@ sa popunjenim poljima: @name@, @lastname@, @phone@, @email@, @temporary_password@ i
+  opciono @vehicle_type@, ugovor i lične podatke. Prazna polja se ne šalju.
+* Suspenzija: @PATCH .../couriers/{id}/suspend@ sa @{ "suspended": true, "reason": "..." }@, aktivacija sa
+  @{ "suspended": false }@. Uklanjanje: @DELETE .../couriers/{id}@.
+* Uplata i isplata: @POST /dispatcher/couriers/{id}/cash-receipt@ (@delivery_company_id@, @amount@, @note@) i
+  @POST /dispatcher/couriers/{id}/payout@ (@delivery_company_id@, @amount@, @method@, @idempotency_key@). Ključ isplate
+  se pravi pri otvaranju lista, pa neuspjeli i ponovljeni pokušaj nose *isti* ključ; novi list je nova isplata.
+* Poruke: jednom kuriru @POST /couriers/{id}/inbox@; filtriranoj ili izabranoj grupi @POST .../broadcast@ sa
+  @{ all_couriers: false, courier_ids: [...] }@; cijeloj listi firme @{ all_couriers: true }@.
+* Detalj kurira traži poruke: @GET /couriers/{id}/inbox?page=N&per_page=20@, i nastavlja sa sljedećom stranicom dok ne
+  nađe tri poruke koje je poslao dispečer, *najviše 5 stranica po otvorenom kuriru* (vidi stavku 7).
+* Veza sa ekranom "Kuriri uživo": dugme "Na mapi" vodi na @/dispatcher?c={courier_id}@ (samo front, bez backenda).
+
+---
+
+h2. 🟠 1. @PATCH .../couriers/{id}@ sa jednim poljem: potvrditi uživo
+
+Front od danas šalje samo izmijenjena polja (vidi gore). Provjereno je nad probnim odgovorima, *ne i uživo*. Treba nam
+potvrda da backend:
+
+# prihvata tijelo koje ima samo @phone@ (ili samo @note@, samo @password@, samo @vehicle_type@) bez 422 za izostavljena
+  @name@/@lastname@,
+# ne mijenja ništa što nije poslato (posebno ne briše vozilo, ugovor ni lične podatke),
+# vozilo "pješice" je @vehicle_type: null@ i briše vozilo (potvrđeno ranije za dispečerski PATCH, ne za samo ovo polje).
+
+Ako backend traži obavezna polja, javite koja, front ih onda dodaje u svaki zahtjev.
+
+---
+
+h2. 🟠 2. Prijava kurira: pravi URL aplikacije i da li lozinka ide na mail/SMS
+
+Poslije kreiranja kurira i poslije nove lozinke front prikazuje karticu "Podaci za prijavu" sa korisničkim imenom,
+lozinkom i adresom aplikacije, uz dugme "Kopiraj sve". Adresa je u frontu *tvrdo upisana*: @https://kurir.ordera.app@.
+Pitanja:
+
+# Je li to prava adresa na kojoj se kurir prijavljuje?
+# Šalje li backend kuriru ikakvu poruku (mail/SMS) sa lozinkom? Pretpostavljamo da *ne*, pa kartica kaže dispečeru da
+  podatke prosljeđuje sam. Ako backend šalje, kartica treba da kaže drugo.
+# Mora li kurir da promijeni @temporary_password@ pri prvoj prijavi (@must_change_password@)? Ako mora, to pišemo na
+  kartici.
+
+---
+
+h2. 🟡 3. Telefon u formatu "062/519-315"
+
+Do danas je pravilo za telefon odbijalo kosu crtu i tačku, pa se kurir sa brojem @062/519-315@ nije mogao sačuvati (ni iz
+dispečerskog ekrana ni iz kurirovog "Moj profil"). Front sada prihvata @^[+]?[\d\s()./-]{6,20}$@ i na listi kurira pronalazi
+broj u bilo kom zapisu. Treba nam:
+
+# Prihvata li backend na @PATCH@/@POST@/@PUT@ takav zapis bez 422 (provjera na jednom primjeru)?
+# Čuva li ga kakav jeste, ili normalizuje? Ako normalizuje, u kojem obliku vraća (da lista ne pokazuje drugačiji
+  broj nego što je upisan)?
+# Postoji li u bazi telefon koji ovo pravilo i dalje ne propušta (duži od 20 znakova, slova)?
+
+---
+
+h2. 🟠 4. @inbox-summary@: ruta i oblik odgovora nisu potvrđeni uživo
+
+Ruta @GET /dispatcher/delivery-companies/{id}/inbox-summary@ je *pretpostavljena* (odgovor od 15.09. nije naveo puni
+prefiks). Front očekuje po kuriru: @courier_id@, @last_message { title, sent_at, category, sender }@,
+@dispatcher_unread_count@. Treba potvrda rute i oblika. Dok to ne stigne, odgovor 404/500 front podnosi: filter
+"Nepročitane poruke" je onemogućen i u redovima nema oznake poruka, ostalo radi.
+
+---
+
+h2. 🟠 5. Server-side pretraga i straničenje @couriers-status@ (+ @meta.counts@)
+
+Front čita *cijeli* spisak i filtrira ga u browseru (pretraga bez obzira na dijakritike, ćirilicu i zapis telefona). Na
+500 kurira ekran radi bez problema (580 DOM elemenata, jer se ispisuje 12 redova uz "Prikaži još"), ali se pri svakom
+učitavanju vuče cijeli odgovor, a @couriers-status@ vraća i dispečerske naloge (vidi raniju stavku). Zamolba:
+@GET .../couriers-status?q=&page=&per_page=@ i @meta.counts@ (ukupno, suspendovani, bez vozila), pa front pređe na server
+kad firma preraste nekoliko stotina kurira. Nije hitno; bitno je da se ne mijenja oblik postojećeg poziva bez parametara.
+
+---
+
+h2. 🟡 6. Duplikat telefona ili emaila pri kreiranju: oblik 422
+
+Front *prije slanja* upozori kad isti telefon ili email već ima drugi kurir (provjera nad spiskom u browseru, upozorenje a
+ne zabrana). Ako backend ipak odbije, treba nam oblik greške: @errors.phone[]@ / @errors.email[]@ i tekst poruke za
+duplikat, da je prikažemo uz polje umjesto opšte poruke. Također: je li duplikat telefona uopšte greška na backendu ili
+je dozvoljen (jedan broj, dva naloga)?
+
+---
+
+h2. 🟡 7. Filter po pošiljaocu na @GET /couriers/{id}/inbox@
+
+Detalj kurira pokazuje zadnje tri poruke koje je poslao *dispečer*. @/inbox@ vraća i ponude i poruke platforme, pa front
+čita stranice po 20 dok ne skupi tri dispečerske (najviše 5 stranica po otvorenom kuriru). Kurir sa stotinu ponuda i
+jednom staroj dispečerskom porukom troši 5 poziva pri svakom otvaranju. Prijedlog: @?sender=dispatcher@ (ili @?category=@
+sa više vrijednosti), pa je dovoljna jedna stranica.
+
+---
+
+h2. 🟡 8. Pozicije kurira: kurir bez pozicije i @last_seen@
+
+@courier-locations@ vraća samo kurire sa poznatom pozicijom. Front kurire koje nema u odgovoru prikazuje kao "Bez signala",
+što je i kurir koji nikad nije slao poziciju i onaj čiji je zapis obrisan. Treba nam da znamo:
+
+# Vraća li backend kurira bez pozicije sa @location: null@, ili ga izostavlja (front podnosi oboje)?
+# Postoji li @last_seen_at@ (zadnji put kad je aplikacija kontaktirala server), nezavisno od pozicije, da "nema
+  lokacije" ne izgleda isto kao "nije otvorio aplikaciju sedam dana"?
+
+---
+
+h2. 🟡 9. Nova lozinka kurira: poništava li aktivne sesije
+
+Dispečer ima akciju "Nova lozinka" (@PATCH@ sa @{ "password" }@). Ako kurir je u tom trenutku prijavljen na telefonu,
+treba da znamo da li ga backend odjavljuje (poništava tokene) ili stara sesija radi dalje. Od toga zavisi šta kartica
+kaže dispečeru ("kurir će morati ponovo da se prijavi" ili ne).
+
+---
+
+h2. 🟡 10. Uplata gotovine: ključ idempotentnosti i @warning@
+
+# @POST .../payout@ ima @idempotency_key@, @POST .../cash-receipt@ nema. Front zaključava dugme dok zahtjev traje, ali
+  prekid veze usred zahtjeva i ponovni pokušaj mogu dvaput evidentirati istu uplatu. Prima li @cash-receipt@ isti ključ?
+# Oba poziva mogu vratiti @warning@ (iznos veći od duga/zarade). Front ga prikazuje kao upozorenje poslije uspjeha.
+  Potvrdite da je to uvijek običan tekst i da je akcija u tom slučaju stvarno evidentirana.
+
+---
+
+h2. 🟢 11. Ko je suspendovao i slika kurira
+
+@couriers-status@ ne vraća ko je suspendovao kurira (@suspended_by@) ni osnovu adrese za @image_path@. Front u detalju
+pokazuje razlog i vrijeme suspenzije ali ne i autora, a umjesto slike inicijale. Ništa ne blokira.

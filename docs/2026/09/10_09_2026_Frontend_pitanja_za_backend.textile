@@ -1,0 +1,221 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja (10. septembar 2026)
+
+Integrisali smo backend odgovor @10_09_2026_odgovor-backend-ponuda-socket.textile@ (2.3
+model ponude + 2.4 socket). Integracija: @10_09_2026_Frontend_implementacija-ponuda-socket.textile@.
+Kod prolazi @typecheck@/@build@ ali *nije provjeren uživo* - offer rute i WS kanal se ne
+mogu pozvati sa CI-ja.
+
+Ovaj dokument je *delta od 09.09*. @otvorene-stavke-frontend-31-08.textile@ ostaje master
+tracker. *DIO A* je novo (iz ugovora 2.3/2.4). *DIO B* su prenešene otvorene stavke sa
+09.09 - sažeto, s pokazivačem.
+
+Legenda: 🔴 blokira · 🟠 kvari / ograničava funkciju · 🟡 nejasno / treba potvrda ·
+⏳ veći posao / druga sesija · 👁 čeka produkcijsku potvrdu · 🟢 poboljšanje
+
+---
+
+h1. A. NOVO - ugovor 2.3 / 2.4
+
+h2. 🔴 A.1 @/broadcasting/auth@ - host, autorizacija tokena, CORS
+
+Snippet gradi @AUTH_URL@ iz @REVERB_HOST@-a (@${scheme}://${REVERB_HOST}/broadcasting/auth@)
+ali su default-i u snippetu nekonzistentni (@REVERB_HOST = 'https://ws.kurir.ordera.app/'@
+→ @http://https://.../broadcasting/auth@). Zato pretpostavljamo *API host*:
+@https://api.kurir.ordera.app/broadcasting/auth@ (@runtimeConfig.public.reverb.authEndpoint@).
+
+# Koji je *tačan URL* @/broadcasting/auth@ endpointa - API host ili WS host?
+# Prima li @Authorization: Bearer <access_token>@ (naš @localStorage@ token, isti kao za
+  @/api/*@)? Ili traži cookie / drugačiji guard?
+# Treba li CORS podešavanje za origin dispečerskog frontenda (dev @localhost:3000@ +
+  prod origin)? Sad je auth @POST@ cross-origin ka API hostu.
+
+h2. 🔴 A.2 Autorizacija kanala @orders.{orderId}@
+
+# Ko je autorizovan na @private-orders.{orderId}@? Bilo koji dispečer *firme kojoj
+  narudžba pripada*? Provjerava li se @delivery_company_id@ narudžbe protiv dispečerove
+  firme?
+# Dobija li i *kurir* pristup tom kanalu (za svoju ponudu), ili je kurir samo na FCM push
+  + @GET /courier/offers@ poll-u?
+# Postoji li *kurirski* kanal (npr. @private-couriers.{courierId}@ ili
+  @App.Models.User.{id}@) preko kojeg stiže @order_offer@ real-time, ili je za kurira
+  isključivo FCM?
+
+h2. 🟡 A.3 Event @.offer.round.changed@ - ime, payload, ostali eventi
+
+# Ime je *tačno* @.offer.round.changed@ (vodeća tačka = bez namespace-a)?
+# Payload: samo @{ offers: [...] }@, ili i @{ order_id, mode, round_status }@? *Treba nam
+  @round_status@ u eventu* da front zna kad je runda gotova (@accepted@ / @exhausted@ /
+  @cancelled@) a ne samo da se promijenio neki @offer_status@.
+# Ima li još eventa na @orders.{orderId}@ koje bismo trebali da hvatamo ili svjesno
+  ignorišemo (npr. @.order.assigned@, @.order.status.changed@)?
+# Poslije @pusher:subscription_succeeded@ - replay-uje li Reverb propuštene evente, ili
+  se *uvijek* mora @GET /offers@ na (re)subscribe? (Mi radimo refetch na reconnect.)
+
+h2. 🟡 A.4 Reverb okruženje
+
+# @wsHost: ws.kurir.ordera.app@, @443@, @wss@ - to je *produkcija*? Ima li poseban host za
+  staging / lokalno?
+# @REVERB_APP_KEY = 'uqrwfjx8bqxf0qtfhmrt'@ - stabilan (ide u klijentski bundle svakako)?
+# Da li WS treba da radi i za *kurirsku* (mobilnu web) sesiju istovremeno, ili samo
+  dispečerska web?
+
+h2. 🔴 A.5 @GET /dispatcher/orders/{id}/offers@ - oblik odgovora
+
+Parser trenutno toleriše bare niz / @{offers}@ / @{data}@, ali treba nam fiksno:
+# Tačan omotač? @{ offers: [...] }@?
+# Nosi li *top-level* @mode@ / @round_status@ / @order_id@?
+# Šta vraća kad *nema aktivne runde* za narudžbu - prazan niz, @204@, ili @404@? (Front
+  otvara narudžbu i odmah zove ovo; @404@ bi bio problem ako znači i "nema runde" i "nema
+  narudžbe".)
+# Red po kuriru je @{ courier_id, offer_status, offer_expires_at }@ - potvrda naziva polja
+  (@offer_status@ vs @status@, @offer_expires_at@ vs @expires_at@).
+
+h2. 🔴 A.6 @POST /dispatcher/orders/{id}/offer@ - odgovor + greške
+
+# @201@ telo: vraća li *stanje runde* (da preskočimo follow-up @GET@), ili samo
+  @{ message }@?
+# @422@ kada: @courier_ids@ prazan / kurir van @candidate-couriers@ liste / narudžba nije
+  assignable (još @on-hold@)? Koji je oblik greške (Laravel @errors.courier_ids@)?
+# @409@ kada *runda već postoji* za narudžbu? Može li dispečer *zamijeniti* aktivnu rundu
+  (novi @/offer@ dok je stara @active@), ili prvo mora cancel?
+
+h2. 🔴 A.7 Cancel runde
+
+Nema rute za *prekid runde*. "Zatvori rundu" na frontu samo gasi klijentsku pretplatu -
+backend job i dalje šalje ponude sljedećim kandidatima. Dispečeru treba stvarni prekid
+(npr. @DELETE /dispatcher/orders/{id}/offer@ ili @POST .../offer/cancel@) →
+runda @cancelled@, pending ponude povučene, event emitovan.
+
+h2. 🟡 A.8 @offer_timeout_seconds@, @mode@, redoslijed
+
+# @offer_timeout_seconds@ u telu @POST@-a - poštuje se *per-runda*, ili backend uvijek
+  uzima firmin @offer_timeout_seconds@ iz @finance-settings@ i ignoriše telo? Min/max
+  (5-120 kao u finance-settings)?
+# @mode@ default ako se izostavi? Je li @parallel@ uslovljen firminim @assignment_mode@,
+  ili je uvijek dostupan dispečeru ručno?
+# @sequential@ - backend striktno prati redoslijed @courier_ids@ niza, ili re-rangira po
+  svom candidate ranku?
+
+h2. 🟠 A.9 Runda vs. druge promjene vlasništva narudžbe
+
+Šta biva s aktivnom rundom ako narudžbu u međuvremenu preuzme drugi tok - kurir self-serve
+@POST /orders/{id}/accept@, ili dispečerska direktna dodjela? Ide li runda u @cancelled@ i
+emituje event? (Inače front pokazuje "Ponuđeno" za narudžbu koje više nema.)
+
+h2. 🟢 A.10 @offer_status@ direkt na @candidate-couriers@ redu
+
+DETALJNO predlog je nudio alternativu: @offer_status@ / @offer_expires_at@ *po redu* u
+@candidate-couriers@ odgovoru, umjesto zasebnog @GET /offers@. Ako je to izvodljivo, front
+bi otpao jedan endpoint (lista kandidata se ionako auto-refreshuje). Šta je lakše vama?
+
+h2. 🔴 A.11 @GET /courier/offers@ - oblik reda
+
+Front treba da nacrta ponudu kuriru isto kao @OrderOfferDetail.vue@ danas (adresa
+preuzimanja + adresa dostave + cijena + ruta). Za to red mora nositi *pun order preview*
+kao @/orders/available@ redovi, ne samo @{ order_id, offer_status, offer_expires_at, mode }@.
+
+# Koji je tačan oblik reda? Nosi li @restaurant@ / @location@ / @delivery_price@ /
+  @coordination@?
+# Ako ne - da dodamo @GET /orders/{id}@ poziv po ponudi, ili možete obogatiti red?
+
+h2. 🟡 A.12 @POST /orders/{id}/offer-response@ - odgovor + greške
+
+# Telo odgovora na @accept@ / @decline@?
+# @409@ / @403@ kada: ponuda istekla / @superseded@ / runda zatvorena / ovaj kurir nema
+  @pending@ ponudu za tu narudžbu? Front tad skida ponudu iz liste - treba nam da
+  razlikujemo "kasno" od stvarne greške.
+# Smije li kurir @POST /orders/{id}/accept@ (self-serve) narudžbu koja je trenutno u
+  rundi *za nekog drugog*, ili je narudžba zaključana za rundu?
+
+h2. 🟡 A.13 FCM @order_offer@ payload
+
+@data.type: "order_offer"@ + koja polja? Očekujemo @order_id@, @expires_at@, @mode@. Front
+grana po @payload.data.type@ i tad zove @GET /courier/offers@. Treba nam tačan skup
+ključeva (veže se na B.5 / 2.6).
+
+---
+
+h1. B. I DALJE OTVORENO - prenešeno sa 09.09
+
+h2. 🔴 B.1 (1.5) @couriers-status@ vraća i dispečere (@admin_delivery@)
+
+Nepromijenjeno. @couriers-status@ / @candidate-couriers@ / @couriers-balance@ vraćaju i
+@admin_delivery@ naloge, bez @type@ / @role@ polja za filtriranje. *Ovo sad dodiruje i
+rundu ponude* - dispečerski nalog se može čekirati i ponuditi kao "kurir". Traženo:
+isključiti @admin_delivery@ iz courier lista, ili dodati @type@ polje.
+
+h2. 🔴 B.2 (2.2a) @resolve-restaurant-status accept@ → narudžba ne uđe u @orders/waiting@
+
+Nepromijenjeno. @POST .../resolve-restaurant-status {action:"accept"}@ vrati @200@,
+narudžba nestane iz "Čeka restoran" ali se *ne pojavi* u @GET /dispatcher/orders/waiting@
+(ni poslije refresh-a). Reprodukovano na #3870. Pitanja: u koje stanje @accept@ prebacuje
+narudžbu; ima li @orders/waiting@ serverski vremenski prozor koji "zaostalu" narudžbu
+izbacuje; ne slati "Nova narudzba" push akteru koji je sam uradio @accept@.
+
+h2. 🟡 B.3 (2.2) @order_status@ u 409 - enum
+
+Nepromijenjeno. @POST /orders/{id}/accept@ vraća @order_status@ u 409 telu; front mapira
+heuristikom. Treba *tačan enum* + značenje svake vrijednosti (@on-hold@, @assigned@,
+@picked_up@, @in_delivery@, @delivered@, @cancelled@, @refused@ …).
+
+h2. 🟡 B.4 (1.3) @courier-locations@ - sitna pitanja
+
+Nepromijenjeno. @location@ ikad @null@ za red koji jeste u odgovoru? @status@ enum + pravilo
+za @offline@? @search@ po @courier_id@ (sad hvata samo ime/telefon)? @updated_at@ na @Z@
+umjesto @+02:00@ radi konzistentnosti? @battery@ / @accuracy@ nazad u @location@ blok?
+
+h2. ⏳ B.5 (2.6) Push kanal - katalog @data.type@
+
+Nepromijenjeno + prošireno ovim dokumentom (A.13). Treba: *dokumentovan @data.type@ enum
++ oblik @data@ payload-a po tipu* za @order_offer@, @cash_handover_reported@,
+@order_unassigned_timeout@, @order_pending_restaurant@, @cash_limit_reached@. Koji se
+*stvarno šalju danas*? Dispečerska web sesija (@kind: 1@) - dobija li push za
+@order_unassigned_timeout@ / rundu @exhausted@? Front sad ima @onPushEvent()@ bus spreman,
+grana samo @cash_limit_reached@ + radnu listu.
+
+h2. ⏳ B.6 (2.4 "stvarna logika") Automatski tok dodjele
+
+Nepromijenjeno. @assignment_mode@ / @assignment_courier_pool@ / @assignment_timeout_action@
+/ @offer_timeout_seconds@ se čuvaju kroz @PATCH .../finance-settings@ ali *nemaju runtime
+efekat*. Infrastruktura ponude (offer/timeout primitive) je sad na frontu i za ručni i za
+automatski tok - čeka se da backend poveže polja s @NotifyCouriersOrderAccepted@ Job-om.
+Vaša ranija procjena: traži SSH pristup @api.kurir.ordera@.
+
+h2. ⏳ B.7 (2.5) @/earnings@ @hours_online@
+
+Nepromijenjeno. Čeka "sesije" sistem. Kad bude: @hours_online@ (ili @minutes_online@) po
+redu u @daily[]@; front agregira "Sati online" + "KM/sat".
+
+h2. 🟠 B.8 (2.7) Valuta firme na @my-companies@ / @me@
+
+Nepromijenjeno. Neblokirajuće dok je upozorenje o valuti na istom ekranu. Ako
+@RestaurantCooperationPanel@ izađe van "Firma" ekrana, treba @currency@ po redu u
+@GET /dispatcher/my-companies@ i/ili @GET /me@.
+
+h2. ⏳ B.9 (2.8) Uklonjen / suspendovan kurir s dugom
+
+Nepromijenjeno, čeka tim @app.ordera@. Je li namjerno da @couriers-balance@ drži kurire
+kojih nema u @couriers-status@? Rade li @cash-receipt@ / @payout@ kad je veza firma↔kurir
+raskinuta (ne samo "nikad postojala")? Treba @link_active@ flag ili dokumentovana poruka.
+
+---
+
+h1. C. 👁 Čeka produkcijsku potvrdu
+
+Nepromijenjeno sa 09.09. @payouts.created_at@ prešao na ISO + @Z@; molimo potvrdu s
+produkcije da nema pomaka u prikazu datuma poslije uklanjanja wall-clock workaround-a
+(@ordered_at@, @waiting_minutes@, @minutes_until_delivery@, trajanja).
+
+---
+
+h1. D. Interno (ne za backend) - typecheck regresija
+
+@nuxi typecheck@ je trebalo vratiti @typescript@ + @vue-tsc@ dev deps (bili uklonjeni, pa
+je typecheck tiho padao od ~04.09). Poslije vraćanja - *3 greške od ranije*, nevezane za
+ovu sesiju:
+* @app/pages/courier/inbox.vue:36-37@ - @expandedId@ / @toggleMessage@ se ne vraća iz
+  composable-a (vjerovatno iz 09.09 inbox rada).
+* @app/services/courierWalletService.ts:28@ - @limit === ""@ dok je @limit@ tipa @number@.
+Nisu dirane (van opsega ovog zadatka), prijavljene da se ne izgube.

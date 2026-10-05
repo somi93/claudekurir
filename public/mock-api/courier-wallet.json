@@ -1,0 +1,8 @@
+{
+  "success": true,
+  "data": [
+    { "id": 1, "amount": 12.5, "restaurant_name": "Pizzeria Roma", "received_at": "2026-07-31T11:30:00.000Z" },
+    { "id": 2, "amount": 8.0, "restaurant_name": "Burger House", "received_at": "2026-07-31T10:00:00.000Z" },
+    { "id": 3, "amount": 15.2, "restaurant_name": "Ćevabdžinica Baščaršija", "received_at": "2026-07-31T08:00:00.000Z" }
+  ]
+}

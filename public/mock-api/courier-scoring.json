@@ -1,0 +1,51 @@
+{
+  "success": true,
+  "data": {
+    "current_batch": 2,
+    "last_week_score": 87,
+    "factors": [
+      {
+        "key": "hours",
+        "label": "Odrađeni vs planirani sati",
+        "value": "92%",
+        "icon": "mdi-clock-check-outline",
+        "positive": true
+      },
+      {
+        "key": "acceptance",
+        "label": "Acceptance rate",
+        "value": "87%",
+        "icon": "mdi-check-circle-outline",
+        "positive": true
+      },
+      {
+        "key": "activeWeeks",
+        "label": "Aktivne nedelje",
+        "value": "8 nedelja",
+        "icon": "mdi-calendar-multiple-check",
+        "positive": true
+      },
+      {
+        "key": "specialHours",
+        "label": "Sati u specijalnom periodu",
+        "value": "4.5h",
+        "icon": "mdi-weather-night",
+        "positive": true
+      },
+      {
+        "key": "noShows",
+        "label": "Broj no-show-ova",
+        "value": "1",
+        "icon": "mdi-alert-circle-outline",
+        "positive": false
+      },
+      {
+        "key": "completedOrders",
+        "label": "Završene porudžbine",
+        "value": "342",
+        "icon": "mdi-package-variant-closed",
+        "positive": true
+      }
+    ]
+  }
+}

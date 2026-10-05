@@ -1,0 +1,280 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja iz odgovora DIO II-IV (15. septembar 2026)
+
+Prateći fajl uz @15_09_2026_odgovor-backend-otvorene-stavke.textile@. Kritične stavke
+(DIO I) i njihova otvorena pod-pitanja su već u
+@14_09_2026_Frontend_pitanja_za_backend_kriticne-stavke.textile@ - ne ponavljaju se
+ovdje. Nijedno pitanje ispod NE blokira retest - sve ide u
+@15_09_2026_Network_checklist.md@ bez obzira na odgovor.
+
+Legenda: 🔴 blokira/kvari podatak · 🟠 kvari/ograničava funkciju · 🟡 nejasno/treba potvrda ·
+🟢 niži prioritet
+
+---
+
+h2. 🔴 @orders/active-deliveries@ - @courier: null@ na narudžbi koja je već @picked_up@
+
+Nalaz 15.09, uživo (isti test kurir kao N2/N2a, narudžba #3941). Kurir je prihvatio
+ponudu i označio da je preuzeo paket (@status: "picked_up"@) - u tom trenutku
+@GET /dispatcher/orders/active-deliveries@ za tu narudžbu vraća @"courier": null@:
+
+<pre>
+{"id":3941,...,"status":"picked_up",...,"courier":null}
+</pre>
+
+Za poređenje, druga narudžba u ISTOM odgovoru (#3943, @status: "booked"@ - kurir
+rezervisao ali još nije preuzeo) ima potpuno popunjen @courier@ objekat
+(@id@/@name@/@phone@/@vehicle@):
+
+<pre>
+{"id":3943,...,"status":"booked",...,"courier":{"id":30576,"name":"Milan Rogic","phone":"1441242","vehicle":"bicycle"}}
+</pre>
+
+*Posljedica na frontu* (@BoardDeliveryRow.vue@) - tip je već nullable
+(@ActiveDeliveryCourier | null@) pa ne puca, ali prikaz je aktivno POGREŠAN, ne samo
+prazan: red za narudžbu #3941 prikazuje "⚠ Kurir nedodijeljen" (ista poruka kao za
+narudžbu koja STVARNO nema kurira) iako je narudžba @picked_up@ - kurir je fizički na
+putu sa paketom. Dugme "Pozovi" (vezano za @delivery.courier?.phone@) se ne
+prikazuje - dispečer nema način da pozove kurira koji nosi tu
+narudžbu, baš u fazi gdje bi kontakt mogao biti najpotrebniji (dostava u toku).
+
+# Da li @courier@ treba da ostane popunjen na SVIM statusima poslije dodjele
+  (@booked@/@picked_up@/bilo koji "u toku"), a nestaje samo kad narudžba više nema
+  dodijeljenog kurira (npr. vraćena u pool)? Trenutno izgleda da nestaje BAŠ na
+  prelazu u @picked_up@, što je suprotno očekivanju.
+# Da li je ovo vezano za neki drugi tok kojim je kurir preuzeo (npr. offer-round
+  accept vs. stariji direktan accept) - da li @courier@ ostaje popunjen ako se ista
+  narudžba testira preko drugog puta dodjele?
+
+h2. 🟡 Cash limit - ručna dodjela: greška odmah (RIJEŠENO), cash chip unaprijed (i dalje otvoreno)
+
+*Dio 1 RIJEŠEN, potvrđeno uživo 15.09* (N3a, @15_09_2026_Network_checklist.md@):
+narudžba #3941, "Dodeli odmah" na kandidatu preko cash limita (saldo 66.90 od limita
+50.00) - greška stiže ODMAH sa istog API poziva, ne čeka se @offer_timeout_seconds@.
+Ručni tok ne ostavlja slot da visi kao što je 13.09 nalaz sugerisao - to je bilo tačno
+za automatsku dodjelu, ne i za ovaj ručni @POST /orders/{id}/accept@ poziv. Sporedna
+napomena (kozmetička, ne blokira): poruka greške je u kurirskom licu ("Dostigli STE
+limit gotovine...") prikazana DISPEČERU - izgleda kao ista copy poruka kao push ka
+kuriru, ponovo upotrijebljena bez prilagođavanja lica/konteksta za dispečerski ekran.
+
+*Dio 2 i dalje otvoren:*
+
+# Može li @candidate-couriers@ ipak vratiti cash status kandidata unaprijed (npr.
+  @cash_over_limit: bool@) da front prikaže chip PRIJE klika, isto kao za
+  neodgovarajuće vozilo? Trenutno dispečer i dalje mora da proba (klikne "Pošalji
+  ponudu"/"Dodeli odmah") pa tek onda sazna - samo je sad barem to saznanje trenutno,
+  ne posle punog timeout-a.
+
+h2. 🔴 @assignment_timeout_action: OPEN_TO_ALL@ ne radi - potvrđeno uživo
+
+Retest N2/N2a/N2b iz @15_09_2026_Network_checklist.md@ je razjasnio obuhvat popravke
+(originalno pitanje "koji tačno dio je popravljen" - djelimičan odgovor iz dokaza):
+
+* @assignment_mode: TOP_N@ (@batch_size@) - RADI (N2, narudžba 3941 - 2 istovremene
+  ponude).
+* @assignment_courier_pool: AVAILABLE_NOW@ - RADI (N2a, narudžba 3942 -
+  @candidate_ids@ suzen na TAČNO jednog kandidata sa @currently_available: true@,
+  isključujući ostalih 21).
+* @assignment_timeout_action: OPEN_TO_ALL@ - NE RADI (N2b, narudžba 3943,
+  @assignment_mode: NEAREST@, @assignment_courier_pool: ALL_ACTIVE@, 22 kandidata u
+  @candidate_ids@). Prvi kandidat (@30577@) je dobio ponudu, istekla je poslije
+  @offer_timeout_seconds@ (20s). Poslije isteka, @round.status@ je otišao direktno na
+  @"exhausted"@ (@resolved_at@ popunjen) - @offers[]@ i dalje sadrži samo taj jedan
+  red (@offer_status: "expired"@). NIJEDNA nova ponuda nije poslata nijednom od
+  preostalih 21 kandidata - runda se jednostavno zatvorila umjesto da se otvori svima.
+  @OPEN_TO_ALL@ trenutno nema efekta (ni "svima", ni staro @NEXT_NEAREST@ ponašanje -
+  gore je od oba, jer se automatska dodjela potpuno predaje poslije prvog isteka).
+
+# Ovo je REGRESIJA gora od prijavljenog "bez efekta" stanja od 13.09 - ranije je bar
+  runda ostajala aktivna/nastavljala (staro no-op ponašanje se ne zna tačno, ali
+  narudžba nije ostajala bez ijednog kandidata poslije prvog isteka). Sad narudžba sa
+  @OPEN_TO_ALL@ ostaje BEZ KURIRA čim prvi ne odgovori na vrijeme, iako ima 21
+  preostalih validnih kandidata.
+# Da li @OPEN_TO_ALL@ grana uopšte postoji u kodu koji obrađuje istek runde, ili
+  fallback svugdje ide na "zatvori rundu" bez obzira na podešenje?
+# @BEST_MATCH@ (stara vrijednost, i dalje ponuđena u frontu SAMO ako je firma već ima -
+  vidi @FinanceSettingsPanel.vue@ komentar) - da li i ona sad ima efekta, ili je
+  popravka isključivo za nova 3 načina (@ALL@/@NEAREST@/@TOP_N@)?
+
+h2. 🟡 @inbox-summary@ - tačan prefiks rute i oblik odgovora
+
+Odgovor je naveo samo @GET /delivery-companies/{companyId}/inbox-summary@, bez
+@/dispatcher@ prefiksa koji ima sestrinski @broadcast@ endpoint
+(@/dispatcher/delivery-companies/{companyId}/broadcast@), i bez konkretnog JSON oblika.
+Frontend je implementirao pretpostavljajući @/dispatcher/@ prefiks i oblik iz originalnog
+zahtjeva (13_09): @{ courier_id, last_message: { title, sent_at, category, sender } |
+null, dispatcher_unread_count }@ u @{success, data: [...]}@ omotaču.
+
+# Je li tačan prefiks @/dispatcher/delivery-companies/{companyId}/inbox-summary@, ili je
+  ruta van @/dispatcher@ namespace-a (kao što je bukvalno napisano u odgovoru)?
+# Odgovara li stvaran JSON oblik gore navedenom, ili se polja/nazivi razlikuju (npr.
+  @dispatcher_unread_count@ - da li broji poruke koje KURIR nije pročitao, ili nešto
+  drugo - naziv je zbunjujuć jer je "dispatcher" u imenu polja, a @read@ flag na
+  pojedinačnoj poruci prati da li je KURIR pročitao)?
+# Podržava li ruta paginaciju/pretragu kao @couriers-status@ (traženo u originalnom
+  zahtjevu), ili uvijek vraća sve kurire firme odjednom?
+
+h2. 🔴 Automatska runda i dalje nudi admin/dispečerske naloge - sad potvrđeno sa STVARNOM ponudom (TOP_N)
+
+Nastavak nalaza iz @14_09_2026_Frontend_pitanja_za_backend_kriticne-stavke.textile@
+("Automatska runda ponude nudi i dispečerske/admin naloge") - taj nalaz je 14.09 uhvatio
+@30369@ "Admin Ordera" samo u @candidate_ids@ otkazane runde, nikad stvarno ponuđenog.
+
+Retest N2 iz @15_09_2026_Network_checklist.md@ (TOP_N, @assignment_courier_count: 2@,
+narudžba 3941, @is_automatic: true@) je gore od toga: @candidate_ids@ i dalje sadrži
+@30369@ "Admin Ordera" (21 stavka ukupno), i ovog puta je @30369@ JEDAN OD DVA reda u
+@offers[]@ sa @offer_status: "pending"@ i pravim @offer_expires_at@ - admin nalog je
+stvarno dobio aktivnu ponudu na pravoj narudžbi u TOP_N modu, ne samo teorijski
+kandidat kao 14.09.
+
+# Potvrđuje se da problem nije rubni slučaj vezan za jedan tok (sekvencijalni cancel) -
+  TOP_N/@batch_size@ tok koristi isti pogođeni candidate builder. Ista dva pitanja iz
+  14.09 nalaza ostaju, sad hitnija: da li se ispravka (@couriers-status@/
+  @candidate-couriers@) može primijeniti i na ovaj builder, i da li je ijedan
+  admin/dispečerski nalog ikad stvarno primio push u produkciji?
+
+h2. 🟠 Kurir ne vidi ODMAH kad mu dispečer direktno dodijeli narudžbu ("Dodeli odmah")
+
+Nalaz iz uživo testiranja 15.09 (dispečerski "Čeka kurira" board, eskalaciono dugme
+"Dodeli odmah" - ista akcija sad prolazi kroz rangiranu listu kandidata dok neko ne
+primi, vidi @useDispatchBoard.ts directAssign()@, implementirano 15.09). Kad dodela
+uspije, ide na isti @POST /orders/{id}/accept@ endpoint koji kurir sam zove kad
+prihvati narudžbu - ali kurirska strana (@useCourierOrders.ts@, ekran "Dostava" -
+lista dostupnih/mojih narudžbi) NEMA nikakvu push/WS vezu, samo poll na 15s + refresh
+na fokus taba. Za razliku od toga, "ponuda" model (@useCourierOffers.ts@) VEĆ sluša
+push (@order_offer@ tip) i osvježi se odmah - ista infrastruktura, ovaj stariji
+direktan tok je nikad nije dobio.
+
+Posljedica: kurir kome je dispečer HITNO ("Kasni" chip, eskalaciono dugme) direktno
+dodijelio narudžbu, ne vidi je do 15s (ili duže ako je app u pozadini) - baš u
+scenariju gdje je brzina najbitnija.
+
+# Da li backend šalje IKAKAV push kad se kuriru direktno dodijeli narudžba ovim putem
+  (dispečerski hard-assign), nezavisno od @order_offer@ push-a za offer-round model?
+  Ranije potvrđeno (odgovor backend 15.09, "Push kanal") - "nova ponuda kuriru" push
+  je POTVRĐENO da radi, ali to je vezano za offer-round tok; nije jasno pokriva li i
+  ovaj stariji direktan @/orders/{id}/accept@ put.
+# Ako ne postoji - može li se dodati novi push tip (npr. @order_assigned@) kad se
+  ovaj endpoint pozove SA dispečerske strane (ne kad kurir sam sebe prihvati - tada mu
+  push nije ni potreban, već zna)? Frontend bi ga povezao na isti interni push-bus
+  (@onPushEvent@) koji @useCourierOffers.ts@ već koristi - mala izmjena čim postoji
+  signal da se osloni na njega.
+# Alternativa vrijedna razgovora (veća promjena, ne tražimo je odmah): da "Dodeli
+  odmah" umjesto direktnog hard-assign-a otvori offer-rundu sa jednim kandidatom -
+  naslijedio bi već izgrađenu i testiranu push/WS infrastrukturu bez novog push tipa,
+  po cijenu da kurir mora eksplicitno da prihvati umjesto trenutne dodjele. Ovo
+  odlučujemo zajedno kad se dogovorimo koji je pravi smjer.
+
+h2. 🟡 IDEJA - dugme "Radim" / "Prestao sam da radim" za kurira (živi @currently_available@)
+
+Otvoreno za razgovor, nastalo iz N2a testa (@15_09_2026_Network_checklist.md@):
+mehanizam za @currently_available@ je razjašnjen uživo - trenutno ga isključivo puni
+"Radno vrijeme" (@/courier/availability@, unaprijed planirani termini po danu/zoni),
+nema NIKAKAV "sad sam dostupan" prekidač nezavisan od tog rasporeda (isto kao Uber/Bolt
+"idi online" dugme). Kurir koji spontano odluči da radi van svog prijavljenog termina
+(ili prestane ranije nego što je prijavio) trenutno nema način da to odrazi -
+@assignment_courier_pool: AVAILABLE_NOW@ bi ga i dalje tretiralo po starom rasporedu,
+ne po stvarnom trenutnom stanju.
+
+*Pitanje/zadatak za dogovor, ne odluka:*
+
+# Da li ima smisla dodati kuriru dugme "Radim" / "Prestao sam da radim" (ekran
+  "Dostava" ili "Radno vrijeme") koje direktno postavlja @currently_available@ za
+  TRENUTNI momenat, nezavisno od prijavljenog rasporeda?
+# Ako da - da li bi to bilo POSEBNO polje/endpoint od "Radno vrijeme" rasporeda, ili bi
+  dugme samo upisivalo/brisalo "ad-hoc" termin za sada u istom sistemu (pa bi
+  @currently_available@ ostao jedan izvor istine)?
+# Odnos prema @courier-locations@ @status@ polju (@online@/@idle@/@delivering@/
+  @offline@, upisuje ga mobilna app pri slanju pozicije) - da li su to dva potpuno
+  odvojena signala (jedan za dispečersku "Kuriri uživo" mapu, drugi za automatsku
+  dodjelu), ili bi trebalo da budu isti prekidač?
+
+h2. 🟡 "Predloženi kuriri" - dugme "Pošalji ponudu" je klikabilno i za kandidate koji sigurno ne mogu primiti ponudu
+
+Nalaz iz uživo testiranja 15.09 (narudžba #3942, screenshot liste kandidata). Trenutno
+(@CandidateListItem.vue@) "Pošalji ponudu" dugme NIJE onemogućeno ni za jedan slučaj
+gdje se unaprijed zna da kandidat vjerovatno ne može primiti ponudu - chip
+@Nedostupan@/@Na isporuci@/@Ne odgovara vozilu@ je samo informativan, dugme ostaje
+aktivno i klikabilno za sve. Dispečer mora da proba da bi saznao.
+
+*Tri pitanja/ideje za zajednički dogovor, ne odluke:*
+
+# @on_delivery: true@ ("Na isporuci") - da li backend uopšte dozvoljava da se takvom
+  kuriru pošalje ponuda (neka vrsta "naredna narudžba u redu" toka), ili je to uvijek
+  odbijeno? Ako je UVIJEK odbijeno - da li da onemogućimo/uklonimo dugme za takve
+  kandidate na frontu, umjesto da dispečer dobije grešku tek poslije klika?
+# Filter u UI-ju - da li da dodamo filter (pored postojećih "Preporučeno"/"Po
+  udaljenosti"/"Filteri") koji prikazuje SAMO kandidate kojima se realno može poslati
+  ponuda (isključuje @on_delivery@, i ostale buduće "sigurno ne može" slučajeve kad se
+  definišu)?
+# Generalizacija cash-limit pitanja iznad (§"Cash limit - ručna dodjela") - umjesto
+  samo @cash_over_limit@ polja, da li @candidate-couriers@ može vratiti OPŠTIJI razlog
+  zašto kandidat ne može primiti ponudu (npr. @unavailable_reason: "cash_limit" |
+  "on_delivery" | null@), da front može konzistentno da obeleži/onemogući red u listi
+  za bilo koji poznat razlog, ne samo cash limit?
+
+h2. 🟡 Kurirski prikaz ponude ("Nova ponuda" banner) - mnogo manje informacija od redovnih narudžbi
+
+Nalaz 15.09 (uz prethodnu stavku, iz istog toka - dispečer šalje ponudu kroz
+"Predloženi kuriri"). Kad kurir dobije ponudu (offer-round model,
+@GET /courier/offers@), na ekranu "Dostava" (@deliveries.vue@) vidi samo mali gornji
+banner: broj narudžbe, opciono naziv restorana, odbrojavanje, i Prihvati/Odbij dugmad -
+NE zna ni šta vozi (stavke, adresa, cijena dostave). Ovo je postojeći kod komentar već
+priznao kao nedovršeno (@deliveries.vue@, red 18-21: "banner ga ne koristi još, samo
+ID/naziv restorana/odbrojavanje"): @CourierInboxOfferDto@ (@types/offer.ts@) VEĆ nosi
+pun @order@ preview objekat (@order.restaurant@/@order.location@/@delivery_price@,
+potvrđeno uživo 12.09) - front ga jednostavno ne prikazuje.
+
+Za poređenje: obična dostupna narudžba (@availableOrders@, "available" tab) se
+prikazuje kao puna @OrderCard@, klik otvara @OrderOfferDetail@ (mapa, ruta,
+udaljenost/trajanje, pa tek onda Prihvati) - mnogo bogatiji prikaz od trenutnog
+ponuda-banner-a za praktično isti odluka-tip zadatak (kurir treba da odluči da li
+prihvata narudžbu).
+
+# Da li ponuda treba da se prikazuje na ISTI način/mjesto kao ostale narudžbe (ista
+  @OrderCard@/@OrderOfferDetail@ komponenta, sa mapom/rutom/cijenom), samo VIZUELNO
+  istaknuto (highlighted - npr. boja ivice, "NOVO" oznaka, odbrojavanje) da se
+  razlikuje od obične dostupne narudžbe koju kurir sam bira da pogleda?
+# Backend potvrda - je li @order@ polje u @GET /courier/offers@ odgovoru ISTOG oblika
+  kao red iz @GET /orders/available@ (isti @Order@ model koji @OrderCard@/
+  @OrderOfferDetail@ već konzumiraju), ili je to poseban/skraćen oblik pa bi front
+  morao da normalizuje odvojeno?
+
+h2. 🟡 "Moj profil" (kurirska strana) - da li kurir treba/smije da vidi/uređuje 13.09 proširena polja?
+
+Nalaz 15.09, screenshot kurirskog ekrana "Moj profil". Ovaj ekran (@profile.vue@,
+@courierProfileService.ts@, @GET/PUT /couriers/:id@) je POTPUNO odvojen od dispečerskih
+"Dodaj/Izmeni kurira" formi dodanih 13.09 - prikazuje samo staro: ime/prezime/telefon/
+email (readonly) i vozilo (tip + model/registracija). Nijedno od 8 polja dodanih 13.09
+(@date_of_birth@, @iban@, @emergency_contact_name@, @emergency_contact_phone@,
+@paying_type@, @paying@, @contract_signed_at@, @contract_active_from@ - vidi
+@types/company-courier.ts@) se ovdje ne pojavljuje, ni za prikaz ni za uređivanje -
+kurir o njima ne zna ništa sa svoje strane, sve ide isključivo preko dispečera.
+
+# Da li je namjerno da SVIH 8 polja budu isključivo dispečerski upravljana (kurir ih
+  nikad ne vidi/dira), ili bi neka trebalo da budu vidljiva/uredljiva i kuriru sa svoje
+  strane? Konkretno razdvajamo dvije grupe pošto imaju različitu prirodu:
+** *Lični podaci* (@date_of_birth@, @iban@, @emergency_contact_name@,
+   @emergency_contact_phone@) - ovo su podaci O OSOBI (@user_details@ tabela, prati
+   kurira kroz firme), ima smisla da ih kurir sam unese/ispravi (npr. promijenio broj
+   hitnog kontakta) umjesto da uvijek zavisi od dispečera da ih ažurira ispravno.
+** *Naplata/ugovor* (@paying_type@, @paying@, @contract_signed_at@,
+   @contract_active_from@) - ovo je vezano za odnos SA FIRMOM (@delivery_company_user@
+   pivot), vjerovatno namjerno isključivo dispečerski/administrativno - kurir vjerovatno
+   ne treba da sam mijenja svoj ugovoreni tip naplate.
+# Ako kurir treba da vidi bar lične podatke (čak i samo za pregled, bez uređivanja) -
+  treba li @GET /couriers/:id@ (ruta koju @profile.vue@ već zove) da vrati i @detail@
+  blok (isti oblik kao @couriers-status@ za dispečera), ili poseban endpoint?
+# Napomena - ovo pitanje NIJE hitno, samo evidentiramo dok je 13.09 tema još svježa;
+  trenutno stanje (kurir ništa od ovoga ne vidi) nije potvrđen bug, samo nepotvrđena
+  namjera.
+
+h2. 🟢 courier-locations - preostali sitni TODO-i, samo za red
+
+Bez novog pitanja - samo potvrda da su ovo poznati, neblokirajući TODO-i na backend
+strani (nije potrebna nova odluka, samo napomena da front prati):
+@courier_id@ u pretrazi, @battery@/@accuracy@/@altitude@ u odgovoru,
+@updated_at@ usklađivanje na ISO+@Z@ format. Ako postoji procjena kad bi bilo koje od
+ovoga moglo stići, javite - inače front ostaje na trenutnom stanju bez daljeg
+podsjećanja.

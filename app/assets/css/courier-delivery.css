@@ -1,0 +1,1253 @@
+/* Kurirski ekran "Dostave": mapa preko cijelog prostora + radni panel koji se mijenja po koraku.
+   Svi nazivi počinju sa `dl-` da se ne sudare sa Vuetify-em i ostalim stranicama. Ovo je jedan
+   nescoped fajl jer Leaflet markeri (DivIcon) žive van Vue DOM-a, pa im scoped stilovi ne bi stigli.
+   Aplikacija je samo svijetla, pa su tokeni fiksni (bez tamne teme). Vrijednosti i kontrasti su
+   izračunati na tabli "Dizajn dostava kurira" (WCAG): tekst na podlozi najmanje 4.5:1. */
+
+.dl-root {
+  --dl-ink: #0b1220;
+  --dl-ink2: #5b6676;
+  --dl-ink3: #657083;
+  --dl-line: #eceef2;
+  --dl-line2: #dfe3ea;
+  --dl-blue: #2f6fed;
+  --dl-blue-ink: #2459c7;
+  --dl-blue-tint: #eef4ff;
+  --dl-green: #00b37e;
+  --dl-green-ink: #00734f;
+  --dl-green-tint: #e3f8ef;
+  --dl-on-green: #04271b;
+  --dl-yellow: #ffc247;
+  --dl-on-yellow: #2a1e00;
+  --dl-yellow-tint: #fff2df;
+  --dl-amber: #ff9f1c;
+  --dl-amber-ink: #9a4a07;
+  --dl-amber-tint: #fff2df;
+  --dl-red: #e5484d;
+  --dl-red-ink: #b42318;
+  --dl-red-tint: #fde8e6;
+  --dl-shadow-sheet: 0 -10px 34px rgba(11, 18, 32, 0.16), 0 -1px 2px rgba(11, 18, 32, 0.06);
+  --dl-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  /* Iznad donje navigacije (BottomNav: 56px + safe area), ispod nje se ništa ne krije. */
+  bottom: calc(56px + var(--v-safe-bottom, 0px));
+  z-index: 5;
+  overflow: hidden;
+  background: #f2efe9;
+  color: var(--dl-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.dl-root *,
+.dl-root *::before,
+.dl-root *::after {
+  box-sizing: border-box;
+}
+.dl-root :where(button) {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.dl-root :where(p, h3) {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- mapa */
+.dl-map {
+  position: absolute;
+  inset: 0;
+  /* Leaflet paneli idu do z-index 1000; ovdje ih zatvaramo da ne pregaze pilulu i panel. */
+  z-index: 0;
+  isolation: isolate;
+}
+.dl-map .dl-leaflet {
+  width: 100%;
+  height: 100%;
+  background: #f2efe9;
+}
+.dl-map .leaflet-control-attribution {
+  display: none !important;
+}
+
+/* gornji sloj: pilula statusa lijevo, plutajuća dugmad desno */
+.dl-top {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: calc(var(--v-safe-top, 0px) + 12px);
+  z-index: 4;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+.dl-top > * {
+  pointer-events: auto;
+}
+
+.dl-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 13px 0 11px;
+  border-radius: 999px;
+  background: #fff;
+  border: 0;
+  box-shadow: 0 2px 10px rgba(11, 18, 32, 0.18);
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--dl-ink);
+  max-width: 100%;
+}
+.dl-pill small {
+  font-weight: 700;
+  color: var(--dl-ink2);
+  font-size: 0.76rem;
+}
+.dl-pill-dot {
+  position: relative;
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--dl-green);
+}
+.dl-pill-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--dl-green);
+  opacity: 0.5;
+  animation: dl-halo 2s ease-out infinite;
+}
+.dl-pill--warn .dl-pill-dot {
+  background: var(--dl-amber);
+}
+.dl-pill--warn .dl-pill-dot::after {
+  border-color: var(--dl-amber);
+}
+.dl-pill--bad {
+  color: var(--dl-red-ink);
+}
+.dl-pill--bad .dl-pill-dot {
+  background: var(--dl-red);
+}
+.dl-pill--bad .dl-pill-dot::after {
+  display: none;
+}
+
+.dl-fabs {
+  display: grid;
+  gap: 8px;
+}
+.dl-fab {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 0;
+  background: #fff;
+  color: var(--dl-ink);
+  box-shadow: 0 2px 10px rgba(11, 18, 32, 0.2);
+}
+.dl-fab.is-on {
+  color: var(--dl-blue-ink);
+  box-shadow: 0 0 0 2px var(--dl-blue), 0 2px 10px rgba(11, 18, 32, 0.2);
+}
+.dl-fab.is-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid var(--dl-blue);
+  animation: dl-halo 1.6s ease-out infinite;
+}
+
+@keyframes dl-halo {
+  0% {
+    transform: scale(0.55);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- markeri na mapi (Leaflet DivIcon) */
+.dl-marker {
+  background: transparent !important;
+  border: 0 !important;
+}
+.dl-me {
+  position: relative;
+  width: 46px;
+  height: 46px;
+}
+.dl-me-halo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(47, 111, 237, 0.16);
+  animation: dl-halo 2.4s ease-out infinite;
+}
+.dl-me-dot {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--dl-blue, #2f6fed);
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(11, 18, 32, 0.35);
+  color: #fff;
+}
+.dl-me-arrow {
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
+  transition: transform 0.25s linear;
+}
+.dl-me--still .dl-me-arrow {
+  display: none;
+}
+.dl-me--lost .dl-me-dot {
+  background: #8a94a4;
+}
+.dl-me--lost .dl-me-halo {
+  background: rgba(138, 148, 164, 0.18);
+}
+
+.dl-pin {
+  position: relative;
+  width: 38px;
+  height: 48px;
+  filter: drop-shadow(0 3px 4px rgba(11, 18, 32, 0.3));
+}
+.dl-pin svg {
+  position: absolute;
+  inset: 0;
+}
+.dl-pin-glyph {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  line-height: 1;
+  color: #0b1220;
+}
+.dl-pin--drop .dl-pin-glyph {
+  color: #fff;
+}
+.dl-pin--dim {
+  opacity: 0.55;
+  transform: scale(0.8);
+  transform-origin: 50% 100%;
+}
+.dl-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: 54px;
+  transform: translateX(-50%);
+  max-width: 128px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: #fff;
+  color: #0b1220;
+  font-size: 0.76rem;
+  font-weight: 800;
+  box-shadow: 0 2px 10px rgba(11, 18, 32, 0.22);
+}
+.dl-map--tight .dl-bubble {
+  display: none;
+}
+
+/* ---------------------------------------------------------------- radni panel */
+.dl-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  max-height: 86%;
+  margin-inline: auto;
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  box-shadow: var(--dl-shadow-sheet);
+  /* Na širokom ekranu panel ostaje čitljiv, kao donji panel na telefonu. */
+  max-width: 560px;
+}
+.dl-grip {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 24px;
+  padding: 10px 0 6px;
+  border: 0;
+  background: none;
+  cursor: grab;
+  touch-action: none;
+}
+.dl-grip i {
+  display: block;
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: #d5d9e0;
+}
+.dl-grip[data-fixed] {
+  cursor: default;
+}
+/* Korijen svakog panela (čekanje, ponuda, dostava...): puni preostalu visinu panela
+   i dopušta unutrašnji skrol kad ekran nije dovoljno visok. */
+.dl-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+.dl-sheet-in {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  padding: 0 16px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.dl-sheet-in::-webkit-scrollbar {
+  width: 0;
+}
+
+.dl-sheet-swap-enter-active,
+.dl-sheet-swap-leave-active {
+  transition: opacity 0.14s ease, transform 0.14s var(--dl-ease);
+}
+.dl-sheet-swap-enter-from,
+.dl-sheet-swap-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.dl-more {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s var(--dl-ease);
+}
+.dl-more > .dl-more-in {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-height: 0;
+  overflow: hidden;
+}
+.dl-sheet.is-open .dl-more {
+  grid-template-rows: 1fr;
+}
+.dl-sheet.is-open .dl-more > .dl-more-in {
+  overflow-y: auto;
+  max-height: min(272px, 38vh);
+  padding-top: 2px;
+  overscroll-behavior: contain;
+}
+
+/* ---------------------------------------------------------------- tipografija */
+.dl-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dl-ink2);
+}
+.dl-eyebrow--blue {
+  color: var(--dl-blue-ink);
+}
+.dl-title {
+  font-size: 1.28rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.dl-sub {
+  font-size: 0.88rem;
+  color: var(--dl-ink2);
+}
+
+/* ---------------------------------------------------------------- čipovi */
+.dl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.dl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: #f2f4f8;
+  color: var(--dl-ink);
+  font-size: 0.82rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dl-chip .v-icon {
+  color: var(--dl-ink2);
+}
+.dl-chip--ok {
+  background: var(--dl-green-tint);
+  color: var(--dl-green-ink);
+}
+.dl-chip--ok .v-icon {
+  color: var(--dl-green-ink);
+}
+.dl-chip--warn {
+  background: var(--dl-amber-tint);
+  color: var(--dl-amber-ink);
+}
+.dl-chip--warn .v-icon {
+  color: var(--dl-amber-ink);
+}
+.dl-chip--bad {
+  background: var(--dl-red-tint);
+  color: var(--dl-red-ink);
+}
+.dl-chip--bad .v-icon {
+  color: var(--dl-red-ink);
+}
+.dl-chip--id {
+  background: var(--dl-ink);
+  color: #fff;
+}
+.dl-chip--id .v-icon {
+  color: #fff;
+}
+.dl-chip--unit {
+  background: #fff;
+  border: 1.5px solid var(--dl-line2);
+  white-space: normal;
+}
+
+/* ---------------------------------------------------------------- korak (zaglavlje aktivne dostave) */
+.dl-head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.dl-steps {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.dl-steps .dl-st {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dl-ink2);
+}
+.dl-steps .dl-st.is-on {
+  color: var(--dl-ink);
+}
+.dl-steps .dl-bar {
+  position: relative;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--dl-line);
+  overflow: hidden;
+}
+.dl-steps .dl-bar b {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+  background: var(--dl-blue);
+  transition: width 0.3s linear;
+}
+.dl-dest {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------- dugmad */
+.dl-btn-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.dl-btn-row.is-stack {
+  grid-auto-flow: row;
+}
+.dl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--dl-line2);
+  background: #fff;
+  color: var(--dl-ink);
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+.dl-btn--blue {
+  background: var(--dl-blue);
+  border-color: var(--dl-blue);
+  color: #fff;
+}
+.dl-btn--green {
+  min-height: 56px;
+  background: var(--dl-green);
+  border-color: var(--dl-green);
+  color: var(--dl-on-green);
+  font-size: 1rem;
+}
+.dl-btn--big {
+  min-height: 56px;
+  font-size: 1rem;
+}
+.dl-btn[disabled],
+.dl-btn.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.dl-chipbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--dl-line2);
+  background: #fff;
+  color: var(--dl-ink);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.dl-btn:focus-visible,
+.dl-fab:focus-visible,
+.dl-pill:focus-visible,
+.dl-rd-chip:focus-visible,
+.dl-slide-knob:focus-visible,
+.dl-grip:focus-visible,
+.dl-chipbtn:focus-visible,
+.dl-queue:focus-visible,
+.dl-next:focus-visible {
+  outline: 3px solid var(--dl-blue);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- klizač za potvrdu */
+.dl-slide {
+  position: relative;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--dl-ink);
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.dl-slide--pickup {
+  --dl-k: var(--dl-yellow);
+  --dl-kt: var(--dl-on-yellow);
+}
+.dl-slide--deliver {
+  --dl-k: var(--dl-green);
+  --dl-kt: var(--dl-on-green);
+}
+.dl-slide-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 56px;
+  border-radius: 999px;
+  background: var(--dl-k);
+  opacity: 0.3;
+}
+.dl-slide-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding-left: 48px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.94rem;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.dl-slide-label > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dl-slide-chev {
+  display: inline-flex;
+  color: var(--dl-k);
+  animation: dl-nudge 1.5s ease-in-out infinite;
+}
+@keyframes dl-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateX(5px);
+    opacity: 1;
+  }
+}
+.dl-slide-knob {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--dl-k);
+  color: var(--dl-kt);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  touch-action: none;
+  cursor: grab;
+  transition: transform 0.24s var(--dl-ease);
+}
+.dl-slide-knob.is-drag {
+  transition: none;
+  cursor: grabbing;
+}
+.dl-slide.is-busy .dl-slide-chev {
+  display: none;
+}
+.dl-slide.is-busy .dl-slide-knob .v-icon {
+  animation: dl-spin 1s linear infinite;
+}
+@keyframes dl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.dl-slide.is-off {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- ponuda */
+.dl-offer-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.dl-offer-head {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.dl-price-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+.dl-price {
+  font-size: 2.15rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.dl-price small {
+  margin-left: 4px;
+  font-size: 1rem;
+  letter-spacing: 0;
+  color: var(--dl-ink2);
+}
+.dl-ring {
+  position: relative;
+  flex: none;
+  width: 60px;
+  height: 60px;
+}
+.dl-ring svg {
+  width: 60px;
+  height: 60px;
+  transform: rotate(-90deg);
+}
+.dl-ring circle {
+  fill: none;
+  stroke-width: 4;
+}
+.dl-ring .dl-r-bg {
+  stroke: var(--dl-line);
+}
+.dl-ring .dl-r-fg {
+  stroke: var(--dl-blue);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear, stroke 0.2s;
+}
+.dl-ring b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.9rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.dl-ring.is-warn .dl-r-fg {
+  stroke: var(--dl-amber);
+}
+.dl-ring.is-warn b {
+  color: var(--dl-amber-ink);
+}
+.dl-ring.is-bad .dl-r-fg {
+  stroke: var(--dl-red);
+}
+.dl-ring.is-bad b {
+  color: var(--dl-red-ink);
+}
+.dl-queue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--dl-blue-tint);
+  color: var(--dl-blue-ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.dl-offer-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.55fr;
+  gap: 8px;
+}
+.dl-expired {
+  display: grid;
+  place-items: center;
+  min-height: 56px;
+  border-radius: 999px;
+  background: var(--dl-red-tint);
+  color: var(--dl-red-ink);
+  font-weight: 800;
+}
+
+/* ---------------------------------------------------------------- stanice (restoran -> kupac) */
+.dl-stops {
+  display: grid;
+  gap: 0;
+}
+.dl-stop {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.dl-stop-rail {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  height: 100%;
+}
+.dl-stop-dot {
+  width: 12px;
+  height: 12px;
+  margin-top: 5px;
+  border-radius: 50%;
+}
+.dl-stop-dot--p {
+  background: var(--dl-yellow);
+  box-shadow: 0 0 0 3px var(--dl-yellow-tint);
+}
+.dl-stop-dot--d {
+  background: var(--dl-blue);
+  box-shadow: 0 0 0 3px var(--dl-blue-tint);
+}
+.dl-stop-dot--done {
+  background: var(--dl-green);
+  box-shadow: 0 0 0 3px var(--dl-green-tint);
+}
+.dl-stop-line {
+  flex: 1;
+  width: 2px;
+  margin: 3px 0;
+  background: var(--dl-line);
+}
+.dl-stop-txt {
+  min-width: 0;
+  padding-bottom: 12px;
+}
+.dl-stop:last-child .dl-stop-txt {
+  padding-bottom: 0;
+}
+.dl-stop-k {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--dl-ink2);
+}
+.dl-stop strong {
+  display: block;
+  font-size: 0.98rem;
+  overflow-wrap: anywhere;
+}
+.dl-stop-addr {
+  display: block;
+  font-size: 0.84rem;
+  color: var(--dl-ink2);
+}
+.dl-stop-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+/* sažeta lista u ponudi: jedan red po stanici, bez natpisa (tačka je iste boje kao pin) */
+.dl-stops--compact .dl-stop-txt {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  padding-bottom: 8px;
+}
+.dl-stops--compact .dl-stop-k {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.dl-stops--compact strong {
+  font-size: 0.96rem;
+  white-space: nowrap;
+}
+.dl-stops--compact .dl-stop-addr {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dl-stops--compact .dl-stop:last-child .dl-stop-txt {
+  padding-bottom: 0;
+}
+
+/* ---------------------------------------------------------------- upozorenja */
+.dl-alert {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: var(--dl-amber-tint);
+  color: var(--dl-amber-ink);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+.dl-alert b {
+  display: block;
+}
+.dl-alert--bad {
+  background: var(--dl-red-tint);
+  color: var(--dl-red-ink);
+}
+.dl-alert--info {
+  background: var(--dl-blue-tint);
+  color: var(--dl-blue-ink);
+}
+.dl-alert-act {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ---------------------------------------------------------------- mirovanje: spremnost, danas, gotovina */
+.dl-idle-h {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+.dl-idle-ic {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: var(--dl-green-tint);
+  color: var(--dl-green-ink);
+}
+.dl-idle-ic--bad {
+  background: var(--dl-red-tint);
+  color: var(--dl-red-ink);
+}
+.dl-rd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.dl-rd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background: #f2f4f8;
+  color: var(--dl-ink);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.dl-rd-chip small {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: inherit;
+  opacity: 0.85;
+}
+.dl-rd-chip.is-ok {
+  background: var(--dl-green-tint);
+  color: var(--dl-green-ink);
+}
+.dl-rd-chip.is-warn {
+  background: var(--dl-amber-tint);
+  color: var(--dl-amber-ink);
+}
+.dl-rd-chip.is-bad {
+  background: var(--dl-red-tint);
+  color: var(--dl-red-ink);
+}
+.dl-today {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.dl-tile {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f7f8fa;
+}
+.dl-tile b {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dl-tile b small {
+  font-size: 0.74rem;
+  letter-spacing: 0;
+  color: var(--dl-ink2);
+}
+.dl-tile span {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--dl-ink2);
+}
+/* Pločica "gotovina" vodi u Novčanik: plavi okvir i oznaka ›. */
+.dl-tile--link {
+  color: inherit;
+  text-decoration: none;
+  box-shadow: inset 0 0 0 1.5px #2f6fed;
+}
+.dl-tile--link span {
+  color: #2459c7;
+}
+.dl-tile--link:active {
+  background: #eef4ff;
+}
+.dl-tile--link:focus-visible {
+  outline: 3px solid #2f6fed;
+  outline-offset: 2px;
+}
+.dl-meter {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+}
+.dl-meter-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--dl-line);
+  overflow: hidden;
+}
+.dl-meter-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--dl-green);
+  transition: width 0.3s ease;
+}
+.dl-meter-fill.is-near {
+  background: #f59e0b;
+}
+.dl-meter-fill.is-over {
+  background: var(--dl-red);
+}
+.dl-meter-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--dl-ink2);
+}
+.dl-meter-row b {
+  color: var(--dl-ink);
+}
+.dl-meter-row b.is-near {
+  color: var(--dl-amber-ink);
+}
+.dl-meter-row b.is-over {
+  color: var(--dl-red-ink);
+}
+
+/* ---------------------------------------------------------------- detalji u proširenom panelu */
+.dl-det {
+  display: grid;
+  gap: 2px;
+}
+.dl-det + .dl-det {
+  padding-top: 14px;
+  border-top: 1px solid var(--dl-line);
+}
+.dl-det h4 {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dl-ink2);
+}
+.dl-ln {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+  font-size: 0.9rem;
+}
+.dl-ln--total {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--dl-line2);
+  font-weight: 800;
+}
+.dl-ln--total span:last-child {
+  font-size: 1.05rem;
+}
+.dl-collect {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--dl-yellow-tint);
+}
+.dl-collect-ic {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--dl-yellow);
+  color: var(--dl-on-yellow);
+}
+.dl-collect b {
+  display: block;
+  font-size: 1.05rem;
+  line-height: 1.15;
+}
+.dl-collect span {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--dl-amber-ink);
+}
+.dl-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f7f8fa;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--dl-ink);
+  user-select: text;
+  -webkit-user-select: text;
+}
+.dl-bigid {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--dl-ink);
+  color: #fff;
+}
+.dl-bigid span {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.dl-bigid b {
+  font-size: 2rem;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.dl-next {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: #f7f8fa;
+  text-align: left;
+}
+.dl-next b {
+  display: block;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.dl-next span {
+  font-size: 0.78rem;
+  color: var(--dl-ink2);
+}
+
+/* ---------------------------------------------------------------- završetak */
+.dl-done {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 6px 0 4px;
+  text-align: center;
+}
+.dl-done-ic {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--dl-green);
+  color: var(--dl-on-green);
+  animation: dl-pop 0.5s var(--dl-ease);
+}
+@keyframes dl-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.dl-done .dl-chips {
+  justify-content: center;
+}
+
+/* ---------------------------------------------------------------- učitavanje */
+.dl-loading {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 4px 0 8px;
+  color: var(--dl-ink2);
+  font-weight: 700;
+}
+
+.sr-only-dl {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dl-sheet,
+  .dl-more,
+  .dl-slide-knob,
+  .dl-ring .dl-r-fg,
+  .dl-steps .dl-bar b,
+  .dl-sheet-swap-enter-active,
+  .dl-sheet-swap-leave-active,
+  .dl-me-arrow,
+  .dl-meter-fill {
+    transition: none !important;
+  }
+  .dl-me-halo,
+  .dl-pill-dot::after,
+  .dl-fab.is-pulse::after,
+  .dl-slide-chev,
+  .dl-done-ic {
+    animation: none !important;
+  }
+}
+
+/* Povlačenje mape prema dolje na telefonu ne smije da pokrene osvježavanje stranice. */
+html:has(.dl-root),
+body:has(.dl-root) {
+  overscroll-behavior: none;
+}

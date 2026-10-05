@@ -1,0 +1,60 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "title": "15 dostava ove nedelje",
+      "description": "Odradi 15 dostava do nedelje uveče i osvoji bonus.",
+      "goal": 15,
+      "progress": 9,
+      "unit": "dostava",
+      "reward": "20 KM bonus",
+      "deadline": "2026-08-03",
+      "status": "in-progress"
+    },
+    {
+      "id": 2,
+      "title": "Vikend heroj",
+      "description": "Odradi 20 dostava tokom vikenda (subota + nedelja).",
+      "goal": 20,
+      "progress": 20,
+      "unit": "dostava",
+      "reward": "15 KM bonus",
+      "deadline": "2026-07-30",
+      "status": "completed"
+    },
+    {
+      "id": 3,
+      "title": "Mesečni šampion",
+      "description": "Odradi 200 dostava u toku meseca za najveći bonus.",
+      "goal": 200,
+      "progress": 47,
+      "unit": "dostava",
+      "reward": "100 KM bonus",
+      "deadline": "2026-08-18",
+      "status": "in-progress"
+    },
+    {
+      "id": 4,
+      "title": "Rane ptice",
+      "description": "Odradi 5 jutarnjih sesija (07:00-10:00).",
+      "goal": 5,
+      "progress": 0,
+      "unit": "sesija",
+      "reward": "10 KM bonus",
+      "deadline": "2026-08-10",
+      "status": "not-joined"
+    },
+    {
+      "id": 5,
+      "title": "Bez otkazivanja",
+      "description": "Odradi 14 dana bez nijednog no-show-a.",
+      "goal": 14,
+      "progress": 0,
+      "unit": "dana",
+      "reward": "Prioritet u sledećem batch-u",
+      "deadline": "2026-08-14",
+      "status": "not-joined"
+    }
+  ]
+}

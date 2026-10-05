@@ -1,0 +1,412 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja (4. oktobar 2026)
+
+Legenda: 🔴 blokira/kvari podatak · 🟠 kvari/ograničava funkciju · 🟡 nejasno/treba potvrda ·
+🟢 niži prioritet
+
+Tema: kurirski ekran *"Novčanik"* (@/courier/wallet@). Frontend ga je danas preradio: dva odvojena računa (gotovina =
+dug prema firmi, zarada = dug firme) kao tabovi, jedna lista po danima sa predajama gotovine i isplatama, prijava
+predaje u donjem listu, kartica "Predaja čeka potvrdu" sa provjerom svakih 20 s, detalj predaje i isplate (broj za
+razgovor sa dispečerom), mjerač limita gotovine i tačka na stavci "Novčanik" u donjoj navigaciji kad je kurir blizu
+limita ili preko njega. Sve što može bez backenda je urađeno i provjereno u pravom browseru nad probnim odgovorima.
+Ispod je ono što front sam ne može da završi, po prioritetu. Dokumenti od ranijih dana se ne mijenjaju: stavka 1 samo
+podsjeća na pitanje koje je od 30.09. još otvoreno.
+
+Dokument ima dva dijela istog dana: *Dio 1: ekran "Novčanik"* (stavke 1-9, odmah ispod) i *Dio 2: ekran "Moj profil"*
+(stavke 10-15, na kraju).
+
+---
+
+h2. ✅ Šta front od danas šalje: Novčanik (informativno, nema pitanja)
+
+Ovo je bitno za opterećenje, pa navodimo tačno:
+
+* Pri otvaranju ekrana Novčanik, svaki izvor posebno, po jedan poziv: @GET /couriers/{id}/wallet-balance@,
+  @/cash-handovers@, @/payouts@, @/history@ i @/earnings?from=@ (prozor od 31 dan). Podaci mlađi od 60 s se ne traže
+  ponovo; stariji se osvježavaju u pozadini. Dugme "Osvježi" traži sve ponovo, a povratak u aplikaciju osvježava samo ono
+  što je starije od 60 s.
+* Dok *predaja čeka potvrdu* i dok je ekran otvoren i vidljiv: @wallet-balance@ i @cash-handovers@ *svakih 20 s*
+  (isplate, istorija i zarada se ne zovu). Čim se predaja potvrdi, provjera staje. Ovo je privremeno rješenje dok ne
+  stigne push (stavka 4).
+* Za tačku u navigaciji: @wallet-balance@ pri prijavi kurira i pri povratku u aplikaciju (najviše jednom u 60 s).
+  "Danas" na ekranu Dostave koristi isti saldo, pa ga više ne traži posebno.
+* Prijava predaje: @POST /cash-handovers/report@ sa @{ "reported_amount": 95.24 }@ (broj, najviše dvije decimale),
+  jedan poziv po prijavi (dugme je onemogućeno dok traje). Odgovor @{ success, handover: {...} }@ front koristi da
+  odmah prikaže "na čekanju", a zatim ponovo traži saldo i predaje. Poruka servera (npr. "Već imate zahtjev na čekanju
+  od 52.00 KM.") se prikazuje kuriru u listu za prijavu.
+* Front *već čita* opciono polje @cash_effect@ u redu @/earnings@ (stavka 1). Dok ga nema, taj dio ekrana se ne
+  prikazuje (nema praznih mjesta ni izmišljenih vrijednosti).
+* Statusi predaje: samo @pending@ i @confirmed@. Svaki drugi status front *izostavlja iz liste* i ne računa ga kao
+  predaju na čekanju (vidi stavku 5).
+
+---
+
+h2. 🔴 1. Efekat dostave na dug: @cash_effect@ po redu @/earnings@ (ponovljeno pitanje od 30.09., stavka 4)
+
+*Šta vidimo (uživo 30.09, kurir @30189@; isti brojevi se vide i na novom ekranu):* stanje @cash_owed_to_company@ je
+@180.70@, a zbir naplaćenog iznosa tri dostave je @212.70@ (@8.16 + 17.36 + 187.18@). Razlika od @32.00@ je hrana
+(@6.80 + 16.00 + 9.20@) koju je kurir platio restoranu na šanku, a dug je zbir samo cijena dostava (@1.36 + 1.36 +
+177.98@). Taj zaključak je izveden iz brojeva i iz komentara u samom @/earnings@ odgovoru, *backend ga nije potvrdio*
+(30.09, stavka 4, pitanja 1-4 su još bez odgovora).
+
+Zbog toga kurir ne može da objasni stanje listom: lista kaže "naplaćeno 187.18", a dug je narastao za @177.98@. Novi
+ekran ima pomoć "Šta ulazi u dug?" koja to objašnjava *kao pravilo za taj način plaćanja* (nije potvrđeno), ali pravi
+odgovor je da svaka dostava kaže koliko je promijenila dug.
+
+*Prijedlog:* u svaki red @data[]@ na @GET /couriers/{id}/earnings@ dodati:
+
+bc.. {
+  "order_id": 4258,
+  "collected_from_customer": 8.16,
+  "cash_effect": 1.36,
+  "payment_type": "courier_advances_restaurant",
+  "payment_type_label": "Kurir plaća restoranu pri preuzimanju"
+}
+
+p. * @cash_effect@: koliko je ta dostava promijenila @cash_owed_to_company@ (sa predznakom, dvije decimale; @0@ za
+  karticu). Front ga čita od danas: red u listi piše "+1.36 KM" uz "naplaćeno 8.16", pločica sažetka "ušlo u dug" (samo kad
+  polje imaju *sve* dostave perioda), a detalj dostave "U dug prema firmi +1.36 KM".
+* @payment_type@: stabilan ključ uz lokalizovani @payment_type_label@, da front ne izvodi obračun iz teksta.
+
+*Pitanja:*
+
+# Potvrda pravila: za "Kurir plaća restoranu pri preuzimanju" dug raste tačno za @delivery_collected@ - da li je to
+  namjerno pravilo? (Ako nije, tekst u pomoći i u detalju dostave treba mijenjati.)
+# Može li se @cash_effect@ dodati na redove @/earnings@? Alternativa je stavka 2.
+# Koje vrijednosti ima @payment_type@ i kako se za svaku računa dug?
+# Mijenja li se dug pri isporuci ili pri potvrdi plaćanja?
+
+---
+
+h2. 🟠 2. Jedinstven ledger po računu
+
+*Šta vidimo:* da bi pokazao šta je promijenilo stanje, front sklapa listu iz *tri* izvora koji se ne slažu u obliku ni u
+vremenu: dostave (@/earnings@, @date@ kao lokalno vrijeme bez zone, prozor od 31 dan), predaje (@/cash-handovers@,
+@reported_at@ / @confirmed_at@ u UTC) i isplate (@/payouts@, @created_at@ u UTC). Lista tako ne može da pokaže ni stanje
+poslije svakog knjiženja, ni korekcije, ni unose koje je dispečer uradio direktno (stavka 3), pa se zbir u listi ne može
+provjeriti naspram stanja iz @wallet-balance@.
+
+*Prijedlog:* jedan endpoint nad ledgerom kurirovog konta (ledger @LedgerAccount@ / @LedgerEntry@ već postoji, vidi
+odgovor od 26.08):
+
+bc.. GET /couriers/{id}/ledger?account=cash|wage&from=2026-09-01&to=2026-10-04&page=1&per_page=50
+
+{
+  "success": true,
+  "data": [
+    {
+      "id": 7781,
+      "kind": "delivery",
+      "at": "2026-10-03T11:58:00.000000Z",
+      "amount": 1.36,
+      "balance_after": 94.94,
+      "order_id": 4258,
+      "note": null
+    },
+    { "id": 7790, "kind": "handover", "at": "...", "amount": -97.79, "balance_after": 0, "handover_id": 912 },
+    { "id": 7795, "kind": "dispatcher_entry", "at": "...", "amount": -10.0, "balance_after": 84.94, "entered_by_name": "..." }
+  ],
+  "meta": { "total": 154, "last_page": 4 }
+}
+
+p. @kind@: @delivery@, @handover@, @payout@, @dispatcher_entry@, @correction@. Front bi tada umjesto spajanja tri izvora
+pokazivao ovu listu, a dostave sa nazivom restorana i dalje spajao po @order_id@.
+
+*Pitanja:*
+
+# Može li se ovakav endpoint dodati (ili postoji nešto slično što ne poznajemo)?
+# Je li @balance_after@ moguće vratiti uz svaki unos?
+# Koje vrste unosa postoje u ledgeru kurirovog konta (dostava, predaja, isplata, unos dispečera, korekcija, ...)?
+
+---
+
+h2. 🟠 3. Dispečerov direktan unos gotovine u listi predaja kurira
+
+*Šta vidimo:* @POST /dispatcher/couriers/{id}/cash-receipt@ odmah smanjuje @cash_owed_to_company@ (odgovor backenda od
+30.08, tačka 2.4). Pitanje iz dokumenta od 29.08 (2.4) - *kreira li taj unos red u @GET /couriers/{id}/cash-handovers@* -
+nije eksplicitno odgovoreno. Ako ne kreira, dug kurira padne, a kurir u svojoj listi predaja ne vidi ništa: ekran ne može
+da objasni zašto je stanje manje.
+
+*Pitanja:*
+
+# Pojavljuje li se @cash-receipt@ u @GET /couriers/{id}/cash-handovers@? Sa kojim statusom i poljima? Ako ne, može li se
+  dodati (sa imenom dispečera i oznakom izvora, npr. @source: "dispatcher_entry"@)?
+# Isto pitanje za isplatu koju dispečer evidentira: pojavljuje li se uvijek u @GET /couriers/{id}/payouts@?
+# Koriguje li ikad neko stanje na drugi način (korekcija, zaokruživanje) bez reda u ovim listama?
+
+---
+
+h2. 🟠 4. Push, poruka u sandučetu ili socket kad dispečer potvrdi predaju ili evidentira isplatu
+
+*Šta vidimo:* kurir koji je prijavio predaju ne dobija nikakav signal kad dispečer potvrdi. Zato ekran dok predaja čeka
+sam provjerava saldo i predaje svakih 20 s (vidi uvod) i osvježava ih pri povratku u aplikaciju. To je dva zahtjeva na
+20 s po kuriru koji čeka, ali ne pomaže ako je aplikacija zatvorena (kurir tada ne zna da je predaja potvrđena, pa
+možda još jednom nosi novac na predaju).
+
+*Prijedlog:* kad dispečer potvrdi predaju (i kad evidentira isplatu), poslati push i/ili poruku u sanduče, i ako je
+moguće događaj na kurirskom kanalu (kao @.courier.offers.changed@):
+
+bc.. {
+  "data": {
+    "type": "cash_handover_confirmed",
+    "handover_id": 912,
+    "confirmed_amount": "92.79",
+    "url": "/courier/wallet?o=h912"
+  }
+}
+
+p. Front razumije adresu @/courier/wallet?o=h912@ (predaja) i @?o=p41@ (isplata) i otvara detalj; klik na push već vodi
+na @data.url@ (vidi dokument od 03.10, stavka 3).
+
+*Pitanja:*
+
+# Šalje li backend danas push ili poruku kad dispečer potvrdi predaju? Koji je @data.type@?
+# Može li se dodati za potvrdu predaje i za evidentiranu isplatu (i za odbijenu prijavu, stavka 5)?
+# Može li socket događaj na @App.Models.User.{courierId}@ (npr. @.courier.wallet.changed@) da bi ekran odmah osvježio
+  stanje bez provjere svakih 20 s?
+
+---
+
+h2. 🟡 5. Povlačenje i odbijanje prijave predaje
+
+*Šta vidimo:* kurir koji pogriješi u iznosu (npr. upiše @952.40@ umjesto @95.24@) ne može da povuče prijavu, a dok ona
+čeka, druga se ne prima ("Već imate zahtjev na čekanju od X KM."). Mora da zove dispečera. Danas postoje samo statusi
+@pending@ i @confirmed@: dispečer ne može da odbije prijavu sa razlogom, pa kurir ne zna da prijava nije prihvaćena.
+
+*Prijedlog:*
+
+* @DELETE /cash-handovers/{id}@ (samo kurirova prijava u statusu @pending@) - front bi dodao "Povuci prijavu" na
+  kartici predaje na čekanju.
+* Status @rejected@ sa @reject_reason@ (dispečer odbija sa razlogom) u @GET /couriers/{id}/cash-handovers@.
+
+*Pitanja:*
+
+# Može li kurir da povuče sopstvenu prijavu na čekanju? Ako ne, može li dispečer da je odbije?
+# Koji se status vraća za odbijenu prijavu i gdje je razlog? (Front danas *izostavlja* svaki status osim @pending@ i
+  @confirmed@, da nepoznat status ne bi izgledao kao predaja na čekanju.)
+
+---
+
+h2. 🟡 6. Dopune @wallet-balance@: čekanje, model plate, valuta
+
+*Šta vidimo:* @GET /couriers/{id}/wallet-balance@ nosi četiri polja (@cash_owed_to_company@, @wage_owed_to_courier@,
+@cash_limit_amount@, @cash_limit_enforcement@). Front zato:
+
+* *iznos predaje na čekanju* uzima iz druge liste (@cash-handovers@), pa ekran mora da čeka dva odgovora;
+* *mjesečnu platu* prepoznaje samo po tome da je @pay_rate_label: null@ u redovima @/earnings@ (vidi dokument od 03.10,
+  stavka 27), pa kurir bez ijedne dostave ne može da bude prepoznat;
+* valutu piše tvrdo kao "KM" (danas @currency@ stiže prazan string, vidi 03.10, stavka 10).
+
+*Prijedlog:* uz postojeća polja:
+
+bc.. "pending_handover_amount": 95.24,
+"last_handover_at": "2026-10-02T21:26:00.000000Z",
+"pay_model": "per_delivery",
+"currency": "BAM"
+
+p. @pay_model@: @per_delivery@ / @percent@ / @monthly@. Front ih ne zahtijeva; čitao bi ih čim stignu (tada ekran više
+ne bi čekao drugi odgovor da zna da li predaja čeka).
+
+*Pitanja:*
+
+# Mogu li se dodati @pending_handover_amount@, @last_handover_at@, @pay_model@ i @currency@?
+# Šta @wallet-balance@ vraća za kurira sa mjesečnom platom: @wage_owed_to_courier: 0@ ili polje izostaje?
+
+---
+
+h2. 🟡 7. Pravila prijave predaje (@POST /cash-handovers/report@)
+
+*Šta vidimo:* znamo jedan odgovor greške (poruka "Već imate zahtjev na čekanju od 52.00 KM.", *status kôd nismo
+potvrdili* - naš probni odgovor je koristio 422), a ostala pravila nisu opisana. Front zato ne zabranjuje ništa što ne
+mora: iznos mora biti veći od 0, najviše dvije decimale; iznos *veći od duga* se samo upozorava ("Prijavljuješ X KM više
+nego što duguješ. Firma ti tada duguje razliku."), ali se šalje.
+
+*Pitanja:*
+
+# Koji je HTTP status i tijelo odgovora kad prijava dok je druga na čekanju, kad je iznos nevažeći (@0@, negativan, više
+  od dvije decimale) i kad je iznos veći od duga?
+# Postoji li najmanji ili najveći iznos? Je li prijava veća od duga dozvoljena (saldo bi postao negativan) ili se odbija?
+# Dupli dodir / ponovni pokušaj nakon prekida veze: kreira li se dvije prijave ili drugu odbija poruka? (Dugme front
+  onemogućava dok traje slanje, ali mrežni retry ne možemo da spriječimo; da li prima @idempotency_key@ kao @payout@?)
+# Potvrđeno manje od prijavljenog (npr. prijavljeno @97.79@, potvrđeno @92.79@): front piše "razlika ostaje u dugu", jer
+  se saldo smanjuje samo za potvrđeni iznos. Je li to tačno, i da li razlika ostaje kao dug ili se evidentira posebno?
+
+---
+
+h2. 🟢 8. Datumski filter i straničenje na @/cash-handovers@ i @/payouts@
+
+*Šta vidimo:* obje liste vraćaju sve unose kurira jednim pozivom (bez @?from=@, @?to=@ ni straničenja). Novčanik ih
+povlači pri svakom otvaranju i pri provjeri svakih 20 s (predaje), a iscrtava prvih 24 stavke. Za kurira sa godinom
+predaja (jedna svaka dva dana) to je lista koja stalno raste.
+
+*Prijedlog:* @?from=YYYY-MM-DD&to=YYYY-MM-DD@ (lokalni dan, SQL filtrirano) i @?page=&per_page=@ sa
+@meta: { total, last_page }@, isti obrazac kao @?from=@ na @/earnings@.
+
+*Pitanje:* može li?
+
+---
+
+h2. 🟢 9. Kontakt dispečera, raspored isplate i @method@ isplate kao ključ
+
+*Šta vidimo:* kad se iznos ne slaže, kurir treba da pozove dispečera sa brojem predaje ili reference isplate (front ga
+nudi za kopiranje). Telefon dispečera ni firme nije dostupan kuriru, pa dugme "Pozovi dispečera" ne postoji. Isto tako,
+ne znamo kad firma isplaćuje zaradu, pa ekran ne može da kaže "sljedeća isplata ponedjeljkom".
+
+*Prijedlog:* telefon dispečera / firme (npr. u @/me@ ili @wallet-balance@), raspored isplate (npr. @payout_schedule:
+"weekly_monday"@) i @method@ isplate kao stabilan ključ (@cash@ / @bank_transfer@) uz slobodan tekst koji već postoji.
+
+*Pitanja:*
+
+# Smije li se telefon dispečera pokazati kuriru? Gdje bi stigao?
+# Postoji li raspored isplate koji se može čitati, ili je to dogovor sa dispečerom?
+
+---
+
+h1. Dio 2: ekran "Moj profil" (@/courier/profile@)
+
+Tema: kurirski ekran *"Moj profil"*. Frontend ga je danas preradio: umjesto jednog dugog obrasca sa 11 polja sada je
+pregled (zaglavlje sa inicijalima, imenom, brojem naloga, vozilom i firmom, pa grupe Kontakt podaci, Lični podaci,
+Vozilo, Firma, Aplikacija i Nalog), a izmjena ide u donjem listu po grupi (kontakt, lični podaci, vozilo, lozinka,
+odjava). Stranica "Podešavanja" je ukinuta (obavještenja, lokacija i zvuk su sada grupa "Aplikacija" na Profilu; stara
+adresa vodi na Profil). Sve što može bez backenda je urađeno i provjereno u pravom Chrome-u nad probnim API-jem
+oblikovanim po odgovorima iz dokumenata (kurir @30189@ je izmišljen primjer sa tim ID-jem). *Ništa ispod nije
+provjereno nad pravim backendom*; posebno stavka 10 (jedini blokator) treba provjeriti uživo. Ispod je ono što front
+sam ne može da završi, po prioritetu.
+
+---
+
+h2. ✅ Šta front od danas šalje: Profil (informativno, nema pitanja)
+
+Bitno za opterećenje i za stavku 10, pa navodimo tačno:
+
+* @GET /couriers/{id}@ *jednom pri prijavi kurira* (zajednički sloj podataka). Do danas ga je ekran Dostave zvao sam
+  pri svakom otvaranju (radi vozila za rutu); od danas Dostave i Profil dijele isti podatak i ne zovu ga posebno.
+  Podatak mlađi od 60 s se ne traži ponovo; Profil ga pri otvaranju i pri povratku u aplikaciju osvježava samo ako je
+  stariji od 60 s. @GET /couriers/{id}/companies@ se zove tek kad se Profil otvori (isto pravilo od 60 s).
+* @PUT /couriers/{id}@ šalje *samo ono što je kurir izmijenio* (do danas je svako snimanje slalo svih 9 polja, i kad
+  se ništa nije promijenilo). Tačno: stavka 10.
+* Poslije snimanja front *jednom* ponovo čita @GET /couriers/{id}@ (pozadinski). Poslije promjene vozila čeka taj
+  odgovor i provjerava da li je server zaista promijenio vozilo; ako nije, kuriru piše "Server nije promijenio vozilo".
+* @GET /orders/driver/{id}@ *jednom* kad kurir otvori potvrdu odjave (upozorenje "Imaš aktivnu dostavu"; ako poziv
+  padne, potvrda se prikazuje bez upozorenja). @POST /logout@ jednom, kao i do sada.
+* *Promjena lozinke:* @PUT /me/password@ sa @{current_password, new_password, new_password_confirmation}@. *Do danas ni
+  jedan kurir nije mogao da dođe do te forme:* traka "privremena lozinka" vodila je na @/change-password@, a front je
+  kurira odatle vraćao na Dostave (dozvoljene rute kurira su bile samo @/@ i @/courier*@). Od danas kurir mijenja
+  lozinku u listu na Profilu. Poruka servera uz @current_password@ se prikazuje kao "Trenutna lozinka nije ispravna.",
+  a uz @new_password@ onako kako stigne. Pravilo "najmanje 8 znakova" je *naša pretpostavka* (server ima zadnju riječ);
+  javite ako je drugačije.
+* Bez novih poziva za obavještenja, lokaciju i zvuk (isti izvori kao ranije, samo na drugom ekranu).
+
+---
+
+h2. 🔴 10. @PUT /couriers/{id}@: djelimično tijelo i @vehicle_type: null@ (provjeriti uživo)
+
+*Šta vidimo (iz koda, prije izmjene):* kurir bez vozila (@vehicle: null@, po 28.08 §4.3 to je pravo stanje i znači
+"pješice") je na ekranu bio prikazan kao "Automobil", pa je *svako snimanje, i promjena samo telefona*, slalo
+@vehicle_type: "car"@ i @vehicle_note: ""@. Da li backend na takav @PUT@ *kreira* vozilo kuriru koji ga nema, nismo
+provjerili i to ne tvrdimo; ali front sada ne šalje polje koje kurir nije dirnuo.
+
+*Šta front šalje od danas:*
+
+bc.. PUT /couriers/{id}   { "phone": "066 111 222" }                         // samo izmijenjeno
+PUT /couriers/{id}   { "vehicle_type": null }                            // "Pješice"
+PUT /couriers/{id}   { "vehicle_type": "motorbike", "vehicle_note": "Honda PCX · BL 999-A-111" }
+
+p. * Izmjena *samo napomene* vozila šalje i @vehicle_type@ koji već važi, jer po 28.08 §4.3 @PUT@ bez @vehicle_type@ ne
+  dira vozilo (ni napomenu).
+* Ako server odbije djelimično tijelo sa @422@ koje traži @name@, @lastname@ ili @phone@, front *jednom ponovi* isti
+  zahtjev sa ta tri polja (trenutne vrijednosti) i *zapamti na uređaju* da ih od tada šalje uvijek. Kuriru se ne
+  prikazuje ništa posebno. Ako je odgovor drugačiji, ne pogađamo: poruka servera se prikazuje u listu.
+* Prazno lično polje (datum rođenja, IBAN, hitni kontakt) šalje se kao @null@ (briše).
+
+*Pitanja:*
+
+# Prima li @PUT /couriers/{id}@ djelimično tijelo (npr. samo @{"phone": "..."}@)? Ako ne, koja su polja obavezna?
+  (Front već ima rezervu: uz izmjenu šalje ime, prezime i telefon.)
+# Briše li @vehicle_type: null@ vozilo i na ovom @PUT@-u? Za dispečerski @PATCH@ je potvrđeno, za @PUT@ piše samo
+  "isti fix" (28.08); uživo nije viđeno.
+# Je li tačno da @vehicle_note@ bez @vehicle_type@ ne mijenja ništa, i vraća li @PUT@ odgovor ažuriran profil
+  (@detail@, @vehicle@)? Front ga svejedno čita ponovo, ali bi odgovor uštedio jedan poziv.
+# Prima li @PUT@ @null@ za @date_of_birth@, @iban@, @emergency_contact_name@ i @emergency_contact_phone@ kao
+  "obriši"? (Front šalje @null@.)
+
+---
+
+h2. 🟠 11. Račun za isplatu: @detail.iban@ kurira ili @bank_account@ firme
+
+*Šta vidimo:* kurir na Profilu (Lični podaci) unosi *IBAN* i on se čuva u @detail.iban@. Dispečer istovremeno unosi
+@bank_account@, firma-specifičnu kolonu na @delivery_company_user@ (28.08, stavka 5.2), koju kurir na svom ekranu ne
+vidi. Ne znamo koji se od ta dva broja koristi za isplatu zarade. Ako kurir upiše IBAN, a firma isplaćuje na
+@bank_account@, kurir će vjerovati da je račun predat, a nije.
+
+Drugo: 14.09. je backend vratio @detail.iban: "11-1111111111-111"@ (lokalni broj računa, nije IBAN). Zato front *ne
+zabranjuje* snimanje: za pogrešan format samo *upozorava* ("BiH IBAN ima 20 znakova, upisano ih je 17", "Kontrolni broj
+se ne poklapa") i šalje broj bez razmaka, velikim slovima.
+
+*Prijedlog:* jedan izvor istine za isplatu (ili izričito reći koji), pa da ga kurir vidi i na ekranu Novčanik pored
+isplata.
+
+*Pitanja:*
+
+# Na koji se račun isplaćuje zarada: @detail.iban@, @bank_account@ ili nešto treće?
+# Smije li kurir da vidi i mijenja @bank_account@? (U odgovoru @GET /couriers/{id}@ ga nismo vidjeli.)
+# Validira li backend @iban@ (format, dužina)? Ako je namjerno slobodan, front ostaje na upozorenju; ako ne smije da
+  primi lokalni broj, javite pravilo pa ćemo ga pretvoriti u grešku.
+
+---
+
+h2. 🟡 12. Link za preporuku: @detail.referral_url@ naspram @https://kurir.ordera.app/r/{id}@
+
+*Šta vidimo:* @detail.referral_url@ i @detail.referral_short_url@ su u odgovoru koji smo vidjeli (14.09) @null@, a ekran
+"Preporuči prijatelja" (@/courier/referral@) *gradi link iz broja naloga*: @https://kurir.ordera.app/r/{id}@. Red na Profilu
+("30 KM za oboje", "Kad prijatelj odradi 20 dostava.") vodi na taj ekran. Ne znamo da li taj link radi, niti da li će
+backend popunjavati @referral_url@ drugačijim oblikom.
+
+*Pitanja:*
+
+# Da li @https://kurir.ordera.app/r/{id}@ postoji i vodi na prijavu sa evidentiranim preporučiocem?
+# Kada se popunjavaju @referral_url@ / @referral_short_url@ i hoće li front dobiti gotov link (tada ga čitamo umjesto
+  da ga gradimo)?
+# Jesu li iznos (30 KM) i uslov (20 dostava), koji su sada u konfiguraciji fronta, tačni, i vraća li ih backend negdje?
+
+---
+
+h2. 🟡 13. Firma kurira: telefon i naziv grada u @GET /couriers/{id}/companies@
+
+*Šta vidimo:* odgovor ima @id@, @name@, @city_id@. Profil pokazuje firmu (čip u zaglavlju i red u grupi "Firma"), ali ne
+može da kaže *u kojem je gradu* ni *koji je broj dispečera*. Ista potreba kao kontakt dispečera u Novčaniku (stavka 9).
+
+*Prijedlog:* uz svaku firmu @city_name@ (ili ugnijeđen @city@) i @phone@ / @dispatcher_phone@, ako ih smije vidjeti
+kurir. Front tada dodaje red "Pozovi dispečera".
+
+*Pitanje:* smije li se telefon firme / dispečera pokazati kuriru i gdje bi stigao?
+
+---
+
+h2. 🟢 14. Slika profila: @image_path@ (osnova adrese) i otpremanje
+
+*Šta vidimo:* @image_path@ postoji u tipu odgovora, ali ne znamo osnovu adrese da bi se slika prikazala, a ni endpoint
+za otpremanje (stavka je od ranije u trackeru kao "plan odložen"). Zbog toga zaglavlje Profila pokazuje *inicijale* na
+tamnom krugu, a dugme "Promijeni sliku" ne postoji.
+
+*Pitanja:*
+
+# Je li @image_path@ relativna putanja i na kojoj osnovi se otvara (CDN/storage)?
+# Postoji li, ili će postojati, otpremanje slike za samog kurira (zahtjev i ograničenja: tip, veličina)?
+
+---
+
+h2. 🟡 15. Značenje polja koja su stigla neobjašnjena: @created_at@, @private_email@, @address@, @state@, @city_id@
+
+*Šta vidimo:* od 28.09. @GET /couriers/{id}@ vraća @created_at@, @private_email@, @address@, @state@ i @city_id@ (u
+trackeru su kao "neobjašnjena"). Front od danas *koristi samo @created_at@*: na dnu Profila piše "Nalog otvoren 14.
+septembra 2026." (lokalni dan iz tog polja). Ako @created_at@ nije dan otvaranja naloga (npr. dan prvog zapisa u
+@users@ ili @user_details@), taj red kuriru govori pogrešno. Ostala četiri polja se ne prikazuju dok se ne zna šta znače.
+
+*Pitanja:*
+
+# Je li @created_at@ trenutak otvaranja naloga kurira? Ako nije, kojim poljem to imamo?
+# Šta je @state@ (isti @record_status@ 0/1/2 kao drugdje?) i treba li front da pokaže kad kurir nije aktivan?
+# Je li @private_email@ kontakt-email kurira (različit od @email@ za prijavu)? Ako jeste, smije li ga kurir mijenjati i
+  kojim zahtjevom? Isto za @address@ i @city_id@.

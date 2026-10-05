@@ -1,0 +1,188 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja (28. septembar 2026)
+
+Legenda: 🔴 blokira/kvari podatak · 🟠 kvari/ograničava funkciju · 🟡 nejasno/treba potvrda ·
+🟢 niži prioritet
+
+---
+
+h2. ✅ Potvrđeno uživo 28.09 (informativno, nema pitanja)
+
+* *IDOR fix pokriva i @/couriers/{id}@ i @/couriers/{id}/earnings@, ne samo @/orders/driver/{id}@* -
+  ulogovan kao jedan kurir, pozvane tri rute sa TUĐIM @courier_id@ (@30742@):
+  @GET /orders/driver/30742@ → @403@, @GET /couriers/30742@ → @403@,
+  @GET /couriers/30742/earnings@ → @403@. Prethodno (14.09, K1) je potvrđen fix samo za
+  @/orders/driver/{id}@ - pitanje "pokriva li i druge rute" (@otvorene-stavke-tracker.md@,
+  @21_09_2026_Network_checklist_sve-otvorene-stavke.md@ stavka C/R5) sad je DJELIMIČNO
+  odgovoreno sa ova dva dodatna primjera. Ostale kurirske rute sa @{courierId}@ u putanji
+  (@/couriers/{id}/wallet-balance@, @/cash-handovers@, @/availability@, @/inbox@, @/payouts@,
+  @/quests@, @/referrals@, @/scoring@, @/sessions@, @/zones@, @/companies@, @/history@ - vidi
+  @app/services/courier*.ts@) NISU pojedinačno testirane - ne tvrdimo da je provjera vlasništva
+  generička (middleware/policy) dok bar jedna od njih ne bude probana, ali obrazac (dvije
+  dodatne rute redom vraćaju @403@) ide u prilog da JESTE generička.
+* *Automatska dodela (NEAREST) sad ispravno radi OPEN_TO_ALL* - potvrđen pun tok: ponuda prvo
+  najbližem, po isteku otvara SVIM preostalim, po njihovom isteku tek onda @exhausted@. Regresija
+  od 15.09 ispravljena.
+* *offer.round.changed SAD emituje se i za automatski istek kandidata* - uhvaćena dva frame-a na
+  istoj rundi (@active@→@exhausted@) bez ijedne ručne akcije između njih. Raniji nalaz (14.09) da
+  automatski istek nikad ne broadcast-uje više ne važi.
+* *Ručna ponuda sa više kandidata više NE pada na 422 all-or-nothing* - isti test-set kandidata
+  (30189/30742/30577/30576, 30576 nevažeći) sad vraća @200@, @candidate_ids@ sadrži samo validne,
+  top-level @skipped: ["Kurir #30576 trenutno vozi drugu dostavu."]@ objašnjava izostavljenog -
+  tačno ponašanje predloženo 21.09. Frontend je ovo već ispravno parsirao (kod od 21.09, pisan u
+  očekivanju ove promjene) - nije trebalo ništa mijenjati na našoj strani.
+* *paying_type/paying/contract_signed_at/contract_active_from rade i na PATCH-u* - POST potvrđen
+  21.09, PATCH potvrđen 28.09 (kurir 30189) - oba endpointa vraćaju sva 4 pivot polja tačno kako su
+  poslata.
+* *payouts.created_at - potvrđeno na produkciji, bez pomaka* - namjerno testiran slučaj preko
+  granice ponoći (22:11 UTC = 00:11 sledećeg dana po Beogradu), prikaz tačan.
+
+---
+
+h2. 🟠 Kurir ne prima ništa na socketu kad je dodela AUTOMATSKA (samo kad je ručna, od dispečera)
+
+Kontekst: 25.09 smo uživo potvrdili da kurirski privatni kanal
+@private-App.Models.User.{courierId}@, event @.courier.offers.changed@, stvarno radi i nosi
+punu listu ponuda (frontend ga sad koristi kao primarni izvor u
+@useCourierOffers.ts@, GET @/courier/offers@ ostaje samo kao fallback/početno stanje). Taj test
+je bio na ponudi koju je dispečer ručno poslao kroz "Predloženi kuriri".
+
+Sad prijavljeno: kad je dodela AUTOMATSKA (sistem sam otvara rundu/šalje ponudu, bez dispečerove
+akcije u tom trenutku - vidi TOP_N/sequential automatiku potvrđenu 21.09,
+@21_09_2026_Frontend_pitanja_za_backend.textile@), kurir na tom istom kanalu ne dobija baš ništa -
+ni @.courier.offers.changed@ ni bilo koji drugi event. Ponuda mu stigne jedino preko 15s poll-a
+(@GET /courier/offers@) ili FCM push-a (@order_offer@), ako push stigne.
+
+Ovo liči na isti obrazac kao već prijavljena stavka *"offer.round.changed ne emituje se za istek
+kandidata"* (@otvorene-stavke-tracker.md@, WS @orders.{orderId}@): broadcast pouzdano radi za
+SVAKU akciju koja prolazi kroz sinhroni HTTP request na dispečerskoj strani (accept/decline/
+cancel/ručno slanje ponude), ali ne i za ono što pokreće pozadinski posao/queue/scheduled command
+(automatska runda, automatski expiry kandidata) - taj kod vjerovatno nikad ne zove @broadcast()@.
+Ako je tačno, isti uzrok bi objašnjavao i ovu novu stavku - samo sad na KURIRSKOM kanalu, ne
+dispečerskom.
+
+# Da li kod koji otvara automatsku rundu (i koji je napreduje na sledećeg kandidata unutar nje,
+  sequential mod) uopšte zove @broadcast()@ - na kurirskom kanalu
+  (@App.Models.User.{courierId}@, @.courier.offers.changed@), na dispečerskom
+  (@orders.{orderId}@, @.offer.round.changed@), na oba, ili ni na jednom?
+# Ako je uzrok isti kao za automatski expiry (posao ne prolazi kroz sinhroni kontroler, pa
+  @broadcast()@ nikad ne stigne pozvan) - da li se to može ispraviti da automatska dodela
+  eksplicitno emituje oba eventa, isto kao ručna akcija?
+# Da li je ovo poznato/planirano za popravku uskoro, ili frontend za sada treba da računa da je
+  poll (15s) jedini pouzdan mehanizam za AUTOMATSKE ponude (dok je za ručne socket već potvrđeno
+  pouzdan)?
+
+---
+
+h2. 🟠 Kurirski socket ne javlja ništa ni na "Dodeli odmah" (direktna dispečerska dodela)
+
+Poznato od 15.09 (@otvorene-stavke-tracker.md@, "Dodeli odmah — kurir ne vidi odmah") da
+@POST /orders/{id}/accept@ (direktna dodela, dugme "Dodeli odmah" na tabli i "Pošalji ponudu"
+per-red fallback) nema nikakav real-time signal za kurira - u tom trenutku (15.09) to je značilo
+"nema push". Potvrđeno ponovo uživo 28.09, ali sad preciznije: kurirski privatni kanal
+(@App.Models.User.{courierId}@) NIŠTA ne emituje ni na ovu akciju - ni @.courier.offers.changed@ ni
+bilo šta drugo. Logično, jer @POST /orders/{id}/accept@ ne prolazi kroz offer-round model uopšte
+(to je potpuno odvojen, stariji endpoint - vidi @candidateCouriersService.ts@), pa ga ni kurirski
+kanal, koliko znamo, ne prati.
+
+Pitanje je sad konkretnije nego 15.09 jer kanal @App.Models.User.{courierId}@ VEĆ postoji i
+POUZDANO radi (potvrđeno 25.09 za ponude) - nije potrebno graditi nešto novo od nule.
+
+# Da li @POST /orders/{id}/accept@ (direktna dodela) uopšte zove @broadcast()@ na bilo kom kanalu
+  kad uspije?
+# Da li se taj isti kurirski kanal (@App.Models.User.{courierId}@) može proširiti da emituje neki
+  event i za direktnu dodelu (npr. novi @.courier.order.assigned@, ili čak ponovna upotreba
+  @.courier.offers.changed@ semantike - "nešto se promijenilo, povuci stanje") - umjesto da se
+  gradi zaseban mehanizam?
+# Dok se to ne riješi, frontend i dalje računa samo na 15s poll (@GET /orders/driver/{id}@) za ovaj
+  konkretan tok - potvrda da je to za sada očekivano.
+
+---
+
+h2. 🟠 Kandidat preko BLOCK limita gotovine i dalje dobija ponudu (koju onda mora da odbije/padne)
+
+Vezano za postojeću stavku *"Cash limit / drugi razlozi unaprijed"* (@otvorene-stavke-tracker.md@,
+@GET .../candidate-couriers@ nema @unavailable_reason@ polje) - ta stavka je do sada bila samo o
+tome da DISPEČER unaprijed ne vidi da kandidat ne može primiti ponudu. Potvrđeno uživo 28.09 da je
+posljedica šira: kad je firma na @BLOCK@ režimu limita gotovine ("Ponašanje pri prekoračenju
+limita: Blokiraj"), kurir koji je preko limita SVEJEDNO dobija ponudu (kartica/poziv na Prihvati) -
+kandidat pool za slanje ponude (ručno i/ili automatski, nije razdvojeno testirano) ne isključuje
+kurire koji su preko @BLOCK@ limita. Kad taj kurir pokuša da prihvati, backend ga ispravno odbija
+(@409@) - dakle limit se PRIMJENJUJE na accept-u, samo se ne provjerava unaprijed pri BIRANJU
+kandidata za ponudu.
+
+Efekat: kurir gubi vrijeme na ponudu koju unaprijed ne može prihvatiti, a kod sekvencijalne
+(NEAREST) runde se troši cio @offer_timeout_seconds@ prozor čekajući njegov (neizbježan) pad umjesto
+da se odmah pređe na sledećeg kandidata.
+
+# Da li se kandidat pool za slanje ponude (ručno @POST .../offer@ i/ili automatska runda) može
+  filtrirati da unaprijed isključi kurire koji su TRENUTNO preko @BLOCK@ limita gotovine za tu
+  firmu - isto kao što se već isključuju kuriri neodgovarajućeg vozila?
+# Ako se to ne može/ne treba mijenjati na serveru odmah, da li bar @candidate-couriers@ odgovor
+  može dobiti polje (npr. @cash_over_limit@ ili opštiji @unavailable_reason@) da frontend unaprijed
+  prikaže chip i, po mogućstvu, spriječi slanje ponude tom kandidatu sa svoje strane?
+
+---
+
+h2. 🔴 Kurir nema NIKAKAV način da sazna da je prešao limit gotovine (NOTIFY_ONLY)
+
+Provjereno uživo 28.09, @POST /orders/{id}/offer-response@ (@{action:"accept"}@) - kurir preko
+limita, firma na NOTIFY_ONLY. Odgovor:
+
+<pre>
+{"success":true,"message":"Ponuda prihvacena.","data":{...puna narudžba...}}
+</pre>
+
+Nema @warning@, nema @current_cash_amount@/@cash_limit_amount@ - ništa vezano za limit gotovine,
+za razliku od starog @POST /orders/{id}/accept@ odgovora (@OrderActionResponse@ - @warning@ +
+oba iznosa, backend DIO 2 tačka 2.1). Ovo je NOVO otkriven, ozbiljniji problem: kurir danas nema
+NIJEDAN preostali način da sazna da je prešao limit, ni u jednom toku kojim može doći do
+narudžbe:
+
+# *Direktna dodjela* ("Dodeli odmah", dispečerski @POST .../accept@) - kurir nije taj koji zove
+  endpoint, ne vidi ni taj (postojeći) @warning@ čak i kad ga backend pošalje - stiže dispečeru,
+  ne kuriru.
+# *Offer-round prihvatanje* (@offer-response@, gore) - odgovor uopšte ne nosi tu informaciju.
+# Stari self-serve @GET /orders/available@ + kurirov sopstveni @POST .../accept@ - JEDINI tok koji
+  je ikad prikazivao ovo upozorenje kuriru (čitao @response.warning@) - uklonjen iz aplikacije
+  25.09 (kurir sad isključivo dobija posao preko ponuda/dodjele, ne bira sam sa liste).
+
+Efekat: NOTIFY_ONLY režim ("kurir prihvata narudžbu, dobija samo upozorenje") danas ne upozorava
+NIKOGA - ni kurira (nema odakle), a dispečera samo u toku #1 (dodjela odmah), ne i u toku #2 (kurir
+sam prihvati ponudu preko rundu - to dispečer ni ne vidi uživo).
+
+# Da li @POST /orders/{id}/offer-response@ može dobiti isto @warning@ (+ eventualno
+  @current_cash_amount@/@cash_limit_amount@) polje kao stari @/accept@, kad je kurir preko limita a
+  firma NOTIFY_ONLY?
+# Postoji li ijedan drugi kanal (push, socket event) kojim bi kurir mogao saznati za ovo, van same
+  akcije prihvatanja - npr. kad ga DISPEČER direktno dodijeli preko limita?
+
+---
+
+h2. ✅ Potvrđeno uživo 28.09 - @GET /couriers/:id@ sad vraća lične podatke + 🟡 nova polja
+
+@GET /couriers/:id@ (kurirov sopstveni "Moj profil" ekran) sad vraća @detail@ objekat sa ličnim
+podacima (@date_of_birth@, @iban@, @emergency_contact_name@, @emergency_contact_phone@,
+@referral_*@) - ranije je taj tip bio @detail: string|null@, praktično nekorišćen. Ovo rješava
+stavku *"Moj profil - 13.09 proširena polja nedostupna kuriru"* - dodali smo sekciju "Lični podaci"
+u @profile.vue@, kurir ih sad sam uređuje.
+
+Napomena: @date_of_birth@ ovdje stiže kao pun ISO datum-vrijeme sa @Z@ (npr.
+@"1999-09-06T22:00:00.000000Z"@), NE kao gola @"YYYY-MM-DD"@ koju isto polje vraća na dispečerskom
+@PATCH .../couriers/{courierId}@ za istog kurira (potvrđeno uživo istog dana, ista vrijednost -
+22:00 UTC = ponoć/07.09 po Beogradu). Nije problem za nas (front čita kroz lokalne Date gettere), ali
+je još jedan primjer već poznatog obrasca (D.1) - više serijalizacionih puteva za isto polje na
+različitim rutama.
+
+Uz to, odgovor sad ima i 4 polja koja ranije nismo viđali: @private_email@, @address@, @state@,
+@city_id@ (plus @created_at@, manje bitno). Dodali smo ih u tip da se ne gube, ali BEZ prikaza u
+formi dok ne potvrdimo značenje:
+
+# Šta je @private_email@ - lični mejl kurira odvojen od @email@ (koji izgleda kao login/korisničko
+  ime, npr. @"dostavljac1@ordera"@, ne pravi mejl domen)? Da li ga kurir treba da uređuje na "Moj
+  profil"?
+# Šta predstavljaju @address@ i @city_id@ - adresa/grad stanovanja kurira? Postoji li ijedan drugi
+  endpoint koji ih koristi/postavlja, ili su tek dodati a nepovezani sa bilo čim postojećim?
+# Da li je @state@ isti @record_status@ enum (0=inactive/1=active/2=deleted) potvrđen na drugom
+  mjestu (restoran cooperation red), ili nešto drugo specifično za kurira?

@@ -1,0 +1,91 @@
+{{toc}}
+
+h1. Frontend implementacija po backend odgovoru "управљање ресторanima фирме" (27. avgust 2026)
+
+Kontekst: backend je odgovorio na svih 5 pitanja iz @27_08_2026_Frontend_odgovor-dispecer-restorani.textile@ (+ hitni 404). Ovaj dokument beleži šta je od toga urađeno na frontu.
+
+Dodirnute datoteke:
+* @app/types/restaurant-cooperation.ts@ - nova polja @suspension_reason@, @record_status@
+* @app/services/restaurantCooperationService.ts@ - ISPRAVLJEN GET URL, @setRestaurantActive@ šalje @suspension_reason@
+* @app/composables/useRestaurantCooperation.ts@ - optimistički razlog + 403/404 poruke
+* @app/components/company/RestaurantCooperationPanel.vue@ - dijalog za razlog, onemogućen prekidač za @internal@, prikaz razloga
+* @app/pages/dispatcher/company.vue@ - novi oblik @toggle@ događaja
+
+---
+
+h2. (Hitno) 404 na @GET .../restaurants@ - RIJEŠENO (pogrešan URL)
+
+Prva pretpostavka (route cache) je otpala. Ažurirana verzija backend dokumenta (27.08, sekcija 1) donosi *ISPRAVKU URL-a*: tačna ruta je @/api/dispatcher/{companyId}/restaurants@ *bez* @delivery-companies@ segmenta, uprkos imenu rute @api.dispatcher.delivery-companies.restaurants.index@. Ranija verzija dokumenta je imala pogrešan URL - po njemu je front i bio napisan, otud 404.
+
+*Front - urađeno:* @fetchRestaurantCooperations@ sada gađa @/dispatcher/${companyId}/restaurants@ (ranije @/dispatcher/delivery-companies/${companyId}/restaurants@). PATCH endpoint @/dispatcher/restaurant-delivery-company/{id}@ nije imao taj segment pa ostaje nepromijenjen.
+
+---
+
+h2. (NOVO 27.08) @record_status@ parametar i polje
+
+Backend je dodao @status@ kolonu na vezi (0/1/2), *odvojenu* od @active_restoran@/@active_company@ prekidača:
+* GET bez parametra ili @?record_status=active@ -> samo @status = 1@ (podrazumevano)
+* @?record_status=inactive@ -> samo @status = 0@
+* @?record_status=all@ -> sve, bez obzira na @status@
+* Otkriveno je da su neke postojeće veze imale @status = 0@ pa nisu bile vidljive u podrazumevanom prikazu iako su prekidači bili ispravni.
+* GET odgovor sada u svakom redu vraća i @record_status@ (sirova vrijednost kolone).
+
+*Front - urađeno:* @RestaurantCooperation@ tip dobio @record_status: number@ (dokumentacija ugovora - odgovor ga uvijek sadrži). *Ne* šaljemo @?record_status=@ parametar - podrazumevano ponašanje (@status = 1@) je tačno za ovaj ekran; @status@ 0/2 su arhivirane/neaktivne veze koje dispečer ne treba da vidi. Ako se pojavi prijava "restoran fali sa liste", prva provjera je @?record_status=all@ na tom nalogu.
+
+---
+
+h2. 1. Veličina liste restorana po firmi
+
+Backend: 2-10 restorana po firmi u bazi, klijentsko filtriranje je ispravan izbor, nema potrebe za @?filter=@ pozivom niti paginacijom.
+
+*Front:* ništa se ne menja. Filter "Svi / Aktivni / Suspendovani" ostaje čisto na frontu (@filteredRestaurants@ computed). Ako se pojave firme sa stotinama restorana, backend javlja pa prelazimo na server-side @?filter=@.
+
+---
+
+h2. 2. @internal@ restorani - prekidač onemogućen
+
+Backend: za @internal: true@ prekidač @active_restoran@ nema pravu svrhu (nema nezavisne firme za dostavu čiju saradnju dispečer uključuje/isključuje - "firma" je sam restoran). Preporuka: sakriti ili onemogućiti prekidač na frontu. Nije backend izmena.
+
+*Front - urađeno:*
+* @v-switch@ u @RestaurantCooperationPanel@ ima @:disabled="restaurant.internal"@.
+* @onToggle@ dodatno odbija poziv (@if (restaurant.internal) return@) kao sigurnosna brava.
+* Status linija za @internal@ redove sada glasi *"Restoran koristi sopstvenu dostavu"* umesto da se računa iz flag-ova. Postojeći čip "Sopstvena dostava" ostaje.
+
+Prekidač je *onemogućen* (ne sakriven) - dispečer i dalje vidi da veza postoji, samo je ne može menjati, isti obrazac kao zaključani @active_company@.
+
+---
+
+h2. 3. Razlog suspenzije - @suspension_reason@
+
+Backend: dodata kolona @suspension_reason_by_company@ (zasebna od restoranske strane).
+* @PATCH .../restaurant-delivery-company/{id}@ prima opciono @suspension_reason@ uz @active_restoran@: @{"active_restoran": false, "suspension_reason": "..."}@
+* Pri reaktivaciji (@active_restoran@ nazad na @true@) backend sam postavlja @suspension_reason@ na @null@.
+* @GET .../restaurants@ vraća @suspension_reason@ u svakom redu. Ćirilica podržana (utf8mb4).
+
+*Front - urađeno (isti UX kao suspenzija kurira):*
+* @RestaurantCooperation@ tip dobio @suspension_reason: string | null@.
+* @setRestaurantActive(linkId, active, reason?)@ - kad je @active === false@ šalje @suspension_reason: reason ?? null@; kad je @true@ šalje samo @active_restoran@ (backend čisti razlog sam).
+* @RestaurantCooperationPanel@: gašenje prekidača otvara mini-dijalog "Suspenduj saradnju" sa opcionim poljem *Razlog*; paljenje ide preko confirm dijaloga. Prekidač je sada @:model-value@ (jednosmeran) pa se sam vrati ako se dijalog otkaže - identično @CompanyCouriersPanel@.
+* Status linija za suspendovan red: *"Ti si isključio - {razlog}"* (bez razloga ostaje "Ti si isključio").
+* @useRestaurantCooperation.toggleRestaurant(restaurant, active, reason?)@ radi optimistički flip @active_restoran@ + @suspension_reason@, sa rollback-om na grešku.
+
+---
+
+h2. 4. Autorizacija - 403 vs 404
+
+Backend: @toggle()@ proverava vlasništvo preko @delivery_company_id@ iz same veze (ne iz URL-a).
+* *403* @"Niste vezani za ovu firmu za dostavu."@ - veza postoji ali pripada drugoj firmi.
+* *404* - @id@ veze uopšte ne postoji (@findOrFail@).
+
+*Front - urađeno:* @useRestaurantCooperation@ ima @toggleErrorMessage(error)@ koji razdvaja:
+* @403@ -> *"Nemaš pristup ovoj vezi - restoran je vezan za drugu firmu za dostavu."*
+* @404@ -> *"Ova veza sa restoranom više ne postoji. Osveži listu i pokušaj ponovo."*
+* ostalo -> @toFriendlyErrorMessage(error, "Ne mogu da sačuvam status saradnje.")@ (uključuje offline slučaj)
+
+---
+
+h2. 5. PATCH sa dodatnim poljima
+
+Backend: dodatna polja se *tiho ignorišu* (Laravel @$request->validate@ izvlači samo @active_restoran@ i @suspension_reason@), namerno, neće se menjati.
+
+*Front:* ništa se ne menja. @setRestaurantActive@ ionako šalje samo @active_restoran@ (+ @suspension_reason@ pri suspenziji). Nema potrebe za posebnim error handling-om jer se 422 na ovaj slučaj ne dešava.

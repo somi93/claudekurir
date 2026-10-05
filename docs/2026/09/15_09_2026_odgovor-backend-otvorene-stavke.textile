@@ -1,0 +1,226 @@
+{{toc}}
+
+h1. Odgovor backend-a: preostale otvorene stavke DIO II-IV (15. septembar 2026)
+
+Odgovor na @13_09_2026_Frontend_pitanja_za_backend.textile@, DIO II (🟠), DIO III (🟡) i
+dio DIO IV (⏳) - nastavak istog backend odgovora čiji je DIO I (🔴, svih 6 kritičnih
+stavki) već obrađen u @14_09_2026_odgovor-backend-kriticne-stavke.textile@ i
+@14_09_2026_Network_checklist_kriticne-stavke.md@ (uključujući naknadne live retestove
+14.09 koji su tamo produbili nalaz - npr. @couriers-balance@ i dalje vraća admin naloge,
+@offer.round.changed@ ne radi za prirodni istek). Te stavke se OVDJE ne ponavljaju.
+
+Šta smo uradili na frontu je dopisano ispod svake stavke; preostala pitanja su izdvojena u
+@15_09_2026_Frontend_pitanja_za_backend.textile@, retest u
+@15_09_2026_Network_checklist.md@.
+
+---
+
+h1. II. 🟠 Kvari / ograničava funkciju
+
+h2. ✅ SREĐENO - @POST .../offer@ sad provjerava @courier_id@
+
+Backend: "sada ima proveru".
+
+*Frontend*: bez izmjena - frontend je oduvijek slao samo ID-jeve iz @candidate-couriers@
+liste (ovo je bila odbrambena validacija za tuđe/buduće klijente, ne za naš tok). Retest u
+checklisti (N1) - potvrditi da izmišljen @courier_id@ sad vraća 4xx umjesto @201@ s
+otvorenom rundom.
+
+h2. ✅ SREĐENO - Prošireni model dodjele sad ima efekta
+
+Backend: "SREĐENO" (bez detalja o uzroku/obuhvatu).
+
+*Frontend* (urađeno 15.09): uklonjena napomena u @FinanceSettingsPanel.vue@ ("Podešavanje
+se čuva, ali još nema efekta...") - sekcija "Dodela narudžbi kuririma" sad samo kaže da
+podešavanja utiču na automatsku dodjelu. Nema drugih izmjena - polja
+(@assignment_mode@/@assignment_courier_count@/@assignment_timeout_action@/
+@assignment_courier_pool@/@offer_timeout_seconds@) su se oduvijek čuvala kroz @PATCH@,
+samo je UI napomena bila zastarjela.
+
+Backend nije potvrdio TAČAN obuhvat (da li su sva podešavanja pokrivena - @ALL@/
+@NEAREST@/@TOP_N@ način, @assignment_courier_pool@ filter, @offer_timeout_seconds@ +
+@assignment_timeout_action@ - ili samo dio) - prenešeno u novi fajl pitanja, retest u
+checklisti (N2) mora provjeriti stvarno ponašanje (ne samo da se PATCH snima).
+
+h2. ✅ SREĐENO - Valuta firme dostupna na @my-companies@
+
+Backend: dostupno na @/api/dispatcher/my-companies@.
+
+*Frontend* (urađeno 15.09):
+* @currency@ dodano u @CompanyDto@/@Company@ (@types/pricing.ts@) i @mapCompanyDto@
+  (@deliveryCompaniesService.ts@).
+* @company.vue@: @companyCurrency@ (prosljeđen @RestaurantCooperationPanel@-u za
+  upozorenje o neslaganju valute) sad prvo čita @finance-settings@ (kao i do sad -
+  "Finansijske postavke" je podrazumijevani tab pa se učita odmah), a NOVO pada na
+  @companiesStore.selectedCompany.currency@ (sa @my-companies@, uvijek učitano preko
+  sidebar-a) dok se finance-settings ne učita, umjesto direktno na hardkodovano @"KM"@.
+  Ovo skida zavisnost od redoslijeda otvaranja tabova koju je originalno pitanje (2.2)
+  prijavilo.
+
+---
+
+h1. III. 🟡 Nejasno / treba potvrda
+
+h2. 🟡 Cash limit (pazar) - backend sad ne šalje ponude kuriru preko limita
+
+Backend: "backend ne salje ponude ko je prekoracio cache [sic] limit".
+
+*Frontend*: bez izmjena - @candidate-couriers@ i dalje nema cash polje pa se ne može
+prikazati proaktivan chip ("Prekoračio pazar") kao za neodgovarajuće vozilo. Ostaje
+nejasno da li se ovo odnosi i na RUČNU dodjelu preko "Predloženi kuriri" panela
+(@useCandidateCouriers.assign()@ → @POST /orders/{id}/accept@ sa @driver_id@), koja je
+originalni scenario iz pitanja (dispečer bira kandidata koji je VEĆ u listi, pa dobije 409
+tek na @accept@) - ili samo automatsku dodjelu (@NotifyCouriersOrderAccepted@ job).
+Prenešeno u novi fajl pitanja - bez odgovora ne znamo da li 409-cash-limit scenario na
+ručnoj dodjeli i dalje postoji.
+
+h2. ✅ ODGOVORENO - @timeout_action@ enum: tačno 2 vrijednosti
+
+@NEXT_NEAREST@ i @OPEN_TO_ALL@.
+
+*Frontend*: bez izmjena - @assignmentTimeoutActionOptions@ u @FinanceSettingsPanel.vue@ i
+@AssignmentTimeoutAction@ tip (@types/finance-settings.ts@) su već tačno ova dva. Samo
+potvrda da nema treće vrijednosti koju bismo propustili.
+
+h2. ✅ ODGOVORENO - @GET /courier/offers@ vraća isključivo @pending@
+
+Potvrđeno, K1 test je bio tačan. Bez izmjena na frontu.
+
+h2. ✅ ODGOVORENO - @GET /courier/offers@ @delivery_price: 0@ je test-podatak
+
+Backend: 0 znači ili test narudžba na restoranu bez aktivne firme za dostavu, ili treba
+testirati na restoranu sa @active_restoran=1 AND active_company=1@.
+
+*Frontend*: bez izmjena - prikaz cijene na banneru ponude već čita
+@order.delivery_price@ direktno, front ne dodaje placeholder logiku. Retest sa ispravnim
+test-restoranom u checklisti (N3) da potvrdimo da se stvarna cijena prikazuje.
+
+h2. ✅ ODGOVORENO - @courier-locations@, preostalih 6 potvrda
+
+# @location@ nikad @null@ (koordinate obavezno polje, nema mehanizma brisanja pozicije).
+# @status@ enum: @online@/@idle@/@delivering@/@offline@ - upisuje ga mobilna app, nema
+  auto-izvođenja iz neaktivnosti.
+# @courier_id@ nije u @search@ (samo ime/prezime/telefon) - moguće dodati, još nije
+  urađeno.
+# @updated_at@ i dalje @+02:00@ (za razliku od @cash-handovers@/@payouts@ koji su UTC+@Z@)
+  - potvrđena nedosljednost, nije ispravljena.
+# Stari @/courier/locations@ i dalje aktivan, front ga više ne zove.
+# @battery@/@accuracy@/@altitude@ postoje u bazi, stari endpoint ih vraća, novi
+  dispečerski NE - nije namjerno isključeno, samo nije dodano.
+
+*Frontend*: bez izmjena na bilo kojoj od ovih tačaka - sve su ili već tačno tako
+implementirane (front barata @+02:00@ format generički preko @Date@ parsiranja, ne
+pretpostavlja @Z@), ili čekaju backend rad koji još nije stigao (@courier_id@ search,
+@battery@/@accuracy@/@altitude@, timestamp usklađivanje). "Selektovan kurir" kartica
+ostaje bez tih polja dok ih dispečerski endpoint ne doda.
+
+h2. ✅ ODGOVORENO - @email@ u @couriers-status@ nikad @null@
+
+Uvijek string.
+
+*Frontend*: bez izmjena - @CompanyCourier.email@ ostaje @string | null@ opciono (isti
+"dodano naknadno" obrazac kao @first_name@/@last_name@), obrazac se ne mijenja samo zato
+što je jedno polje potvrđeno da nije nikad @null@ - defanzivan @courier?.email ?? ''@ u
+@CourierEditDialog.vue@ i dalje je tačan (tip dozvoljava @undefined@ na starijim
+odgovorima).
+
+h2. ✅ ODGOVORENO - Reset lozinke: sesije + autorizacija
+
+# Reset odmah poništava SVE aktivne sesije kurira na svim uređajima - mora se ponovo
+  prijaviti.
+# Bilo koji dispečer firme može resetovati lozinku bilo kom kuriru te firme - nema
+  posebne admin uloge, samo provjera pripadnosti firmi (403 za tuđu firmu).
+
+*Frontend*: bez izmjena - ovo potvrđuje postojeće ponašanje (dugme se ne skriva
+klijentski, front se oslanja na 403).
+
+h2. ✅ ODGOVORENO - @available_currencies@, preostale 3 potvrde
+
+# Set je globalan (isti za sve firme, nezavisno od grada/države) - filtriranje po državi
+  je najavljen mogući budući rad.
+# Redoslijed je fiksan i NAMJERAN (@['KM', 'BAM', 'EUR', 'RSD']@), NIJE alfabetski -
+  izuzetak: firma sa legacy valutom van kanonskog seta dobija tu vrijednost na POČETKU
+  niza, ispred kanonske četvorke.
+# @"KM"@ garantovano prisutan osim u tom istom rubnom slučaju (a i tada ostaje u nizu,
+  samo ne na prvom mjestu) - front fallback na @"KM"@ je siguran, 422 se ne može desiti.
+
+*Frontend*: bez izmjena - @currencyOptions@ u @FinanceSettingsPanel.vue@ već prikazuje
+@available_currencies@ redoslijedom kako stigne (bez sortiranja), potvrđeno pregledom
+koda da nigdje ne postoji @.sort()@ na ovom nizu. Ponašanje je već tačno kako backend
+opisuje.
+
+h2. ✅ SREĐENO - @order_status@ u 409: pun enum (26 stanja + fallback)
+
+Pun enum dostavljen (legacy 0-10, aktivna iz glavnog backenda 11-17, terminalna 20-26,
+plus @UNDEFINED@ fallback) - vidi odgovor za tačan spisak i značenje svakog stanja.
+
+*Frontend* (urađeno 15.09): @ORDER_STATUS_MESSAGES@ u @useCandidateCouriers.ts@ prošireno
+sa ~14 heuristički pogođenih ključeva na svih 27 (26 stanja + @undefined@
+fallback) sa čitljivom srpskom porukom za svako, mapiranom na normalizovan ključ (mala
+slova, bez razmaka/crtica/donjih crta - isti obrazac kao ranije). Stara heuristika je
+zadržana kao alias-i (@pending@/@assigned@/@cancelled@/@canceled@/@refused@) za varijante
+zapisa koje smo ranije viđali uživo, u slučaju da server pošalje stariji/alternativni
+zapis umjesto tačnog enum imena. Retest u checklisti (N4) - izazvati par 409 sa različitim
+stanjima i provjeriti da se prikazuje tačna nova poruka umjesto stare heurističke.
+
+---
+
+h1. IV. ⏳ Veći posao / feature zahtjevi (djelimično)
+
+h2. ✅ SREĐENO - Zbirni pregled poslednje poruke po kuriru (@inbox-summary@)
+
+@GET /delivery-companies/{companyId}/inbox-summary@ - backend nije naveo pun prefiks
+rute ni tačan oblik odgovora u ovoj poruci.
+
+*Frontend* (urađeno 15.09) - implementirano po obliku koji smo originalno tražili
+(13_09 doc): @{ courier_id, last_message: { title, sent_at, category, sender } | null,
+dispatcher_unread_count }@ u @ApiListResponse@ omotaču:
+* @fetchInboxSummary()@ dodat u @courierInboxService.ts@ - poziva
+  @/dispatcher/delivery-companies/{companyId}/inbox-summary@ (prefiks @/dispatcher/@
+  PRETPOSTAVLJEN po analogiji sa @broadcast@ endpointom, backend odgovor ga nije naveo -
+  *treba potvrditi prvim live pozivom*, vidi checklistu N5).
+* @InboxSummaryEntryDto@/@InboxSummaryEntry@ tipovi + @mapInboxSummaryEntryDto()@
+  (@types/inbox.ts@, @models/InboxMessage.ts@).
+* @notifications.vue@ ("Istorija poslatih poruka"): svaki red liste kurira sad prikazuje
+  pretpregled zadnje poruke (naslov + relativno vrijeme) i chip s brojem nepročitanih, ako
+  postoje. Učitava se po izboru firme, osvježava poslije grupnog slanja i poslije
+  zatvaranja "Poruke kurira" dijaloga (brisanje poruke unutra mijenja pretpregled na
+  listi iza). Greška na ovoj ruti se NE prikazuje korisniku (tiho - pretpregled je
+  dodatak, "Istorija po kuriru" i dalje radi preko postojećeg @GET .../inbox@ po kliku
+  ako summary ruta padne).
+
+*Nije provjereno uživo* - ni tačan prefiks rute ni oblik odgovora nisu potvrđeni od
+backend-a niti testirani protiv pravog servera. Prioritet u checklisti (N5).
+
+h2. ✅ ODGOVORENO - Push kanal: koji eventi šalju push
+
+# Nova ponuda kuriru - DA, radi.
+# Novi cash-handover/report dispečeru - NE, ne šalje se.
+# Narudžba dugo čeka kurira - DJELIMIČNO: pokriveno samo za narudžbe koje prođu kroz
+  offer-round tok (ručna ponuda ili NEAREST/TOP_N) preko
+  @OrderOfferService::notifyDispatchersUnassigned()@, safety-net @offers:tick@ svaki
+  minut. Narudžbe u @ALL@/@BEST_MATCH@ modu (@NotifyCouriersOrderAccepted@, bez offer
+  round-a) NEMAJU nikakav timeout/stuck-order alert - samo početni push, bez fallback-a.
+# Restoran ne prihvata narudžbu - NE, potpuno neimplementirano.
+
+*Frontend*: bez izmjena na pollingu - ovo samo potvrđuje da su trenutni polling intervali
+(Dodela narudžbi 5 min, ostalo on-demand) i dalje jedini oslonac za (b)/(d) i djelimično
+za (c) kad je firma na @ALL@/@BEST_MATCH@. Vrijedno napomenuti dispečeru da "Čeka
+kurira"/"Čeka restoran" tabovi trenutno NEMAJU push fallback za @ALL@/@BEST_MATCH@ firme -
+dokumentovano, nema promjene ponašanja.
+
+h2. ✅ ODGOVORENO - Uklonjen/suspendovan kurir sa otvorenim dugom
+
+# Namjerno je da @couriers-balance@ drži kurire kojih nema u @couriers-status@.
+# @cash-receipt@ i @payout@ rade i za takvog kurira - namjerno.
+
+*Frontend*: bez izmjena - ovo potvrđuje ponašanje koje je frontend već pretpostavio i
+implementirao 01.09 (odgovor 1.2 iz tog dana), "Detalji kurira" se renderuje iz
+@couriers-balance@ reda kad kurira nema u @couriers-status@, akcije rade nad
+@courier_id@ iz balansa. Nema promjene.
+
+---
+
+Bez odgovora ostaju (van obuhvata ove poruke): @/earnings@ @hours_online@ (čeka novi
+"sesije" sistem) i @payouts.created_at@ produkcijska potvrda (V, čeka produkciju) - oba
+nepromijenjena od 13_09 doc-a.

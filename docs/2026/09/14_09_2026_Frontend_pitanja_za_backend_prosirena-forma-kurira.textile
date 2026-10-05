@@ -1,0 +1,83 @@
+{{toc}}
+
+h1. Frontend → backend: proširena forma kurira, eskalacija poslije retesta (14. septembar 2026, večernje)
+
+Poslije @14_09_2026_odgovor-backend-prosirena-forma-kurira.textile@ ("svih 8 polja sad
+rade") - live retest (@14_09_2026_Network_checklist_prosirena-forma-kurira.md@, DIO A)
+pokazuje da je fix DJELIMIČAN.
+
+Legenda: 🔴 blokira/sigurnost · 🟠 kvari/ograničava funkciju · 🟡 nejasno/treba potvrda
+
+---
+
+h1. I. 🟠 Kvari / ograničava funkciju
+
+h2. 🟠 @paying_type@/@paying@/@contract_signed_at@/@contract_active_from@ i dalje @null@ na POST (i na naknadnom GET-u)
+
+@POST /dispatcher/delivery-companies/{companyId}/couriers@ - poslato (kurir 30753):
+
+<pre>
+{"name":"Milos Petrovic","lastname":"Petrovic","phone":"05665056",
+"email":"dostavljac@svipodaci.com","temporary_password":"...",
+"vehicle_type":"motorbike","date_of_birth":"1999-09-15",
+"iban":"11-1111111111-111","emergency_contact_name":"Kontakt",
+"emergency_contact_phone":"40450454545","paying_type":1,"paying":"255",
+"bank_account":"22-2222222222-222","contract_signed_at":"2026-09-08",
+"contract_active_from":"2026-09-13","note":"nap"}
+</pre>
+
+Odgovor (@201@) - @detail@ objekat i @bank_account@/@note@ TAČNI (fix za ove radi), ali
+4 pivot polja su @null@ iako su poslata:
+
+<pre>
+{"success":true,"data":{"courier_id":30753, ...,
+"bank_account":"22-2222222222-222","note":"nap",
+"paying_type":null,"paying":null,"contract_signed_at":null,"contract_active_from":null,
+"detail":{"date_of_birth":"1999-09-15","iban":"11-1111111111-111",
+"emergency_contact_name":"Kontakt","emergency_contact_phone":"40450454545",
+"referral_url":null,"referral_short_url":null,"referred_by":null}}}
+</pre>
+
+Naknadni @GET .../couriers-status@ za istog kurira (30753) vraća identično - sva 4 pivot
+polja i dalje @null@. Nije samo response-artefakt, vrijednosti nisu ni sačuvane u bazi
+(ili se čuvaju negdje odakle @DispatcherCourierResource@ ih ne čita natrag).
+
+Razlikuje se od originalnog odgovora ("svih 8 polja sad rade... paying_type, paying,
+contract_signed_at, contract_active_from na vrhnjem nivou pivot polja") - u praksi radi
+samo @UserDetail@ strana (@date_of_birth@/@iban@/@emergency_contact_*@), ne i
+@delivery_company_user@ pivot strana.
+
+# Da li @store()@ uopšte piše u @delivery_company_user@ pivot za ova 4 polja, ili samo u
+  @users@/@user_details@?
+# Molimo potvrdu SPECIFIČNO na @paying_type@/@paying@/@contract_signed_at@/
+  @contract_active_from@ nakon ispravke - @UserDetail@ dio ne treba dalje testirati, taj
+  je potvrđeno riješen (na oba endpointa).
+
+h2. 🟠 Isto potvrđeno i na PATCH (@update()@) - nije samo POST problem
+
+Retestovano naknadno i na @PATCH .../couriers/{courierId}@ (kurir 30742), isti obrazac:
+
+<pre>
+{"name":"Kurir 2","lastname":"Ordera","phone":"+38766516174","vehicle_type":"car",
+"date_of_birth":"2026-09-07","iban":"11-1242-424","emergency_contact_name":"hitni",
+"emergency_contact_phone":"061111111","paying_type":1,"paying":"242",
+"bank_account":"112-424124214-533","contract_signed_at":"2026-09-07",
+"contract_active_from":"2026-09-14","note":"nova napomena"}
+</pre>
+
+Odgovor (@200@) - @detail@ i @bank_account@/@note@ opet tačni, ali sva 4 pivot polja opet
+@null@:
+
+<pre>
+{"success":true,"data":{"courier_id":30742, ...,
+"bank_account":"112-424124214-533","note":"nova napomena",
+"paying_type":null,"paying":null,"contract_signed_at":null,"contract_active_from":null,
+"detail":{"date_of_birth":"2026-09-07","iban":"11-1242-424",
+"emergency_contact_name":"hitni","emergency_contact_phone":"061111111", ...}}}
+</pre>
+
+Naknadni GET za istog kurira potvrđuje isto - identično POST nalazu iznad. Znači ovo NIJE
+specifično za @store()@ - i @update()@ tiho ignoriše istih 4 pivot polja. Pretpostavka da
+je PATCH možda ostao ispravan (kako je 13.09 originalno opisano) nije tačna - fix
+14.09 kasno popodne je popravio @user_details@ stranu na OBA endpointa, ali
+@delivery_company_user@ pivot stranu ni na jednom.

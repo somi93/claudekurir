@@ -1,0 +1,78 @@
+{{toc}}
+
+h1. Диспечер: управљање рестoranima фирме за доставу
+
+Ово *већ постоји* (није данас направљено од нуле) — данас је само додат опциони филтер параметар. Ако фронтенд *већ* користи ове endpoint-e, само провjeriti да ли жели да искористи нови филтер.
+
+---
+
+h2. 1. Листа рестoranа повезаних са фирмом
+
+<pre>
+GET /api/dispatcher/delivery-companies/{companyId}/restaurants
+Authorization: Bearer &lt;token dispečera&gt;
+</pre>
+
+*Опциони filter параметар (НОВО, 25.8.2026):*
+* @?filter=active@ — само рестoranи гдје је @active_restoran = true@ (фирма их је укључила)
+* @?filter=suspended@ — само гдје је @active_restoran = false@ (фирма их је суспендовала)
+* без параметра, или @?filter=all@ — сви (подразумевано понашање, исто као прије)
+
+*Одговор:*
+<pre><code class="json">
+{
+    "success": true,
+    "data": [
+        {
+            "id": 3,
+            "restaurant_id": 91,
+            "restaurant_name": "Роштиљница Лагуна",
+            "active_restoran": true,
+            "active_company": true,
+            "cooperation_active": true,
+            "internal": false
+        }
+    ]
+}
+</code></pre>
+
+*Обjašnjenje поља:*
+* @active_restoran@ — *едитује фирма* (тачка 2 испод). "Да ли МИ желимо овај ресторан."
+* @active_company@ — едитује *ресторан*, само за приказ овдје (диспечер не може да га промени одавде). "Да ли РЕСТОРАН жели ову фирму."
+* @cooperation_active@ — @true@ само ако су ОБА горња поља @true@ — тек тада наруџбе тог ресторана постају видљиве куририма фирме.
+* @internal@ — @true@ ако је ово ресторанова *властита* достава (не права, независна фирма).
+
+---
+
+h2. 2. Суспензија / активација сарадње
+
+<pre>
+PATCH /api/dispatcher/restaurant-delivery-company/{id}
+Authorization: Bearer &lt;token dispečera&gt;
+Body: {"active_restoran": false}
+</pre>
+
+Користи се @id@ из одговора тачке 1 (ID саме везе restoran↔firma, *не* @restaurant_id@).
+
+*НАМЈЕРНО прихвата само @active_restoran@* — то је једини прекидач који диспечер сме да мења. @active_company@ мења само ресторан, одвојеним, њиховим ендпоинтом.
+
+*Одговор:*
+<pre><code class="json">
+{
+    "success": true,
+    "data": {
+        "id": 3,
+        "active_restoran": false,
+        "active_company": true,
+        "cooperation_active": false
+    }
+}
+</code></pre>
+
+Пошто @cooperation_active@ сад показује @false@ (иако је @active_company@ и даље @true@) — ово потврђује да *обе* стране морају бити укључене.
+
+---
+
+h2. Напомена о разлогу суспензије
+
+Тренутно *нема* поља за разлог/напомену суспензије (само прост прекидач укључено/искључено). Ако затреба, то би била нова колона у бази — javiti ako je potrebno.

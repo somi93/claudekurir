@@ -1,0 +1,157 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja, nejasnoće i zahtjevi (1. septembar 2026)
+
+Kontekst ovog kruga rada:
+* *"Raspored i zone" → Smjene* — tab prerađen u *rota tabelu* (redovi = zone, kolone = 7 dana sedmice).
+* *"Kase kurira"* — akcije "Primio sam gotovinu" / "Isplati zaradu" izvučene iz "Detalji kurira" modala na *svaki red tabele balansa*.
+* Audit *valute* kroz cijeli "Cenovnik" + "Finansijske postavke".
+* Verifikacija tiketa *#223636* (finansije kurira) — kompletan pregled šta je implementirano vs. otvoreno.
+
+Ovaj dokument je *delta od 31.08* — @otvorene-stavke-frontend-31-08.textile@ ostaje master tracker.
+*DIO 1* je novo (nađeno 31.08–01.09). *DIO 2–4* su i dalje-otvoreno, sažeto, s pokazivačem na
+tačku u trackeru — bez ponovnog prepisivanja detalja.
+
+Legenda: 🔴 blokira · 🟠 kvari / ograničava funkciju · 🟡 nejasno / treba potvrda · 🟢 poboljšanje
+
+---
+
+h1. 1. NOVO (nađeno 31.08–01.09)
+
+h2. 🔴 1.1 Valuta firme — nema je na @finance-settings@ (ni GET ni PATCH)
+
+Dispečer treba da bira valutu firme na ekranu *Firma → Finansijske postavke*
+(@FinanceSettingsPanel@), pored provizije / limita gotovine / perioda isplate. Trenutno to
+nije moguće jer endpoint valutu *ni ne vraća ni ne prima*:
+
+* @GET /dispatcher/delivery-companies/{id}/finance-settings@ — odgovor (@FinanceSettings@)
+  *nema @currency@*.
+* @PATCH .../finance-settings@ — telo (@FinanceSettingsUpdate@) prima @cash_limit_amount@,
+  @cash_limit_enforcement@, @payout_period_days@, @daily_handover_time@, @assignment_mode@.
+  *Nema @currency@ za snimanje.*
+
+*Treba:* @currency@ u GET odgovoru + prihvatanje @currency@ u PATCH telu. Format: ISO-4217
+(@"BAM"@ / @"EUR"@ / @"RSD"@) ili neki dogovoreni kod — javite koji da uskladimo birač.
+
+*Blokira* (sve trenutno tvrdo kodira "KM"): labela "Limit gotovine (KM)"; jedinice naknada u
+@SurchargesPanel@ / @SurchargeCard@ ("+0.1 KM/km", "+1 KM po dostavi" — @unit@ je slobodan
+tekst); fallback @price.currency ?? "KM"@ u simulaciji vozila; "Cena dostave" / "Primer
+obračuna". Detaljan popis potrošača: tracker *A.4a*.
+
+Napomena: @recommend-vehicle@ *već* vraća @price.currency@ — samo firma nema ekvivalent van
+tog jednog objekta.
+
+h2. 🟠 1.2 @couriers-balance@ vraća kurire kojih nema u @couriers-status@ listi
+
+Uživo (firma 24): @courier_id 30189@ je u @GET .../couriers-balance@ (saldo gotovine
+@-50.50@, zarada @35.00@) ali ga *nema* u @GET .../couriers-status@. Vjerovatno je to
+"uklonjen / prebačen kurir s otvorenim stavkama" — isto pitanje kao *3.7 / 3.8 od 28.08*
+koje još čeka tim @app.ordera@.
+
+Posljedica na frontu: "Detalji kurira" modal se spajao s @couriers-status@ redom, pa je za
+#30189 bio *prazan*. Sad renderujemo iz @couriers-balance@ reda, a akcije "Primio sam
+gotovinu" (§4c) / "Isplati zaradu" (§5) izvučene su na *svaki* red tabele balansa (rade nad
+@courier_id@ iz balansa, ne nad @couriers-status@ redom).
+
+Pitanja:
+# Je li *namjerno* da @couriers-balance@ drži i te kurire? Za nas je to OK — dispečer mora
+  da zatvori dug — treba nam samo potvrda da nije bug.
+# *Rade li* @POST /dispatcher/couriers/{id}/cash-receipt@ i @POST /dispatcher/couriers/{id}/payout@
+  za takvog kurira (veza firma↔kurir prekinuta)? Ako mogu da vrate 4xx, treba nam *ili* flag
+  na redu (@link_active@ / sl.) da unaprijed disejblujemo dugme, *ili* dokumentovana
+  (lokalizovana) poruka koju prikažemo.
+# @couriers-balance@ red nosi *samo* @courier_id@ (bez @name@ / @phone@). Za kurire kojih
+  nema u @couriers-status@ nemamo *ništa* osim broja — prikazujemo "Kurir #id". Može li red
+  da uključi @name@ (idealno i @phone@)? Bitno baš za uklonjene kurire kojima se isplaćuje
+  zaostala zarada.
+
+h2. 🟢 1.3 @restaurant_id@ u @GET /dispatcher/{companyId}/restaurants@ — potvrda semantike
+
+Dodali smo "ID" kao prvi red u modalu "Kontakt podaci restorana", čitamo @restaurant_id@.
+Potvrda: je li @restaurant_id@ *globalni* ID restorana (stabilan kroz firme, isti kao u
+@orders@), a @id@ na tom redu je ID *reda saradnje* (restaurant↔delivery-company veza)? Front
+pretpostavlja tako.
+
+h2. 🟢 1.4 @record_status@ (0/1/2) na redu saradnje — treba li ga prikazati?
+
+@GET /dispatcher/{companyId}/restaurants@ red ima @record_status@ (sirovi 0/1/2, nezavisno od
+@active_restoran@ / @active_company@). Front ga *ne koristi* za prikaz. Nosi li neku
+informaciju koju dispečer treba da vidi (npr. 0 = arhiviran, 2 = na čekanju), ili je interni?
+
+---
+
+h1. 2. I DALJE OTVORENO — čeka backend (nepromijenjeno od 31.08)
+
+h2. 🟠 2.1 @POST@ / @PUT /dispatcher/shift-templates@ vraćaju skraćen red (tracker D.4)
+
+@GET@ vraća pun red (@zone: {id, name}@, @status@, @current_bookings@, @capacity_source@);
+@POST@ / @PUT .../{id}@ vraćaju samo upisana polja + @zone_id@. Front *ponovo povlači cijelu
+sedmicu* poslije svakog create/update (@ShiftsTab.loadShiftsWeek@) da nova rota tabela
+(zone × dani) ima kompletne ćelije. *Robusno rješenje:* @store@ / @update@ da vraćaju
+identičan pun red kao @index@ → re-fetch se uklanja.
+
+h2. 🟠 2.2 Valuta za *upozorenje o neslaganju* (tracker A.4)
+
+Nezavisno od 1.1: za klijentsko upozorenje u @RestaurantCooperationPanel@ kad se uključuje
+saradnja s restoranom druge valute, treba @currency@ *po redu* u
+@GET /dispatcher/{companyId}/restaurants@ i @currency@ *za firmu* na mjestu koje taj ekran
+čita (@GET /dispatcher/my-companies@ / @GET /me@) — @finance-settings@ se na tom ekranu ne
+povlači.
+
+h2. 🟡 2.3 @/earnings@ — @hours_online@ / metrika "po satu" (tracker A.1)
+
+@GET /couriers/{id}/earnings@ ne vraća @hours_online@ ni @avg_per_hour@ (stvaran oblik:
+@{ total, daily: [{date, amount, deliveries}], data: [...] }@). Kurirska "Ova sedmica"
+kartica zato prikazuje *broj dostava* umjesto "h online / KM po satu" iz #223636 mockup-a;
+kartice "sati online" / "prosjek po satu" su uklonjene. Čeka novi "sesije" sistem (vaša
+procjena 1.5–2.5h).
+
+h2. 🟠 2.4 "Pošalji ponudu" tvrdo dodjeljuje narudžbu (tracker A.5)
+
+@POST /orders/{id}/accept@ sa @{ driver_id }@ "potroši" narudžbu na *prvi* klik (409 na svaki
+naredni pokušaj, i za drugog kurira). Front privremeno unakrsno gasi dugme preko board lista.
+*Treba:* model *ponude više kurira* (accept/decline tok + timeout), ili bar @order_status@
+enum u @candidate-couriers@ odgovoru + čitljiva (lokalizovana) poruka umjesto
+@"Order is no longer available for pickup."@.
+
+h2. 🟢 2.5 Push kanal (A.2) i BEST_MATCH logika (A.3)
+
+Bez promjene: pollujemo na interval (Dodela narudžbi 5 min, ostalo on-demand);
+@assignment_mode = BEST_MATCH@ se čuva kroz PATCH ali *nema efekta* dok backend ne napravi
+filtriranje liste + timeout → sljedeći kandidat.
+
+---
+
+h1. 3. IMPLEMENTIRANO PO OPISU — treba jedna živa potvrda (tracker C.1–C.8)
+
+Nepromijenjeno od 31.08. Kratka lista — detalji i pretpostavljeni oblici u trackeru:
+
+* *C.1* — vraća li @couriers-status@ / @fullCourierRow()@ @lastname@ kao *zasebno* polje?
+* *C.2* — vraćaju li @store@ / @update@ na @.../couriers@ *identičan pun red* kao @index@
+  (uklj. @suspended*@, @contact_phone@, @bank_account@, @note@)?
+* *C.3* — jesu li @confirmed_by@ + @confirmed_by_name@ u *obje* @cash-handovers@ liste
+  (kurirska + dispečerska)?
+* *C.4* — @GET /dispatcher/delivery-companies/{id}/payouts@ deployovan? Oblik reda =
+  kurirski @payouts@ red + @courier_id@?
+* *C.5* — @warning@ polje na @cash-receipt@ / @payout@ odgovoru — deployovano?
+* *C.6* — @price@ breakdown u @recommend-vehicle@ odgovoru — deployovan, oblik kao "Primer
+  obračuna" (@base_price@, @price_per_km@, @per_km_total@, @surcharges[]@, @surcharge_total@,
+  @total@, @currency@; @null@ kad nema @distance_km@)?
+* *C.7* — je li @inbox.sent_at@ zahvaćen @Europe/Belgrade@ ispravkom (obrisali smo *cijeli*
+  wall-clock sloj pod tom pretpostavkom)?
+* *C.8* — @POST /api/dispatcher/orders/{id}/resolve-restaurant-status@ deployovan? Vraća li
+  čitljivu poruku kad narudžba više nije @on-hold@?
+
+---
+
+h1. 4. SITNO / KOZMETIKA (tracker D.1–D.3)
+
+* *D.1* — neujednačen timestamp: @cash-handovers@ vraća @"...000000Z"@, @payouts.created_at@
+  vraća @"YYYY-MM-DD HH:MM:SS"@ (razmak, bez @Z@/offseta). Front barata s oba; idealno
+  ujednačiti na ISO + @Z@.
+* *D.2* — viđeno @{ cash_limit_amount: null, cash_limit_enforcement: "BLOCK" }@. Je li
+  @enforcement@ značajan dok je @amount@ @null@, ili je to samo sačuvana default vrijednost?
+  Front tretira kao "bez limita".
+* *D.3* — molimo prijavite *bilo kakav* pomak vremena na produkciji poslije uklanjanja
+  wall-clock workaround-a (@ordered_at@, @waiting_minutes@, @minutes_until_delivery@,
+  trajanja).

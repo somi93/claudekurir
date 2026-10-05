@@ -1,0 +1,169 @@
+{{toc}}
+
+h1. Frontend → backend: bugovi, nejasnoće i zahtjevi (30. avgust 2026)
+
+Kontekst: implementiran tiket *#223636* (finansije kurira) i tab *"Čeka restoran"*. Svi endpoint-i testirani uživo na firmi 24. Ispod je *samo ono što traži akciju backenda* — potvrđene stvari koje rade nisu u dokumentu.
+
+Legenda: 🔴 blokira · 🟠 kvari funkciju · 🟡 nejasno / treba potvrda · 🟢 poboljšanje
+
+---
+
+h1. 1. Bugovi na backendu
+
+h2. 🟠 1.1 Edit kurira — ime se GOMILA na svaki edit
+
+@PATCH /dispatcher/delivery-companies/{id}/couriers/{courierId}@ poslao @"name": "Lazar Hrebeljanovic"@ → odgovor @"name": "Lazar Hrebeljanovic Hrebeljanovic Hrebeljanovic"@, a sljedeći @couriers-status@ @"Lazar Hrebeljanovic Hrebeljanovic"@. Izgleda da backend drži @name@ + @lastname@ odvojeno, a edit forma šalje *puno ime* u @name@ pa se @lastname@ dopisuje svaki put. Svaki naredni edit doda još jedno prezime.
+
+Edit forma ima *jedno* @name@ polje (po dogovoru 5.1 od 28.08). *Kako front treba slati ime na edit* — puno ime koje backend sam rasparsira, ili da dodamo @lastname@ u PATCH telo?
+
+h2. 🟠 1.2 Tri različita oblika za isti entitet (kurir)
+
+* @couriers-status@ red: @{ courier_id, name, phone, suspended, suspended_reason, suspended_at, vehicle }@ — *nema* @contact_phone@ / @bank_account@ / @note@.
+* @PATCH .../couriers/{id}@ @data@: @{ courier_id, name, phone, vehicle, contact_phone, bank_account, note }@ — *nema* @suspended*@ polja.
+* @POST .../couriers@ @data@: *samo* @{ courier_id, name }@.
+
+Front mora da merge-uje PATCH odgovor preko postojećeg reda (inače izmjena detalja "resetuje" suspenziju u UI-ju) i da re-fetchuje cijelu listu poslije create-a. *Molimo: create i PATCH da vraćaju ISTI pun red kao @couriers-status@* (uz @contact_phone@ / @bank_account@ / @note@ — vidi 3.2).
+
+h2. 🟠 1.3 Tiket #223636 §5 — pogrešna ruta za payout
+
+Tiket navodi @POST /api/couriers/{courierId}/payout@. Ta ruta *404-uje*:
+
+bc. { "message": "The route api/couriers/30189/payout could not be found." }
+
+Tačna ruta je @POST /dispatcher/couriers/{courierId}/payout@ (isti oblik kao @cash-receipt@). Front ispravljen — javljamo radi ispravke tiketa.
+
+h2. 🟡 1.4 @GET /couriers/{id}/earnings@ — oblik ne odgovara tiketu §6
+
+Tiket §6 opisuje @daily_breakdown@ / @current_week@ / @previous_week@ / @hours_online@ / @avg_per_day@ / @orders_count@. Stvaran odgovor:
+
+bc. { "success": true, "total": 68,
+  "daily": [ { "date": "2026-08-26", "amount": 4, "deliveries": 1 } ],
+  "data":  [ { "order_id", "wage", "food_collected", "delivery_collected",
+               "collected_from_customer", "date": "2026-08-26 16:30:35" } ] }
+
+*Front prilagođen* na stvaran oblik (ekran "Zarada" je prije padao na @undefined.toFixed()@). *Ostatak §6 NE tražimo* — nedeljne agregate front računa iz @daily[]@ sam. Ostaje samo @hours_online@ (3.3) i sitne potvrde (2.5).
+
+---
+
+h1. 2. Nejasno / treba potvrda
+
+h2. 🟠 2.1 @pending-restaurant-confirmation@ — @delivery_type@ vrijednosti
+
+Uživo viđeno @0@ / @1@ / @2@ — *nijedan @3@*. Tiket je pisao @0=kurir, 1=preuzimanje, 3=pošta@. Šta je @2@ (pošta?), postoji li @3@ uopšte, je li isti rječnik kao @orders.delivery_type@? Front zasad mapira i @2@ i @3@ na "Pošta".
+
+h2. 🟠 2.2 Serijalizacija datuma na @orders/*@ putu (=7.3)
+
+*Potvrđeno 30.08 ground-truth testom:* @POST /cash-handovers/report@ pokrenut u 00:08 lokalno (CEST +2) vratio @reported_at: "2026-08-29T22:08:14.000000Z"@ → @22:08 Z + 2h = 00:08@ lokalno → @Z@ je *pravi UTC*. @config/app.php@ @Europe/Belgrade@ ispravka radi. Front prebacio @cash-handovers@ prikaz na standardni @new Date()@ parsing.
+
+*Ne znamo* je li i @ordered_at@ / @delivery_time@ (Dodela narudžbi, Čeka restoran) sad pravi UTC — globalna ispravka *vjerovatno* da, ali dispečerski board još radi "wall-clock" workaround i ne diramo ga bez potvrde. *Molimo: jedan živ @ordered_at@ + tačno vrijeme kad je narudžba napravljena.* Ako je pravi UTC → brišemo cijeli workaround.
+
+Sporedno: @payouts.created_at@ dolazi kao @"2026-08-23 13:03:55"@ (razmak, bez @Z@) — drugačiji format od @cash-handovers@ / @inbox@ (@"...000000Z"@). Idealno ujednačiti sve na ISO + @Z@ (ili eksplicitan @+02:00@).
+
+h2. 🟡 2.3 Negativan @cash_owed_to_company@
+
+bc. { "cash_owed_to_company": -45.5, "wage_owed_to_courier": 38,
+  "cash_limit_amount": null, "cash_limit_enforcement": "BLOCK" }
+
+Negativno (-45.5) viđeno i na @wallet-balance@ i na @couriers-balance@ za istog kurira. Front to sad tretira kao "firma duguje kuriru gotovinu" (mijenja naslov / boju / tekst dijaloga). *Potvrda značenja:* negativno = firma duguje kuriru (npr. @cash-receipt@ / predaja premašila naplatu)? Ima li donje granice?
+
+Uz to: @cash_limit_amount: null@ + @cash_limit_enforcement: "BLOCK"@ — je li @enforcement@ značajan dok je @amount@ @null@, ili je to samo sačuvana default postavka?
+
+h2. 🟡 2.4 @cash-receipt@ / @payout@ — efekat i @method@
+
+Obje akcije vraćaju samo @{ success, transaction_id }@. Front ne zna efekat bez re-fetcha. Molimo potvrdu:
+
+* @cash-receipt@ — smanjuje li @cash_owed_to_company@ odmah? Kreira li red u @cash-handovers@ istoriji?
+* @payout@ — smanjuje li @wage_owed_to_courier@ odmah?
+* @payout.method@ — slobodan tekst ili enum? Testirano samo @"gotovina"@ (prošlo). Prima li @"bankovni transfer"@ (druga opcija u biraču)?
+
+h2. 🟡 2.5 Sitne potvrde
+
+* Autorizacija na 5 novih finansijskih ruta (@GET /couriers/{id}/payouts@ i @/cash-handovers@, @POST /cash-handovers/report@, @POST .../cash-receipt@, @POST .../payout@) — provjeravaju vlasništvo (403 za tuđu firmu / tuđeg kurira)? Isti obrazac kao 2.3 / 3.3 / 3.7 od 28.08.
+* @/earnings@: @daily[].amount@ = zbir @data[].wage@ za taj dan? @data[].delivery_collected@ = @null@ znači "dostava nije naplaćena kupcu"?
+* @payouts@ @?from=@ / @?to=@ filteri — format @YYYY-MM-DD@, filtriraju po @created_at@?
+* @couriers-status@ @phone@ može biti @null@ (2 od 6 kurira firme 24) — legitimno (kurir bez unesenog telefona)?
+* @pending-restaurant-confirmation@: @delivery_time@ i @delivery_price@ mogu biti @null@ (front sredio) — potvrda da je namjerno.
+* Čim restoran prihvati narudžbu, napušta li @pending-restaurant-confirmation@ i prelazi u @orders/waiting@ (isključive liste, nema duplog prikaza)?
+* "Čeka restoran" tab — potvrda da nema API akcije (jedina akcija je @tel:@ poziv restorana)?
+
+---
+
+h1. 3. Treba uraditi / dodati
+
+h2. 🟠 3.1 @pending-restaurant-confirmation@ — klizni prozor unazad
+
+Lista je *neograničena unazad*: živ odgovor (firma 24) ima narudžbe od *aprila 2024* (@waiting_minutes: 1265301@ = ~2.4 god), ~80+ redova, gotovo sve stare test narudžbe. Tab je praktično nepregledan.
+
+* Dodati klizni prozor (npr. zadnjih 48h @ordered_at@) na endpoint — kao @orders/waiting@.
+* Jednokratno zatvoriti stare neprihvaćene narudžbe (2024–2025).
+
+h2. 🟠 3.2 @couriers-status@ — dodati @contact_phone@ / @bank_account@ / @note@
+
+Ta 3 polja postoje na @delivery_company_user@ i vraćaju se kroz @PATCH .../couriers/{id}@, ali NE u @couriers-status@ listi. Zato se edit forma za njih otvara *prazna pri prvom otvaranju* (poslije prvog edita front ih ima iz PATCH odgovora). Dodati ih u @couriers-status@, ili napraviti @GET .../couriers/{id}@ detalj.
+
+h2. 🟠 3.3 @hours_online@ za kurira
+
+@/earnings@ ne vraća online-vrijeme, a nije izračunljivo na klijentu. Glovo "Ova sedmica" kartica (tiket §UI) traži "X sati online" i "KM/sat" — bez toga taj broj izostaje.
+
+* Prati li se online-vrijeme kurira igdje? Ako da → dodati @hours_online@ u @daily[]@ (mi agregiramo po sedmici).
+* Ako je u drugom servisu (GPS / app.ordera) → gdje, da povučemo zasebno.
+* Ako se *ne prati* → recite, pa trajno izbacujemo "KM/sat" iz UI-ja.
+
+h2. 🟠 3.4 Vremenski prozor @/earnings@
+
+Je li @daily@ / @total@ neograničen unazad? Kurir sa 2 god. staža → ogroman payload. Treba @?from=@ / @?to=@ filter na endpointu, ili fiksan prozor ("zadnjih N dana").
+
+h2. 🟡 3.5 @confirmed_by@ u @cash-handovers@ GET listi
+
+@POST /dispatcher/cash-handovers/{id}/confirm@ vraća @confirmed_by@ (@user_id@ dispečera koji je potvrdio), ali GET lista *ne*. Dodati @confirmed_by@ (+ ime) u listu — "Istorija predaja" kartica služi za rješavanje sporova, treba da se vidi *ko* je potvrdio.
+
+h2. 🟡 3.6 Dispečerski @payouts@ agregat po firmi
+
+Postoji samo kurirski @GET /couriers/{id}/payouts@. Treba @GET /dispatcher/delivery-companies/{companyId}/payouts@ (sve isplate firme, filter po kuriru / periodu) — analogno @cash-handovers@ istoriji (3.2 od 28.08). Dispečer trenutno nema nikakav pregled isplata na nivou firme.
+
+h2. 🟡 3.7 Regresioni test vremena (=D.3)
+
+Poslije @Europe/Belgrade@ + @TIMESTAMP(date, delivery_time)@ ispravki (28.08) — pretestirati @waiting_minutes@, @minutes_until_delivery@, sva "prije / za X min" i trajanja na produkciji.
+
+h2. 🟡 3.8 Suspendovan / uklonjen kurir sa dugom (=3.7 od 28.08)
+
+Ostaje li na @couriers-balance@ listi (da dispečer ne izgubi dug iz vida)? Može li i dalje da pošalje @cash-handovers/report@ sa mobilne? — proslijeđeno timu @app.ordera@, čeka odgovor.
+
+h2. 🟢 3.9 Currency na nivou firme
+
+Front hardkoduje "KM" na svim finansijskim ekranima. @currency@ postoji samo na @pricing@ (@"KM"@ — *prikazni string*, ne ISO kod) i @order@. Finansijski endpoint-i (@wallet-balance@, @couriers-balance@, @finance-settings@, @earnings@, @payouts@) ga nemaju. Valuta je atribut *firme*, ne treba je na svakom endpointu.
+
+* @GET /me@ (kurir): dodati @delivery_company: { id, name, currency }@ — front trenutno nema *nikakav* podatak o firmi kurira.
+* @GET /dispatcher/my-companies@: dodati @currency@ po redu.
+* Oblik: prikazni string "KM" (kao @pricing.currency@).
+
+h2. 🟢 3.10 Push / notifikacije (=DIO 6)
+
+Inbox mehanizam postoji i front ga koristi (dispečer→kurir). Nedostaje *pravi push*:
+* Kuriru poslije "Pošalji ponudu" (otvoreno od 14.08).
+* Dispečeru: novi @cash-handovers/report@, narudžba koja dugo čeka kurira, narudžba koju restoran ne prihvata (Čeka restoran tab).
+
+Push kanal ili preporučeni polling interval?
+
+h2. 🟢 3.11 Sitna poboljšanja odgovora
+
+* @POST .../couriers@ → vratiti pun red (kao @couriers-status@) umjesto @{ courier_id, name }@, da front ne mora dodatni GET.
+* @finance-settings.daily_handover_time@ → vraća @"14:16:00"@ (@HH:MM:SS@), front očekuje @HH:MM@ (skraćuje). Idealno @HH:MM@.
+
+---
+
+h1. Sažetak — redoslijed
+
+| # | Stavka | |
+| 1 | *3.1* — @pending-restaurant-confirmation@ klizni prozor + čišćenje starih (tab nepregledan) | 🟠 |
+| 2 | *2.1* — @delivery_type@ vrijednost @2@ = ? | 🟠 |
+| 3 | *2.2* — živ @ordered_at@ + vrijeme (je li @orders/*@ put pravi UTC) | 🟠 |
+| 4 | *1.1* — ime kurira se gomila na svaki edit | 🟠 |
+| 5 | *1.2 / 3.2* — ujednačiti courier write odgovore + @contact_phone@ / @bank_account@ u @couriers-status@ | 🟠 |
+| 6 | *3.3 / 3.4* — @hours_online@ + vremenski prozor @/earnings@ | 🟠 |
+| 7 | *2.3 / 2.4* — negativan saldo značenje + @cash-receipt@ / @payout@ efekat + @method@ | 🟡 |
+| 8 | *3.7* — regresioni test vremena poslije tz ispravki | 🟡 |
+| 9 | *2.5* — sitne potvrde (autorizacija, null polja, isključivost lista) | 🟡 |
+| 10 | *3.5 / 3.6* — @confirmed_by@ u listi + dispečerski @payouts@ agregat | 🟡 |
+| 11 | *3.8* — suspendovan kurir sa dugom (tim @app.ordera@) | 🟡 |
+| 12 | *3.9 / 3.10 / 3.11* — currency na firmu, push, sitna poboljšanja | 🟢 |

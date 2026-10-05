@@ -1,0 +1,79 @@
+{{toc}}
+
+h1. Odgovor backend-a: CORS ispravka + dispatcher offers pitanja (12. septembar 2026)
+
+Odgovor na @12_09_2026_Frontend_pitanja_za_backend.textile@ (DIO A.1, A.5, A.8 i B.1-B.3
+iz koda). Prenešeno iz backend poruke, organizovano pod istim naslovima radi lakšeg
+praćenja. Naš odgovor + nova pitanja nazad su dopisani u
+@12_09_2026_Frontend_pitanja_za_backend.textile@ (DIO C).
+
+---
+
+h2. 🔴 A.1 CORS za @/broadcasting/auth@ - REŠENO
+
+*Uzrok* - @config/cors.php@ @paths@ niz nije uključivao @broadcasting/auth@ (samo @api/*@
+i @sanctum/csrf-cookie@), pa CORS middleware nije primjenjivao CORS header-e na taj
+endpoint.
+
+*Popravljeno* - dodato @broadcasting/auth@ u @paths@. @allowed_origins@ je već @['*']@, pa
+će CORS sad raditi za sve origin-e (uključujući @localhost:3000@).
+
+*Traže* - da ponovimo test; @/broadcasting/auth@ treba sad da propusti preflight OPTIONS i
+stvarni POST.
+
+h3. Otvoreno pitanje od backenda - @/login@ i @/logout@ credentials
+
+Postoji pitanje da li @/login@/@/logout@ trebaju @Access-Control-Allow-Credentials: true@
+i tačan origin (ne @*@), ako frontend zove sa @credentials: include@. @/login@ jeste pod
+@api/*@ (već pokriveno), ali *@/logout@ NIJE pronađen nigdje u backend kodu* (ni
+@routes/api.php@ ni @routes/web.php@) - možda još nije implementiran, ili se logout radi
+isključivo na frontend strani (brisanje tokena).
+
+*Pitaju nazad*: da li frontend stvarno koristi @credentials: include@ za @/login@, ili se
+autentifikacija radi isključivo preko Bearer tokena? Ako je Bearer token, trenutna
+konfiguracija (@allowed_origins: ['*']@) je dovoljna i ne treba dalja izmjena.
+
+---
+
+h2. 👍 A.5 @round.status@ enum - potpuna lista
+
+Pronađeno u @OrderOfferRound@ modelu - četiri vrijednosti:
+* @active@ - runda u toku
+* @accepted@ - neki kandidat je prihvatio
+* @canceled@ (JEDNO "l") - otkazana (npr. nova runda je zamijenila staru)
+* @exhausted@ - svi kandidati odbili/istekli, primijenjen @timeout_action@
+
+h2. 👍 A.5 @offers@ niz RASTE, ne zamjenjuje se
+
+Potvrđeno u kodu - svaki nov kandidat dobija NOV @OrderOffer@ red (@dispatchOffers()@ →
+@$offer->save()@ unutar foreach-a). Stari redovi OSTAJU, samo im se status mijenja
+(@declined@/@expired@/@superseded@ kad ih zamijeni sljedeći). Front može prikazivati punu
+istoriju odbijanja - @offers@ niz nikad ne briše stare zapise.
+
+h2. 👍 A.8 @offer_timeout_seconds@ default, izvor potvrđen
+
+@resolveTimeout()@ u @OrderOfferService@ - ako klijent ne pošalje
+@offer_timeout_seconds@, čita se iz @delivery_companies.offer_timeout_seconds@ kolone TE
+firme. Samo ako firma nema tu vrijednost postavljenu, pada na hardkodiran
+@DEFAULT_TIMEOUT = 20@. Front može čitati firminu vrijednost i prikazati je kao
+placeholder. Raspon je uvijek ograničen na 5-120 (i kad se pošalje, i kad je default).
+
+h2. 👍 B.1 @mode@ default nema - polje je required
+
+@offer()@ validacija: @'mode' => ['required', 'in:sequential,parallel']@ - nema default
+vrijednosti, klijent mora poslati jednu od te dvije. Test bez @mode@ bi vratio @422@.
+
+h2. 👍 B.2 @batch_size@, izvor potvrđen
+
+Ručna runda (dispečer eksplicitno zove @POST .../offer@) - @batch_size@ nije postavljen u
+@open()@ pozivu, pa uvijek pada na model default (@1@), bez obzira na @mode@ (@sequential@
+ili @parallel@). @batch_size > 1@ se javlja samo kod automatskih rundi (@openAutomatic()@,
+@TOP_N@ assignment mode) - tamo je jednak @assignment_courier_count@ firme. Front ne
+kontroliše @batch_size@ direktno na ručnom pozivu.
+
+h2. 👍 B.3 @responded_at@, potvrđen plan
+
+Tačno kako je frontend pretpostavio - @responded_at@ se popunjava na @markAccepted()@ i
+@decline()@ (accept/decline akcije), ostaje @null@ za @pending@ i @expired@ (istek ne
+prolazi kroz te dvije metode direktno - backend sam navodi da treba provjeriti da li treba
+i za @expired@, trenutno NIJE popunjeno na expire).

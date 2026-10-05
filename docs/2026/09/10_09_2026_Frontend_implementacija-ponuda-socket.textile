@@ -1,0 +1,88 @@
+{{toc}}
+
+h1. Frontend implementacija: model ponude više kurira + Reverb socket (10.09.2026)
+
+Kontekst: backend odgovor @10_09_2026_odgovor-backend-ponuda-socket.textile@ (stavke 2.3 +
+2.4 iz @09_09_2026_otvorene-stavke-DETALJNO.textile@). Ispod je *šta je odrađeno na
+frontu*. Preostala / nova pitanja: @10_09_2026_Frontend_pitanja_za_backend.textile@.
+
+*Stanje:* @npx nuxi typecheck@ i @npm run build@ prolaze (postojeće 3 nepovezane greške -
+@inbox.vue@ x2, @courierWalletService.ts@ - su *od ranije*, ne iz ovog rada; vidi §Napomene).
+*Nije provjereno uživo* - offer rute i WS kanal se ne mogu pozvati sa CI-ja; kod je
+napisan defanzivno (degradira na stari @accept@ kad rute vrate 404).
+
+h2. Dodate datoteke
+
+* @app/types/offer.ts@ - @OfferMode@, @CourierOfferStatus@, @OfferRoundStatus@,
+  @CourierOfferDto@ / @CourierOffer@, @OfferRound@, @CourierInboxOfferDto@,
+  @OpenOfferRoundBody@, @OfferRoundEventPayload@.
+* @app/services/orderOffersService.ts@ - @openOfferRound()@, @fetchOfferRound()@,
+  @fetchCourierOffers()@, @respondToOffer()@, @normalizeOfferRound()@ (defanzivni parser:
+  prihvata bare niz / @{offers}@ / @{data}@).
+* @app/plugins/echo.client.ts@ - lijeni Echo/Reverb klijent (@$echo.ensure()@ / @$echo.get()@),
+  Bearer @authorizer@ na @/broadcasting/auth@. Konekcija se ne diže dok je neko ne zatraži.
+* @app/composables/useOrderOfferRound.ts@ - dispečerska runda: @open()@, @watchOrder()@,
+  @load()@, socket pretplata na @orders.{id}@ / @.offer.round.changed@, reconnect catch-up,
+  fallback poll 10s, sekundno odbrojavanje, @stop()@ + cleanup.
+* @app/composables/useCourierOffers.ts@ - kurirska strana: @load()@ (@GET /courier/offers@),
+  poll 15s, @respond(orderId, accept|decline)@, reaguje na @order_offer@ push.
+
+h2. Izmijenjene datoteke
+
+* @nuxt.config.ts@ - @runtimeConfig.public.reverb@ (@key@, @wsHost@, @wsPort@, @wssPort@,
+  @forceTLS@, @authEndpoint@) iz backend snippet-a. Svako polje preglašava
+  @NUXT_PUBLIC_REVERB_*@ env var. @authEndpoint@ je *pretpostavka* (@/broadcasting/auth@ na
+  API hostu) - vidi pitanje §1.
+* @package.json@ - dodati @laravel-echo@, @pusher-js@ (dep) + @typescript@, @vue-tsc@
+  (dev - trebalo za @nuxi typecheck@, ranije očito uklonjeni pa je typecheck tiho padao).
+* @app/composables/usePushNotifications.ts@ - mini event-bus: @onPushEvent(type, cb)@ →
+  odjavna funkcija; @emitPushEvent@ se zove iz @onMessage@ handlera *prije* toasta.
+  @WARNING_PUSH_TYPES@ set (limit gotovine / narudžba visi / restoran visi → warning toast,
+  ostalo info). Radna lista tipova dok backend ne isporuči enum (pitanje §5 / 2.6).
+* @app/components/dispatcher/assignment/CandidateCouriersPanel.vue@ - runda ponude:
+  ** checkbox po redu + @Redom@/@Paralelno@ toggle + @Pošalji ponudu (N)@ bulk dugme
+     (@courier_ids@ u redoslijedu rangirane liste),
+  ** per-red @Pošalji ponudu@ i dalje radi - sad otvara rundu sa jednim kandidatom,
+  ** per-red chip stanja: @Ponuđeno · Ys@ (odbrojava) / @Prihvatio ✓@ / @Odbio@ /
+     @Isteklo@ / @Preskočen@ / @Na čekanju reda@,
+  ** chip runde + @Zatvori rundu@,
+  ** @offerApiMissing@ (404/501 sa offer ruta) → *fallback na stari
+     @POST /orders/{id}/accept@* (samo za 1 izabranog kurira); ponašanje identično kao
+     ranije. Postojeći @offersDisabled@ / @orderStateNote@ (board-cross-check) netaknuti.
+* @app/pages/courier/deliveries.vue@ - banner @Nova ponuda — narudžba #ID · ističe za Ys@
+  sa @Prihvati@ / @Odbij@ (poziva @POST /orders/{id}/offer-response@). Puni prikaz
+  (adrese, cijena, ruta) čeka potvrdu oblika reda iz @GET /courier/offers@ (pitanje §3).
+  @accept@ → @refreshOrders()@ (narudžba uđe u "moje").
+* @app/pages/dev/api.vue@ (ruta @/dev/api@) - dev API konzola (mini-Postman) za ručno
+  testiranje offer/socket ugovora prije nego što se rute potvrde. Token se kači
+  automatski, @Token override@ polje za pozive u ime drugog naloga. Gotove prečice za sve
+  redove iz @10_09_2026_test-plan-ponuda-socket.md@ + "kopiraj kao curl". Nije u navigaciji.
+* @app/middleware/auth.global.ts@ - @isDevRoute()@: @/dev/*@ propušta svaki ulogovan
+  nalog podržanog tipa (kurir + dispečer + admin bez role), van rolnih zona - i dalje
+  traži token.
+
+h2. Kako je riješen svaki dio ugovora
+
+# *@POST .../offer@* - @useOrderOfferRound.open(orderId, courierIds, mode, timeout?)@.
+  @timeout@ se *ne šalje* zasad (uzima se @offer_timeout_seconds@ iz Firma → Finansijske
+  postavke na backendu; ako treba per-runda override, dodaćemo - pitanje §2).
+# *Stanje ponude* - @fetchOfferRound()@ na otvaranje + @.offer.round.changed@ event.
+  Parser toleriše da meta polja (@mode@, @round_status@) fale.
+# *Kurirska strana* - @useCourierOffers@ + @deliveries.vue@ banner. @accept@/@decline@
+  kroz @POST /orders/{id}/offer-response@ (odvojeno od self-serve @accept@).
+# *Timeout / prelaz na sljedećeg* - *ništa na frontu*; backend to radi sam, front samo
+  vidi promjenu stanja kroz event / poll.
+# *Socket* - @echo.client.ts@ + pretplata u @useOrderOfferRound.subscribe()@; reconnect
+  (@pusher.connection@ "connected", preskočen prvi) → @load()@. Fallback poll 10s ostaje
+  *uz* socket (jeftino, otporno na WS/auth probleme); kad socket radi, poll samo potvrđuje
+  isto stanje. Kad backend potvrdi da je WS stabilan, poll se gasi.
+
+h2. Napomene
+
+* *Ne diramo* automatski tok dodjele (2.4 "stvarna logika" - @assignment_mode@ polja bez
+  runtime efekta). Ovaj rad je *ručni* "Pošalji ponudu"; oba dijele iste offer primitive
+  pa je infrastruktura sad tu i za automatski.
+* Postojeće typecheck greške *od ranije* (nisu iz ovog rada, potvrđeno @git stash@ testom):
+  @app/pages/courier/inbox.vue:36-37@ (@expandedId@ / @toggleMessage@ ne vraća se iz
+  composable-a) i @app/services/courierWalletService.ts:28@ (@limit === ""@ dok je @limit@
+  tipa @number@). Prijavljeno da se ne izgubi; nije dirano (van opsega).

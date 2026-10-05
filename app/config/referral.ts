@@ -1,0 +1,2 @@
+export const REFERRAL_REWARD_DELIVERIES = 20;
+export const REFERRAL_REWARD_AMOUNT = 30;

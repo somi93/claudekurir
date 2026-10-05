@@ -1,0 +1,182 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja (16. septembar 2026)
+
+Retest 4 stavke koje je backend javio da je sredio (bag-lista, bez posebnog
+@odgovor-backend@ fajla ovog puta) - vidi @16_09_2026_Network_checklist_4-stavke.md@.
+3 od 4 potvrđene čisto (@active-deliveries@ courier:null, @couriers-balance@ na
+poznatim admin ID-jevima). Retest @couriers-balance@ je usput otkrio novi nesklad u
+broju redova - ovo pitanje je vezano za taj nalaz.
+
+Legenda: 🔴 blokira/kvari podatak · 🟠 kvari/ograničava funkciju · 🟡 nejasno/treba potvrda ·
+🟢 niži prioritet
+
+---
+
+h2. 🔴🔴 ŠIRI ISPAD - @couriers-status@, @courier-locations@, @inbox-summary@ svi vraćaju @500@ na više stranica
+
+*Prioritet iznad svega ostalog u ovom fajlu - preporuka: stati sa daljim retest-om
+checklist-e dok se ovo ne razreši, pogađa osnovnu dispečersku funkciju (mapa/lista
+kurira uživo), ne samo rubnu stavku.*
+
+Retest S8/S8b (@16_09_2026_Network_checklist_sve-otvorene-stavke.md@), 16.09, uživo -
+nalaz se PROŠIRIO tokom testiranja, nije izolovan na jednu stranicu:
+
+* @/dispatcher/notifications@ ("Obaveštenja"): @GET .../inbox-summary@ → @500@ (2x),
+  @GET .../couriers-status@ → @500@ (2x).
+* @/dispatcher/couriers@ → "Kuriri uživo" (mapa, live lokacije): @GET
+  .../courier-locations@ → @500@, @GET .../couriers-status@ → @500@ (višestruko,
+  vidi se u snimku - lista "Kuriri uživo" prikazuje "Ne mogu da učitam lokacije
+  dostavljača", broj kartica "0 UKUPNO/U DOSTAVI/SLOBODNI/OFFLINE" - stranica je
+  potpuno nefunkcionalna).
+
+Odgovor tijela na SVIM ovim pozivima je generički:
+
+<pre>
+{"message": "Server Error"}
+</pre>
+
+@APP_DEBUG@ je očigledno isključen na ovom okruženju (nema stack trace-a, poruke,
+linije koda) - frontend NE MOŽE dati više detalja od ovog, mora se gledati serverski
+log direktno na backendu.
+
+@couriers-status@ je JUČE (16.09, ranije istog dana - R3/S6 retest, i danas na
+@/dispatcher/finance@) radio ispravno, vraćao čist spisak od 21 kurira. Sad puca na
+DRUGIM stranicama (Obaveštenja, Kuriri uživo) - ista ruta, različit kontekst/pozivni
+parametri. @courier-locations@ i @inbox-summary@ nikad nisu bili potvrđeni kao radni
+(nova/nepotvrđena ruta), pa se ne zna da li su OVI ikad radili ili je i njihov @500@
+noviji.
+
+# Da li je ovo poznati/aktivan ispad na backendu (deploy u toku, migracija koja je
+  pukla, baza nedostupna za dio upita) - treba li da sačekamo umjesto da nastavimo
+  test?
+# Server log/stack trace za @couriers-status@, @courier-locations@ i
+  @inbox-summary@ pozive u ovom vremenskom okviru (16.09, ~23:20) - frontend nema
+  pristup logu, samo generičku poruku.
+# Da li ispad pogađa SVE firme/kompanije, ili samo firmu 24 (test firma koja se
+  koristi za retest)?
+
+---
+
+h2. 🔴 Automatska dodjela (TOP_N/NEAREST) se nikad ne pokreće - @round: null@
+
+Retest R2 (@16_09_2026_Network_checklist_4-stavke.md@) - provjera da admin/dispečerski
+nalozi ne ulaze u @candidate_ids@ automatske runde je BLOKIRANA, jer runda nikad nije
+ni otvorena.
+
+Podešavanje (Firma → Finansijske postavke → "Dodela narudžbi kuririma"), sačuvano
+(@PATCH .../finance-settings@):
+
+<pre>
+assignment_mode: TOP_N ("Prvih N najbližih kurira dobija ponudu istovremeno")
+assignment_courier_count: 2
+offer_timeout_seconds: 20
+assignment_timeout_action: OPEN_TO_ALL ("Otvara svim kuririma")
+assignment_courier_pool: ALL_ACTIVE ("Sve aktivne kurire firme, bez provjere dostupnosti")
+</pre>
+
+Dvije narudžbe testirane, obje prošle kroz restoran-accept do "Čeka kurira" na
+dispečerskoj tabli:
+
+* @#3948@ - čekala 19+ minuta na dispečerskoj tabli ("Kasni" oznaka).
+* @#3949@ - nova, čekala 10+ minuta od trenutka kad je restoran prihvatio.
+
+Za OBIJE, @GET /dispatcher/orders/{id}/offers@ vraća:
+
+<pre>
+{"success": true, "data": {"round": null, "offers": []}}
+</pre>
+
+Nikad nije postojao @round@ objekat - ni odmah po prihvatanju restorana, ni poslije
+10+ minuta (duže od navedenog safety-net @offers:tick@ intervala od 1 minuta, iz
+@15_09_2026_odgovor-backend-otvorene-stavke.textile@ §"Narudžba dugo čeka kurira").
+Za poređenje, ručna dodjela/ponuda i dalje radi (dugmad "Dodeli odmah"/"Predloži
+kurira" su vidljiva i klikabilna na boardu) - problem je specifično u AUTOMATSKOM
+otvaranju runde.
+
+# Da li @NotifyCouriersOrderAccepted@ job (ili @offers:tick@ safety-net) trenutno radi
+  u ovom okruženju? Ovo je istog tipa problem kao K6 nalaz od 14.09 (queue worker za
+  automatski istek kandidata takođe ne radi) - moguće da queue worker generalno nije
+  pokrenut, ne samo za istek nego i za sam start automatske runde.
+# Postoji li neki dodatni preduslov (npr. minimalan broj @currently_available@
+  kandidata, ili firma mora biti u nekom drugom stanju) da bi automatska dodjela
+  uopšte pokušala da otvori rundu, van samog @assignment_mode@ podešenja?
+# Da li je automatska dodjela uopšte trenutno funkcionalna na ovom test okruženju, ili
+  je ranije uspješan test (N2, narudžba 3941, 15.09) bio izuzetak/specifičan uslov koji
+  se sad ne poklapa?
+
+h2. 🟡 Ručna ponuda sa više kandidata - jedan nevažeći kandidat obara CIJEL zahtjev (422)
+
+Nalaz 16.09, uživo (narudžba #3949, "Predloženi kuriri", @mode: "Redom"/sequential@).
+Dispečer čekirao 4 kandidata i kliknuo "Pošalji ponudu (4)":
+
+<pre>
+POST .../offer  {"courier_ids":[30742,30577,30189,30576],"mode":"sequential"}
+→ 422
+{
+  "message": "Kurir #30742 trenutno vozi drugu dostavu. (and 2 more errors)",
+  "errors": {
+    "courier_ids": [
+      "Kurir #30742 trenutno vozi drugu dostavu.",
+      "Kurir #30189 trenutno nije dostupan.",
+      "Kurir #30576 trenutno vozi drugu dostavu."
+    ]
+  }
+}
+</pre>
+
+Od 4 čekirana kandidata, TAČNO JEDAN (@30577@, "Lazar Hrebeljanovic") je stvarno
+dostupan - nije u error listi. Preostala 3 su isti kandidati koji na listi VEĆ imaju
+čip "Nedostupan"/"Na isporuci" (front to već znao prije slanja). Backend validira
+CIJELI @courier_ids@ niz prije otvaranja runde - kad ISPADNE bilo koji, cijeli zahtjev
+pada na @422@ i runda se NE otvara ni za validnog kandidata (@30577@).
+
+# Je li ovo namjerno ("sve ili ništa" validacija), ili bi runda trebalo da se otvori
+  SAMO sa validnim kandidatima iz niza, uz odbačene/skip-ovane nevažeće (npr. u
+  odgovoru vrati koji su prihvaćeni a koji odbačeni, umjesto tvrdog 422 za sve)?
+# Ako je "sve ili ništa" namjerno - treba li frontend da PRIJE slanja isključi iz
+  @courier_ids@ sve kandidate koji već imaju "Nedostupan"/"Na isporuci" čip (pošto tu
+  informaciju već ima iz iste liste), umjesto da pusti dispečera da čekira i njih pa
+  da zahtjev padne?
+
+---
+
+h2. 🟡 @couriers-balance@ vraća 4 ID-ja koja @couriers-status@ ne vraća - ko su ti nalozi?
+
+Retest R3/R3a (@16_09_2026_Network_checklist_4-stavke.md@), firma 24, oba poziva u
+istom trenutku:
+
+* @GET /dispatcher/delivery-companies/24/couriers-status@ → *17* redova.
+* @GET /dispatcher/delivery-companies/24/couriers-balance@ → *21* redova.
+
+Razlika - 4 @courier_id@ postoje SAMO u @couriers-balance@, ne u @couriers-status@:
+
+<pre>
+30705  "Test Provera"
+30712  "B Test"
+30720  "Test Validan"
+30727  "Test Create"   (isto ime kao 30719, koji JESTE u obje liste)
+</pre>
+
+Ovo NIJE isti nalaz kao prethodni (09.09/14.09) @admin_delivery@ problem - ta 4 ID-ja
+(@30369@ "Admin Ordera", @30700@ "Test Dispecer2", @30722@/@30188@ "Admin1 Dostava
+Ordera") se i dalje NE pojavljuju ni u jednoj od ove dve liste, taj fix i dalje stoji.
+Ovo je novi, drugačiji nesklad - 4 DRUGA ID-ja, filtrirana iz @couriers-status@ ali ne
+iz @couriers-balance@.
+
+Naša pretpostavka: mogli bi biti obrisani/deaktivirani kuriri (soft-deleted), koje
+@couriers-status@ filtrira a @couriers-balance@ ne (npr. jer bi obrisan kurir teorijski
+mogao imati zaostalo dugovanje koje se i dalje mora prikazati/obračunati).
+
+# Šta su tačno nalozi @30705@, @30712@, @30720@, @30727@ - obrisani/deaktivirani
+  kuriri, ili nešto drugo (npr. nekompletan profil bez emaila/telefona, drugi tip
+  naloga)?
+# Ako su obrisani kuriri - je li namjerno da @couriers-balance@ i dalje prikazuje
+  njihovo dugovanje (@cash_owed_to_company@/@wage_owed_to_courier@, u ovom uzorku sva
+  4 na @0@) dok @couriers-status@ (koji front koristi za spisak aktivnih kurira firme)
+  ne prikazuje ove naloge? Ako je namjerno, front treba znati da se red u
+  @couriers-balance@ ne može uvijek uparivati sa redom u @couriers-status@ preko
+  @courier_id@ (npr. za prikaz vozila/statusa uz saldo).
+# Postoji li polje (npr. @deleted_at@/@active@/@status@) koje bi @couriers-balance@
+  mogao vratiti da front sam razlikuje aktivnog kurira od obrisanog, umjesto da
+  pretpostavlja na osnovu odsustva iz druge liste?

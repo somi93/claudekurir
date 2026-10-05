@@ -1,0 +1,139 @@
+h1. Одговори на питања о лимиту готовине (26. август 2026)
+
+Одговарам редом на свих 8 питања, ажурирано након увида у стварни @routes/api.php@ и провјере продукционе базе. Тамо гдје одговор зависи од стварног стања базе/миграције, то је јасно назначено.
+
+---
+
+h2. 1. Да ли је "готовина коју курир држи" исто што и @cash_owed_to_company@?
+
+*Да.* Према ledger архитектури коју већ користимо (@LedgerAccount@ / @LedgerEntry@, append-only књижења), стање се никад не чува као посебан бројчани стуб — рачуна се *уживо* као збир књижења преко @LedgerAccount::balance()@. @cash_owed_to_company@ у @wallet-balance@ / @couriers-balance@ је тај исти израчунати салдо COURIER конта, само предзнак окренут у "колико дугује фирми".
+
+@accept()@ интерно пореди баш то: @abs(courier_ledger_balance) > cash_limit_amount@ (кад је баланс негативан за курира, тј. курир дугује фирми готовину коју држи).
+
+Тачан endpoint за измјену: @DeliveryTrackingController@accept@ (@POST /delivery/{deliveryId}/accept@) — потврђено из @api.php@.
+
+*Одговор на кашњење:* нема batch обраде. Кад диспечер потврди @POST /dispatcher/cash-handovers/{handoverId}/confirm@ (@CashHandoverController@confirm@), тај позив уписује нова ledger књижења која "празне" куриров дуг. Пошто се @balance()@ увијек рачуна из тренутног стања табеле @ledger_entries@, следећи @accept()@ позив већ види ново, ослобођено стање — нема потребе за додатном синхронизацијом.
+
+---
+
+h2. 2. Структурирани бројеви уз @message@/@warning@?
+
+Додајемо одвојена поља. Одговор @accept()@-а (и 409 и warning случај) ће изгледати овако:
+
+<pre><code>{
+  "message": "Dostigli ste limit gotovine (38.50 od 20.00). Predajte gotovinu dispečeru.",
+  "current_cash_amount": 38.50,
+  "cash_limit_amount": 20.00
+}</code></pre>
+
+Frontend може користити бројеве за progress bar, а @message@ остаје стабилан текстуални fallback — формат "X од Y" *неће се мијењати* без најаве.
+
+*Backend TODO:* додати ова два поља у одговор @DeliveryTrackingController@accept@.
+
+---
+
+h2. 3. Да ли BLOCK утиче на већ активну поруџбину?
+
+*Потврђено.* @pickup@ и @deliver@ су потпуно независни од лимита. Провјера је искључиво на @accept()@ капији за НОВУ поруџбину.
+
+Разлог: у тренутку кад курир већ има активну поруџбину, храна је најчешће већ преузета или се ресторан/купац ослањају на ту доставу. Блокирање @pickup@/@deliver@ усред тока би оставило поруџбину "заглављену" без чистог излаза. Умјесто тога, лимит дјелује превентивно на следећи @accept()@.
+
+---
+
+h2. 4. Да ли курир треба унапријед да види лимит и стање?
+
+*Исправка почетног одговора након увида у @api.php@:* @GET /couriers/{courierId}/wallet-balance@ (@CourierWalletBalanceController@show@) *већ постоји* — курир већ има начин да добије свој @cash_owed_to_company@. Нов endpoint за то није потребан.
+
+*Оно што стварно недостаје:* @cash_limit_amount@ и @cash_limit_enforcement@ живе искључиво на @GET /dispatcher/delivery-companies/{delivery_company}/finance-settings@, заштићеном @EnsureUserIsDispatcher@ middleware-ом — курир ту руту не може позвати.
+
+*Рјешење, поједностављено након одлуке у тачки 8 (курир = једна фирма):* проширити постојећи @wallet-balance@ одговор са два додатна поља:
+
+<pre><code>{
+  "cash_owed_to_company": 42.00,
+  "cash_limit_amount": 50.00,
+  "cash_limit_enforcement": "BLOCK"
+}</code></pre>
+
+Једноставна измјена у @CourierWalletBalanceController@show@ — довући @delivery_company_id@ курира, па @finance-settings@ те фирме, и додати у одговор. Нема потребе за низом по фирмама пошто је курир ограничен на једну фирму.
+
+*Напомена о ауторизацији (вриједи провјерити):* рута @/couriers/{courierId}/wallet-balance@ је у @api.php@ само под општим @auth:api@, без @EnsureUserIsCourier@ + провјере да је @courierId@ баш тај пријављени курир (за разлику од нпр. @/companies@, @/zones@, @/availability@, које имају експлицитни @EnsureUserIsCourier@). Ако @CourierWalletBalanceController@ сам изнутра не провјерава да ли аутентификовани корисник смије да види баш тог курира, теоретски би један курир могао позвати endpoint са туђим @courierId@. Вриједи провјерити контролер — ако провјера постоји унутра, ово је лажна узбуна.
+
+---
+
+h2. 5. @cash_limit_amount = 0@ — строг лимит или "нема лимита"?
+
+*@0@ је строга вриједност, не третира се као NULL.* Ако је @cash_limit_amount = 0@ и @cash_limit_enforcement = BLOCK@, курир не смије да држи никакву готовину.
+
+*Препорука за frontend:* додати checkbox/toggle "Ограничи готовину" изнад text-fielda.
+* Кад је искључен → шаљете @cash_limit_amount: null@ на PATCH, поље за унос је disabled.
+* Кад је укључен → text-field је активан, празна вриједност није дозвољена (мора бити број ≥ 0), @0@ је валидна и експлицитна.
+
+Ово спречава случајан сценарио гдје диспечер упише 0 мислећи "без лимита" па се сви курири те фирме одједном блокирају.
+
+*Frontend TODO.*
+
+---
+
+h2. 6. Валидација @cash_limit_enforcement@ на PATCH-у
+
+*Да, стандардни Laravel облик.* Невалидна вриједност враћа @422@ са:
+
+<pre><code>{
+  "message": "The given data was invalid.",
+  "errors": {
+    "cash_limit_enforcement": ["Odabrana vrijednost za cash_limit_enforcement nije validna."]
+  }
+}</code></pre>
+
+Исти облик као остала валидациона поља у пројекту.
+
+---
+
+h2. 7. Да ли @cash_limit_enforcement@ већ стиже на @GET finance-settings@?
+
+*Ово треба провјерити директно на серверу* — питање стварног стања миграција, не дизајна.
+
+<pre><code>php artisan migrate:status | grep cash_limit</code></pre>
+
+или
+
+<pre><code>php artisan tinker --execute="dd(Schema::hasColumn('delivery_company_finance_settings', 'cash_limit_enforcement'))"</code></pre>
+
+Ако врати @false@, миграција није покренута на том окружењу.
+
+*Статус: провјера потребна.*
+
+---
+
+h2. 8. Курир ради за више фирми — ОДЛУКА и ЗАТВОРЕНО
+
+*Product одлука (26. август):* курир је за сада ограничен на *једну активну достављачку фирму*, да би се поједноставио процес. Ово поништава потребу за раздвајањем @cash_owed_to_company@ по фирми — једна LedgerAccount, један салдо, један лимит.
+
+*Провјера продукционе базе:* пронађен 1 ред у @delivery_company_user@ са двије везе (@user_id = 10568@). Провјером је утврђено да је ово *остатак ранијег тестирања* исте опције (курир везан за више фирми), не стваран продукциони случај — фирма @id = 2@ је тестни подужи запис. Фирма @id = 1@ ("Никола") је једина стварна, важећа веза.
+
+*Закључак: питање 8 је потпуно затворено.* Нема ниједног стварног курира са двије активне фирме у продукцији. Преостаје само чишћење тестног реда прије увођења ограничења:
+
+<pre><code>DELETE FROM delivery_company_user
+WHERE user_id = 10568 AND delivery_company_id = 2;</code></pre>
+
+Након овога, ограничење "курир = тачно једна фирма" се може увести (нпр. @UNIQUE@ на @user_id@ у @delivery_company_user@, ако то пословно правило треба и технички да се наметне) без икаквог ризика по постојеће кориснике.
+
+---
+
+h2. Сажетак акција за backend
+
+|_. # |_. Акција |_. Статус |
+| 1 | Потврђено понашање. Тачан endpoint: @DeliveryTrackingController@accept@ | ✅ потврђено |
+| 2 | Додати @current_cash_amount@/@cash_limit_amount@ у одговор @accept@ | 🔧 backend TODO |
+| 3 | Потврђено понашање, без измјене кода | ✅ готово |
+| 4 | Проширити @wallet-balance@ са @cash_limit_amount@/@cash_limit_enforcement@ | 🔧 backend TODO |
+| 5 | Потврђено понашање; frontend додаје toggle | 🔧 frontend TODO |
+| 6 | Потврђено понашање, без измјене кода | ✅ готово |
+| 7 | Провјерити миграцију на серверу (@php artisan migrate:status@) | ⏳ провјера потребна |
+| 8 | Одлучено и затворено: курир ограничен на једну фирму; тестни ред за брисање | ✅ затворено, остаје 1 DELETE упит |
+
+h3. Новооткривено, ван оригиналних 8 питања
+
+|_. Опсервација |_. Акција |
+| @/couriers/{courierId}/wallet-balance@ и сличне руте немају експлицитни @EnsureUserIsCourier@ + провјеру власништва у @api.php@ | Провјерити да ли @CourierWalletBalanceController@ интерно провјерава да курир види само свој податак |
+| Параметар за фирму се зове @{delivery_company}@ на неким рутама, @{companyId}@ на другим | Козметика, не блокира ништа, али пази ако се генерише API клијент аутоматски |

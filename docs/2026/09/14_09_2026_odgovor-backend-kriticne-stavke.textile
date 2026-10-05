@@ -1,0 +1,133 @@
+{{toc}}
+
+h1. Odgovor backend-a: kritične stavke iz DIO I (14. septembar 2026)
+
+Odgovor na @13_09_2026_Frontend_pitanja_za_backend.textile@, DIO I (🔴 svih 6 kritičnih
+stavki). Prenešeno iz backend poruke, organizovano pod istim naslovima radi lakšeg
+praćenja. Šta smo uradili na frontu je dopisano ispod svake stavke; preostala nejasna
+pitanja su izdvojena u @14_09_2026_Frontend_pitanja_za_backend_kriticne-stavke.textile@,
+retest u @14_09_2026_Network_checklist_kriticne-stavke.md@.
+
+---
+
+h2. ✅ SREĐENO - sigurnosni nalaz @GET /orders/driver/{id}@ (IDOR)
+
+Backend potvrđuje da je provjera vlasništva dodata.
+
+*Frontend*: nema šta da se mijenja - poziv (@courierOrdersService.ts@) je oduvijek zvao
+rutu samo za ulogovanog kurira, ranjivost je bila isključivo na backendu. Retest u
+checklisti (K1) - da provjerimo da tuđi @courier_id@ sad vraća 403/404.
+
+Backend nije odgovorio na drugi dio pitanja (da li isti propust postoji na drugim
+@/orders/driver/*@ ili sličnim courier-scoped rutama) - prenešeno u novi fajl pitanja.
+
+---
+
+h2. ✅ SREĐENO - ruta za prekid aktivne runde ponude
+
+<pre>
+POST /api/dispatcher/orders/{orderId}/offer/cancel
+{
+  "delivery_company_id": 24
+}
+</pre>
+
+@delivery_company_id@ - obavezan, int, mora postojati u @delivery_companies@.
+
+Odgovor @200 OK@:
+
+<pre>
+{
+  "success": true,
+  "data": {
+    "round": { "id": "...", "status": "canceled", "resolved_at": "...", "...": "..." },
+    "offers": [ { "courier_id": 12, "status": "superseded", "...": "..." } ]
+  }
+}
+</pre>
+
+*Frontend* (urađeno 14.09):
+* @cancelOfferRound()@ dodat u @orderOffersService.ts@ - @delivery_company_id@ ide u BODY
+  (ne query, za razliku od @open@/@fetch@).
+* @useOrderOfferRound.ts@ dobio pravi @cancel()@ - zove novu rutu; na uspjeh se lokalno
+  gasi pretplata/poll (isto ponašanje kao ranije, dugme "Zatvori rundu"); na grešku NE
+  gasimo pretplatu (runda je i dalje aktivna na serveru) nego pokazujemo grešku da
+  dispečer pokuša ponovo.
+* @useCandidateOfferRound.ts@ - @closeRound@ sad zove pravi @cancel()@ umjesto starog
+  čisto-klijentskog @stop()@.
+* "Zatvori rundu" dugme (@OfferRoundBar.vue@) dobio @:loading@/@:disabled@ dok poziv traje.
+* Dev konzola (@/dev/api@, D5b) ažuriran - šalje @delivery_company_id@ u body umjesto kao
+  query param na starom (netačnom) probnom pozivu; probni @DELETE .../offer@ red uklonjen
+  (potvrđeno da ta ruta ne postoji).
+
+Napomena (RIJEŠENO retestom K2): primjer odgovora je koristio @"status"@ na redovima u
+@offers@ niza umjesto @"offer_status"@ - potvrđeno uživo 14.09 da je to bio samo skraćen
+zapis u primjeru ("..." = ostala polja), stvaran odgovor koristi @offer_status@ isto kao
+svugdje drugo (`GET /offers`, socket payload). `normalizeOfferRound()`/`CourierOfferDto` ne
+trebaju izmjenu.
+
+---
+
+h2. ✅ SREĐENO - @couriers-status@ vraća samo kurire
+
+Backend: "vraca sad samo kurire".
+
+*Frontend*: nema šta da se ukloni - nikad nije postojao klijentski filter za
+@admin_delivery@ naloge (provjereno u kodu), pa je ovo čisto backend fix. Retest u
+checklisti (K5).
+
+Backend nije potvrdio da li ista ispravka pokriva i @candidate-couriers@ i
+@couriers-balance@ (originalno pitanje je tražilo sve tri) - prenešeno u novi fajl
+pitanja, i sve tri rute idu u retest.
+
+---
+
+h2. RADI SVE - @offer.round.changed@ WS broadcast
+
+Kanal: privatni, @orders.{orderId}@ (npr. @orders.3921@). Izvor:
+@app/Events/OfferRoundChanged.php:35-45@.
+
+Za Echo/Pusher klijent:
+* @channel_name@ u auth pozivu: @private-orders.{orderId}@ (Echo/Pusher automatski
+  dodaje @private-@ prefiks).
+* @echo.private('orders.{orderId}')@ na strani fronta.
+* @.listen('.offer.round.changed', ...)@ - tačka ispred jer je bez namespace prefiksa
+  (@broadcastAs()@ je override-ovan).
+
+*Frontend*: bez izmjena - @echo.client.ts@/@useOrderOfferRound.ts@ već rade TAČNO ovako
+(@OFFER_CHANNEL = orders.${orderId}@, @OFFER_EVENT = ".offer.round.changed"@, privatni
+kanal). Postavka je oduvijek bila ispravna; 13.09 nalaz ("nikad se ne emituje") je
+vjerovatno bio backend-strani problem (npr. queue worker). Nije još retestovano uživo -
+ide u checklistu (K6/K7) kao prioritet, isti scenario kao S4 iz
+@10_09_2026_test-plan-ponuda-socket.md@.
+
+---
+
+h2. ✅ SREĐENO - @resolve-restaurant-status accept@ ne gubi narudžbu
+
+Backend potvrđuje popravku (bez detalja o uzroku).
+
+*Frontend*: nema šta da se mijenja - @pendingRestaurantOrdersService.ts@ već radi pun
+refresh liste poslije @resolve-restaurant-status@, nije imao workaround za ovaj bug.
+Retest u checklisti (K8).
+
+Backend nije odgovorio na preostala pod-pitanja (tačno ciljno stanje, da li
+@waiting@ ima serverski vremenski prozor, dodatni uslovi, duplirani push dispečeru koji je
+sam uradio accept) - prenešeno u novi fajl pitanja kao niži prioritet pošto je glavni bug
+riješen.
+
+---
+
+h2. ✅ SREĐENO - @/logout@ ruta
+
+@POST /api/logout@ sad postoji.
+
+*Frontend*: bez izmjena - @authService.logout()@ već zove @POST /logout@ sa
+@credentials: "include"@, @stores/session.ts@ ga već zove best-effort (try/catch) prije
+lokalnog čišćenja sesije. Retest u checklisti (K9/K10) - i funkcionalno (cookie stvarno
+invalidiran) i CORS specifično (vidi ispod).
+
+Backend NIJE eksplicitno potvrdio CORS dio pitanja (@Access-Control-Allow-Origin@ da
+echo-uje tačan origin + @Access-Control-Allow-Credentials: true@ za @/login@ *i*
+@/logout@, ne samo da ruta postoji) - prenešeno u novi fajl pitanja, retest mora
+provjeriti response headere direktno (K10).

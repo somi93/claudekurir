@@ -1,0 +1,87 @@
+{{toc}}
+
+h1. Cash limit провjera на accept() endpoint-у
+
+Кад курир прихвата наруџбу (@POST /api/orders/{orderId}/accept@), backend сад провjerava да ли је курир преко @cash_limit_amount@ своје фирме (само за наруџбе плаћене готовином/поузећем). Фирма бира понашање у подешавањима.
+
+---
+
+h2. Два режима (бира фирма/диспечер)
+
+* *BLOCK* — курир *не може* да прихвати нову наруџбу док не преда паре
+* *NOTIFY_ONLY* (подразумевано) — курир *може* да прихвати, само добија упозорење
+
+---
+
+h2. BLOCK режим — одговор
+
+Ако је курир преко лимита и фирма има @BLOCK@, @accept()@ враћа грешку:
+
+<pre>
+HTTP 409
+</pre>
+
+<pre><code class="json">
+{
+    "success": false,
+    "message": "Dostigli ste limit gotovine (38.50 od 20.00). Predajte pazar prije nove narudzbe."
+}
+</code></pre>
+
+*Фронтенд:* приказати ову поруку куриру (нпр. модал/toast), *не* дозволити наставак тока прихватања. Наруџба *остаје* доступна другим куририма (@accept()@ уопште није извршен).
+
+---
+
+h2. NOTIFY_ONLY режим — одговор
+
+Ако је курир преко лимита а фирма има @NOTIFY_ONLY@ (или нема @BLOCK@), @accept()@ *успијева нормално*, али одговор добија ново поље @warning@:
+
+<pre>
+HTTP 200
+</pre>
+
+<pre><code class="json">
+{
+    "success": true,
+    "message": "Order accepted.",
+    "warning": "Preso ste limit gotovine (38.50 od 20.00). Predajte pazar sto prije.",
+    "data": { "...": "isti podaci kao i do sada" }
+}
+</code></pre>
+
+*Фронтенд:* приказати @warning@ као благо упозорење (нпр. жути banner/toast), *не* блокирати ток — наруџба је *већ* прихваћена, само подсjeћа курира да треба да преда пазар.
+
+---
+
+h2. Кад НЕМА проблема
+
+Ако курир није преко лимита, или фирма нема постављен @cash_limit_amount@ (@NULL@ = нема лимита уопште), одговор изгледа *исто као раније*:
+
+<pre><code class="json">
+{
+    "success": true,
+    "message": "Order accepted.",
+    "warning": null,
+    "data": { "..." }
+}
+</code></pre>
+
+*Важно:* поље @warning@ *увијек* постоји у одговору (чак и кад је @null@) — фронтенд може безбједно провjeriti @if (response.warning)@ без страха да поље недостаје.
+
+---
+
+h2. Провjera важи само за COD наруџбе
+
+Ако је наруџба плаћена картицом, @checkCashLimit()@ се уопште не покреће — курир никад не добија упозорење/блокаду за наруџбе гдје ништа физички не наплаћује.
+
+---
+
+h2. Гдје се лимит подешава (за диспечера)
+
+<pre>
+GET /api/dispatcher/delivery-companies/{companyId}/finance-settings
+PATCH /api/dispatcher/delivery-companies/{companyId}/finance-settings
+Body: {"cash_limit_amount": 20, "cash_limit_enforcement": "BLOCK"}
+</pre>
+
+@cash_limit_enforcement@ прихвата само @"BLOCK"@ или @"NOTIFY_ONLY"@. Ако диспечер не постави ово поље, остаје @NOTIFY_ONLY@ (default).

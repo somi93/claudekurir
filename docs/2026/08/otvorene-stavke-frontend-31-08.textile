@@ -1,0 +1,266 @@
+{{toc}}
+
+h1. Otvorene stavke — konsolidovan status (31.08.2026)
+
+Prošli smo kroz *sva* pitanja iz @29_08_2026_Frontend_pitanja_za_backend.textile@, kompletan
+odgovor backenda (@odgovor-frontend-30-08-KOMPLETAN.textile@) i našu integraciju
+(@odgovor-frontend-31-08.textile@). Ispod je *samo ono što NIJE zatvoreno* — grupisano po
+tome ko je na potezu. Sve zatvorene stavke (2.1, 2.4, 2.5, 3.1, 3.4, 3.11, DIO 4, DIO 5,
+#223639) ovdje se ne ponavljaju.
+
+Legenda: ⛔ blokira nas · ⏳ čeka drugi tim · 👁 čeka jedan živ odgovor / produkcijsku
+potvrdu · ✎ sitno / kozmetika
+
+---
+
+h1. A. ⛔ Čeka backend — nova funkcionalnost ili nova polja
+
+h2. A.1 (3.3) @hours_online@ / metrika po satu
+
+Potvrđeno da se online-vrijeme *ne prati*. "KM/sat" i "sati online" su izbačeni iz UI-ja
+(kurirska "Zarada" i "Ova sedmica" sad prikazuju broj dostava umjesto toga). Čeka se novi
+"sesije" sistem (vaša procjena 1.5–2.5h). Kad bude gotov: dodati @hours_online@ u
+@daily[]@ na @/earnings@ (front agregira po sedmici).
+
+h2. A.2 (3.10) Push kanal
+
+Push mehanizam još nije isporučen. Trenutno pollujemo na interval (Dodela narudžbi na 5
+min, ostalo on-demand). Treba nam *push kanal* ili *preporučeni polling interval* za
+scenarije:
+* nova ponuda kuriru (otvoreno od 14.08)
+* novi @cash-handovers/report@ (dispečeru)
+* narudžba dugo čeka kurira
+* restoran ne prihvata narudžbu ("Čeka restoran")
+
+*AŽURIRANO 10.09:* @usePushNotifications@ ima sad @onPushEvent(type, cb)@ interni bus -
+@onMessage@ emituje po @data.type@ pa composable reaguje odmah (npr. @useCourierOffers@ na
+@order_offer@ povuče @GET /courier/offers@). Grananje toast severity-ja:
+@WARNING_PUSH_TYPES@ (@cash_limit_reached@, @order_unassigned_timeout@,
+@order_pending_restaurant@). *I dalje čeka:* dokumentovan @data.type@ enum + payload po
+tipu, i potvrda koji se stvarno šalju (questions 10.09 DIO B.5).
+
+h2. A.3 (DIO 5) prošireni model dodjele narudžbi — stvarna logika
+
+*Integrisan prošireni skup polja* sa "Upytstvo za frontend — API polja za proširenu
+dodelu naruџbi (02.09.2026)": @assignment_mode@ (@ALL@ / @NEAREST@ / @TOP_N@; stara
+@BEST_MATCH@ vrijednost se čuva i nudi *samo* firmama koje je već imaju),
+@assignment_courier_count@ (1–50, šalje se samo za @TOP_N@), @assignment_timeout_action@
+(@NEXT_NEAREST@ / @OPEN_TO_ALL@, vidljivo za @NEAREST@/@TOP_N@),
+@assignment_courier_pool@ (@ALL_ACTIVE@ / @AVAILABLE_NOW@ / @SCHEDULED_SHIFT@, uvijek
+vidljivo), @offer_timeout_seconds@ (5–120). Sve je u @FinanceSettingsPanel@ + PATCH kroz
+@useFinanceSettings@, uz klijentsku validaciju iz Uputstva.
+
+*I dalje otvoreno:* podešavanje se čuva ali *nema efekta na stvarnu dodjelu* — nije
+povezano sa @NotifyCouriersOrderAccepted@ Job-om (filtriranje liste po najbližem +
+timeout → sljedeći kandidat). Panel prikazuje napomenu da još nije aktivno. Javite kad
+ta faza bude spremna da uklonimo napomenu.
+
+h2. A.4 (3.9) Currency — dio na dispečerskoj strani
+
+Unos valute za firmu za dostavu se rješava zasebno (van ovog projekta). *Ako* želite i
+klijentsko *upozorenje na dispečerskoj strani* kad se uključuje saradnja sa restoranom
+čija se valuta razlikuje od valute firme (@RestaurantCooperationPanel@), treba nam:
+* @currency@ po redu u @GET /dispatcher/{companyId}/restaurants@ (red saradnje ga sad
+  nema)
+* @currency@ za firmu — u @GET /dispatcher/my-companies@ (po redu) i/ili @GET /me@ (ni
+  jedno ni drugo ga sad ne vraća)
+
+Bez ta dva polja front nema šta da poredi, pa provjera ne može da se napravi ovdje.
+
+h3. A.4a Valuta firme — podešava se u "Finansijske postavke", @finance-settings@ endpoint
+
+Dispečer treba da može da *izabere valutu firme* na ekranu *Firma → Finansijske postavke*
+(@FinanceSettingsPanel@) — polje/@GlobalSelect@ pored provizije / limita gotovine / perioda
+isplate. Trenutno tog polja nema jer ga endpoint ni ne vraća ni ne prima:
+
+* @GET /dispatcher/delivery-companies/{id}/finance-settings@ — odgovor (@FinanceSettings@)
+  *nema @currency@*. Treba dodati (npr. ISO-4217: @"BAM"@, @"EUR"@, @"RSD"@… ili
+  slobodan kod).
+* @PATCH /dispatcher/delivery-companies/{id}/finance-settings@ — @FinanceSettingsUpdate@
+  prima samo @cash_limit_amount@, @cash_limit_enforcement@, @payout_period_days@,
+  @daily_handover_time@, @assignment_mode@. *Fali @currency@ za snimanje.*
+
+Bez ta dva (GET vraća + PATCH prima) front ne može ni da prikaže ni da sačuva izbor.
+*Po našoj procjeni backend ovo još nije uradio.*
+
+*Potrošači te vrijednosti (sad tvrdo kodiraju "KM"):* kad @currency@ stigne na
+@finance-settings@, front ga čita i zamjenjuje "KM" kroz cijeli "Cenovnik" + finansije:
+* @FinanceSettingsPanel@ — labela "Limit gotovine (KM)" → "Limit gotovine ({currency})"
+* @SurchargesPanel@ — placeholder "Jedinica (npr. KM/km)"; @unit@ je slobodan tekst, pa
+  kartice naknada (@SurchargeCard@) prikazuju "+0.1 KM/km", "+1 KM po dostavi" iz ukucanog
+* @VehicleSimulationPanel@ — fallback @price.currency ?? "KM"@ (sam @recommend-vehicle@
+  *već* vraća @price.currency@; firma nema ekvivalent van @price@ objekta)
+* "Cena dostave" tab / "Primer obračuna" — čita @currency@ iz @price@ objekta, ali forma
+  za unos cijena nema pojam valute firme
+
+Napomena: za *upozorenje o različitoj valuti* (gore u A.4) i dalje treba @currency@ i po
+redu u @GET /dispatcher/{companyId}/restaurants@ i za firmu na mjestu koje
+@RestaurantCooperationPanel@ čita (@my-companies@ / @me@) — @finance-settings@ se ne
+povlači na tom ekranu.
+
+h2. A.5 "Pošalji ponudu" tvrdo dodjeljuje — dispečer ne može ponuditi drugom kuriru
+
+*AŽURIRANO 10.09:* backend je isporučio ugovor modela ponude (@POST
+/dispatcher/orders/{id}/offer@, @GET .../offers@, @POST /orders/{id}/offer-response@) +
+socket (@orders.{id}@ / @.offer.round.changed@). Vidi
+@2026/09/10_09_2026_odgovor-backend-ponuda-socket.textile@. Frontend je implementiran
+(runda ponude u @CandidateCouriersPanel@ + Reverb @echo.client.ts@ +
+@useOrderOfferRound@ / @useCourierOffers@ + kurirski banner), degradira na stari @accept@
+kad rute vrate 404. *Nije provjereno uživo.* Preostalo: potvrda oblika odgovora, auth
+@/broadcasting/auth@ + kanala, *cancel runde* (nema rute), @GET /courier/offers@ oblik
+reda — @2026/09/10_09_2026_Frontend_pitanja_za_backend.textile@ DIO A.
+
+Ekran "Dodela narudžbi" → "Predloženi kuriri". Dugme *"Pošalji ponudu"* zove @POST
+/orders/{orderId}/accept@ sa @{ driver_id }@ (isti endpoint koji kurir sam zove kad
+prihvati). U praksi:
+* Prvi klik na bilo kog kandidata *odmah "potroši" narudžbu* — odgovor je *409 "Order is
+  no longer available for pickup"*, i svaki naredni pokušaj (drugi kurir) vraća isti 409.
+  Dispečer je zaključan na jedan pokušaj.
+* Reprodukovano na narudžbi *#3858*: dva @accept@ poziva zaredom → oba *409*.
+  @candidate-couriers@ i dalje vraća 7 kandidata, *svi @currently_available: false@*.
+
+Pitanja:
+# Da li @/orders/{id}/accept@ znači "pošalji ponudu" (kurir je dobije i prihvata/odbija iz
+  aplikacije) ili *tvrdo dodjeljuje/prihvata u ime kurira*? Ponašanje izgleda kao drugo.
+# Postoji li (ili je planiran) endpoint za *ponudu više kurira* — paralelno ili redom, sa
+  kurirskim accept/decline tokom + timeoutom? Cijeli ekran (rangirana lista, "niko nije
+  isključen sa liste") pretpostavlja taj model. Vezano za A.2 (push "nova ponuda kuriru")
+  i DIO 5 (@BEST_MATCH@ timeout → sljedeći kandidat).
+# Ako je @/accept@ jedini put i tvrdo dodjeljuje — kako dispečer nudi *sljedećem* kad prvi
+  ne odgovori? Trenutno nema povratka iz "zaključanog" stanja.
+# Šta tačno znači *409 na prvom pokušaju* za #3858? Je li narudžba još @on-hold@ (čeka
+  potvrdu restorana — #3858 je vjerovatno "zaostala" iz taba "Čeka restoran")? Ako da,
+  "Pošalji ponudu" nema smisla dok narudžba ne prođe restoran — treba nam status/flag u
+  @candidate-couriers@ odgovoru da UI onemogući slanje i objasni zašto.
+# Zašto se lista nudi kad su *svi kandidati @currently_available: false@*? Smije li dispečer
+  slati ponudu nedostupnom kuriru, ili te redove treba disejblovati?
+
+*Privremeno riješeno na frontu (31.08):* panel sad unakrsno provjerava ID narudžbe sa board
+listama (@waiting@ / @pending-restaurant@ / @active-deliveries@ / @refused@) i unaprijed
+gasi "Pošalji ponudu" + objašnjava stanje ("već ima kurira", "čeka restoran", ...). To je
+heuristika — *robusno rješenje je @order_status@ (ili sličan enum) u @candidate-couriers@
+odgovoru*, plus da @/accept@ na neasajnabilnu narudžbu vrati čitljivu (lokalizovanu) poruku
+umjesto @"Order is no longer available for pickup."@.
+
+---
+
+h1. B. ⏳ Čeka drugi tim
+
+h2. B.1 (3.8) Suspendovan / uklonjen kurir sa dugom
+
+Ostaje li na @couriers-balance@ listi (da dispečer ne izgubi dug iz vida)? Može li i dalje
+da pošalje @cash-handovers/report@ sa mobilne? — proslijeđeno timu @app.ordera@, i dalje
+čeka odgovor.
+
+---
+
+h1. C. 👁 Čeka jedan živ odgovor (implementirano po opisu)
+
+Sve ispod je *odrađeno na frontu* prema opisu iz vašeg odgovora. Treba nam potvrda da su
+rute deployovane i da je oblik tačan — ako jeste, ove stavke su zatvorene.
+
+h2. C.1 (1.1) @lastname@ kao zasebno polje
+
+Edit forma sad šalje @name@ + @lastname@ nezavisno na svaki @PATCH@. Popunjavanje koristi
+@lastname@ iz odgovora ako ga ima, inače rasparsira @name@. *Vraća li @couriers-status@ /
+@fullCourierRow()@ @lastname@ kao zasebno polje?* Ako da, izbacujemo fallback parsing.
+
+h2. C.2 (1.2 / 3.2) Pun red iz @POST@ i @PATCH .../couriers@
+
+Skinuli smo merge-logiku i @CompanyCourierWriteResult@ tip; sad *zamjenjujemo* red
+odgovorom i *optimistički ubacujemo* kod kreiranja. *Vraćaju li @store@ i @update@ stварно
+identičan pun red kao @index@* (uklj. @suspended*@, @contact_phone@, @bank_account@,
+@note@)? Ako neki od njih ipak vrati skraćen oblik, suspenzija/detalji nestanu iz UI-ja do
+sljedećeg fetch-a.
+
+h2. C.3 (3.5) Nazivi polja @confirmed_by@ / @confirmed_by_name@
+
+Dodali smo kolonu "Potvrdio" u obje @cash-handovers@ liste, čitamo @confirmed_by_name@ (uz
+fallback na @#confirmed_by@). *Jesu li nazivi tačno @confirmed_by@ i @confirmed_by_name@ u
+obje GET liste (kurirska + dispečerska)?*
+
+h2. C.4 (3.6) @GET .../delivery-companies/{companyId}/payouts@
+
+Nova kartica "Isplate kuririma" gađa ovu rutu sa @?courier_id=@ / @?from=@ / @?to=@.
+*Deployovano?* Pretpostavili smo oblik reda = kurirski @payouts@ red + @courier_id@ —
+*potvrda?*
+
+h2. C.5 (2.3) @warning@ na @cash-receipt@ / @payout@ odgovoru
+
+Servisi sad čitaju @{ success, transaction_id, warning? }@ i prikazuju @warning@ kao žuti
+toast. *Deployovano?*
+
+h2. C.6 (#223639) @price@ u @recommend-vehicle@ odgovoru
+
+"Simulacija narudžbe" (tab "Vozila i pravila") sad prikazuje breakdown cijene iz
+@data.price@. *Deployovano?* Pretpostavljeni oblik = kao "Primer obračuna" (@base_price@,
+@price_per_km@, @per_km_total@, @surcharges[]@, @surcharge_total@, @total@, @currency@);
+@price = null@ kad @distance_km@ nije poslat. *Potvrda?*
+
+h2. C.7 (2.2) @inbox.sent_at@ i wall-clock
+
+Pošto ste potvrdili @ordered_at@ = pravi UTC, obrisali smo *cijeli* wall-clock sloj —
+uključujući @inbox.sent_at@ ("Ranije poslato" u dijalogu poruke kuriru), pod
+pretpostavkom da globalna @Europe/Belgrade@ ispravka pokriva i taj put. *Potvrdite da je
+@inbox@ zahvaćen*, ili javite ako nije (pa vraćamo poseban parsing samo za taj slučaj).
+
+h2. C.8 (DIO 4) @resolve-restaurant-status@
+
+Dugmad Prihvati / Odbij na "Čeka restoran" tabu gađaju @POST
+/api/dispatcher/orders/{orderId}/resolve-restaurant-status@. *Deployovano?* Vraća li
+čitljivu poruku (npr. 409) kad narudžba više nije @on-hold@, da je prikažemo dispečeru?
+
+---
+
+h1. D. ✎ Sitno / kozmetika
+
+h2. D.1 (2.2) Neujednačen format timestampa
+
+@cash-handovers@ vraća @"...000000Z"@, @payouts.created_at@ vraća @"YYYY-MM-DD HH:MM:SS"@
+(razmak, bez @Z@/offseta). Front barata s oba, ništa nije pokvareno — ali idealno
+ujednačiti sve na ISO + @Z@ (ili eksplicitan @+02:00@).
+
+h2. D.2 (2.3) @cash_limit_enforcement@ dok je @cash_limit_amount@ @null@
+
+Viđeno @{ cash_limit_amount: null, cash_limit_enforcement: "BLOCK" }@. Je li @enforcement@
+značajan dok je @amount@ @null@, ili je to samo sačuvana default vrijednost? Front trenutno
+tretira kao "bez limita".
+
+h2. D.3 (3.7) Regresija vremena na produkciji
+
+Poslije @Europe/Belgrade@ + @TIMESTAMP(date, delivery_time)@ ispravki i uklanjanja
+wall-clock workaround-a — molimo prijavite ako se na produkciji vidi *bilo kakav* pomak u
+"prije / za X min", @waiting_minutes@, @minutes_until_delivery@ ili trajanjima.
+
+h2. D.4 @POST@ / @PUT /dispatcher/shift-templates@ — vraćaju skraćen red
+
+Ista klasa problema kao C.2 (courier write odgovori). @GET /dispatcher/shift-templates@
+vraća pun red — @zone: { id, name }@, @status@, @current_bookings@, @capacity_source@.
+@POST@ i @PUT .../{id}@ vraćaju samo upisana polja + @zone_id@ (bez @zone@ objekta,
+@status@-a, @current_bookings@, @capacity_source@):
+
+bc. { "data": { "zone_id": 4, "delivery_company_id": 24, "date": "2026-08-31",
+  "start_time": "09:00", "end_time": "17:00", "min_couriers": 1, "target_couriers": 1,
+  "max_couriers": null, "high_demand": false, "created_by": 30369,
+  "created_at": "...", "updated_at": "...", "id": 4 } }
+
+Kartica smjene je padala na @zone.name@ / @status@ iz tog odgovora. *Privremeno riješeno na
+frontu (31.08):* mapper je otporan na fali-polja (@zone@ fallback na @{ id: zone_id }@,
+@status@ izveden iz kapaciteta) i @ShiftsTab@ *ponovo povuče sedmicu* poslije svakog
+create/update da kartice dobiju kompletne podatke. *Robusno rješenje:* @store@ i @update@
+da vraćaju identičan pun red kao @index@, pa se re-fetch uklanja.
+
+---
+
+h1. E. Interno (ne za backend) — RIJEŠENO 04.09
+
+Postojeći TypeScript strict-null upozorenja (nevezana za ostatak rada) očišćena:
+* @useVehicleRules.moveRule@ — dodat @if (!current || !neighbor) return@ guard
+  (@noUncheckedIndexedAccess@ sužavanje tipa; ne može se desiti u runtime-u).
+* @GlobalDatePicker.parseIso@ — default-i u destrukturiranju (@[year = 0, month = 1,
+  day = 1]@).
+* @nuxt.config.ts@ — uklonjeno @process.env@ čitanje; @gpsApiBase@ je sad fiksni string
+  koji @NUXT_PUBLIC_GPS_API_BASE@ env var i dalje preglašava (Nuxt konvencija). Obje
+  grane starog ternara su ionako bile isti URL.
+
+@nuxi typecheck@ sad prolazi *bez ijedne greške*.

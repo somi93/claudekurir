@@ -1,0 +1,125 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja (21. septembar 2026)
+
+Backend javio (usmeno) da je sredio "neke greske" - bez konkretne liste. Uradili smo
+kompletan retest svih otvorenih stavki iz @otvorene-stavke-tracker.md@, vidi
+@21_09_2026_Network_checklist_sve-otvorene-stavke.md@ za pun spisak sa statusima.
+Veliki dio je potvrđeno riješen. Ostaje jedno glavno pitanje (ručna ponuda, 422) sa
+novim konkretnim dokazom + dodatno pitanje otvoreno njime.
+
+Legenda: 🔴 blokira/kvari podatak · 🟠 kvari/ograničava funkciju · 🟡 nejasno/treba potvrda ·
+🟢 niži prioritet
+
+---
+
+h2. ✅ Potvrđeno riješeno 21.09 (informativno, nema pitanja)
+
+* *@couriers-status@/@courier-locations@/@inbox-summary@ 500 regresija (16.09
+  ~23:20)* - sve tri rute sad vraćaju @200@ sa validnim podacima. "Kuriri uživo" i
+  "Obaveštenja" opet rade.
+* *Automatska dodjela (TOP_N/sequential) se nikad nije pokretala - @round: null@* -
+  sad se runda automatski otvara (@is_automatic:true@, @status:"active"@,
+  potvrđeno na narudžbi @#3974@).
+  Isto potvrđeno: admin/dispečerski nalozi (@30369@/@30700@/@30722@/@30188@) NISU
+  u @candidate_ids@ ni u @offers[]@ automatske runde.
+* *@paying_type@/@paying@/@contract_signed_at@/@contract_active_from@* - kurir
+  @30742@ ima sva 4 polja popunjena i @detail@ blok kompletan u @couriers-status@
+  odgovoru. Prvi put da se ovo vidi poslije 14.09 "SREĐENO" tvrdnje. Ponovićemo
+  test sa svježim @POST@ da potvrdimo da je ponovljivo, ne izolovan slučaj -
+  @PATCH@ scenario (izmjena na postojećem kuriru) još nismo testirali.
+* *@couriers-balance@ vraća više redova od @couriers-status@* - OBJAŠNJENO,
+  namjerno: @couriers-balance@ uključuje i neaktivne kurire da dispečer vidi dug
+  i poslije deaktivacije, @couriers-status@ prikazuje samo aktivne. Nije bag,
+  skidamo sa liste otvorenih stavki.
+* *@inbox-summary@ oblik odgovora* - poklapa se tačno sa pretpostavkom
+  (@{courier_id, last_message:{title,sent_at,category,sender}|null,
+  dispatcher_unread_count}@), @category:"offer"@ se koristi za sistemske poruke o
+  ponudama u skladu sa rezervisanom kategorijom (issue #223681).
+
+---
+
+h2. 🟡 Ručna ponuda sa više kandidata - 422 all-or-nothing i dalje aktivno (dva nova dokaza, 21.09)
+
+Isti problem prijavljen 16.09, PONOVLJEN 21.09 sa dva odvojena primjera na istom
+scenariju (order @#3974@, kandidati @30742@/@30189@/@30577@/@30576@):
+
+*Primjer 1 - direktan API poziv:*
+
+<pre>
+POST offer?delivery_company_id=24  {"courier_ids":[30742,30189,30577,30576],...}
+→ 422
+{
+  "message": "Kurir #30742 trenutno nije dostupan. (and 3 more errors)",
+  "errors": {
+    "courier_ids": [
+      "Kurir #30742 trenutno nije dostupan.",
+      "Kurir #30189 trenutno nije dostupan.",
+      "Kurir #30577 trenutno vozi drugu dostavu.",
+      "Kurir #30576 trenutno vozi drugu dostavu."
+    ]
+  }
+}
+</pre>
+
+*Primjer 2 - kroz UI, "Predloženi kuriri" → "Pošalji ponudu (4)" (screenshot):*
+
+Isti 4 kandidata čekirana, 3 od 4 nedostupna (@30742@/@30189@ "trenutno nije
+dostupan", @30576@ "trenutno vozi drugu dostavu", "and 2 more errors" = 3 greške
+ukupno za ovaj poziv), samo @30577@ bi bio validan. Cijeli zahtjev pada, dispečer
+vidi samo generičku crvenu poruku "Ne mogu da pošaljem ponudu." - bez liste ili
+razloga po kuriru, iako front već ima čipove "Nedostupan"/"Na isporuci" za te
+kandidate na istoj listi.
+
+*Predloženo ponašanje (dispečer):* kad je bar jedan kandidat validan, zahtjev
+treba da PROĐE i pošalje ponudu samo validnom/validnima, a dispečer treba da vidi
+koji kandidati NISU dobili ponudu i zašto - umjesto trenutnog "sve ili ništa" 422.
+
+*Novo pitanje, otkriveno istim retestom:* Finansijske postavke → "Koje kurire
+uzeti u obzir pri dodeli" je postavljeno na "Sve aktivne kurire firme (bez
+provjere dostupnosti)" - opis izričito kaže "bez provjere dostupnosti". Ručni
+@POST .../offer@ i dalje vraća "trenutno nije dostupan"/"trenutno vozi drugu
+dostavu" za iste kandidate.
+
+*Dopuna - šta AUTOMATSKA runda stvarno radi sa istom postavkom (order @#3974@ i
+@#3975@, isti dan):*
+
+* @#3974@ automatska runda: @offers[]@ = @30742@ i @30189@ oba @pending@ - to su
+  TAČNO ista dva kurira koje ručni @POST .../offer@ na istoj narudžbi odbija kao
+  "trenutno nije dostupan". Znači automatika im ŠALJE ponudu uprkos "nedostupan".
+* @#3975@ kandidat lista: "Nedostupan" čip imaju Kurir 2 Ordera, Dostavljac Orderin
+  i Motor Dostavljac4, a svi imaju "Ponuđeno" (automatska runda ih je ponudila).
+* Ali @#3974@ @candidate_ids@ ima 15 ID-jeva od 17 aktivnih u @couriers-status@ -
+  fale samo @30576@ i @30577@, a to su TAČNO ona dva koja ručni poziv odbija sa
+  "trenutno vozi drugu dostavu". @#3975@: Milan Rogic ("Na isporuci") nije dobio
+  ponudu (i dalje ima dugme "Pošalji ponudu"), dok je Lazar (sad "Dostupan") prvi u
+  @candidate_ids@.
+
+Naš zaključak (nije potvrđen od backenda): @ALL_ACTIVE@ ignoriše samo "nije
+dostupan" (@currently_available:false@, vjerovatno radno vrijeme), ali automatska
+runda i dalje isključuje kurire koji su trenutno na drugoj dostavi - dakle labela
+"bez provjere dostupnosti" je samo djelimično tačna, a ručni @/offer@ odbija OBA
+razloga.
+
+# Je li "sve ili ništa" validacija namjerna, ili bi zahtjev trebalo da prođe SAMO
+  za validne kandidate iz @courier_ids@ niza, uz odgovor koji navodi koji su
+  prihvaćeni a koji odbačeni (i zašto), umjesto tvrdog @422@ za sve?
+# Da li postavka "bez provjere dostupnosti" (@assignment_courier_pool:
+  ALL_ACTIVE@) namjerno važi SAMO za automatsku dodjelu (biranje kandidata za
+  automatsku rundu), a ručno slanje ponude (@POST .../offer@) ima svoju,
+  odvojenu provjeru dostupnosti koja tu postavku ne uzima u obzir? Ako je
+  namjerno, treba li da prilagodimo opis te postavke na frontu da bude jasnije
+  da važi samo za automatiku?
+# Potvrda naše pretpostavke iz dopune iznad: da li @ALL_ACTIVE@ preskače samo
+  @currently_available@ provjeru, a i dalje isključuje kurire koji su trenutno
+  na drugoj dostavi? Ako da - je li namjerno da ručno slanje ne može da "pregazi"
+  ni jedno ni drugo, ili bi dispečer trebalo da može svjesno da pošalje ponudu i
+  kuriru koji je na isporuci (npr. za sekvencijalni lanac)?
+# Ako se prihvati djelimičan uspjeh (pitanje 1) - kakav bi bio oblik odgovora
+  (npr. koja polja označavaju poslato vs. odbačeno sa razlogom), da frontend zna
+  šta i kako da prikaže dispečeru (npr. toast/lista "poslato: X, nije poslato: Y
+  (razlog)")?
+# Ako je "sve ili ništa" namjerno i ostaje tako - treba li frontend PRIJE slanja
+  da isključi iz @courier_ids@ sve kandidate koji već imaju "Nedostupan"/"Na
+  isporuci" čip (tu informaciju već ima iz iste liste), umjesto da pusti
+  dispečera da ih čekira pa zahtjev padne?

@@ -1,0 +1,376 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja (12. septembar 2026)
+
+Prvi uživo test iz @10_09_2026_test-plan-ponuda-socket.md@ (D1, D2, S1) protiv
+@api.kurir.ordera.app@ - narudžba #3892, firma 24. Ovaj dokument je *delta od 10.09*
+(@10_09_2026_Frontend_pitanja_za_backend.textile@ ostaje otvoren za DIO A.2-A.4, A.7,
+A.9-A.13 - nisu dirani danas). *DIO A* ovdje potvrđuje/precizira A.1, A.5, A.6, A.8 na
+osnovu stvarnog odgovora. *DIO B* su nova pitanja koja je taj odgovor otvorio.
+
+Legenda: 🔴 blokira · 🟠 kvari / ograničava funkciju · 🟡 nejasno / treba potvrda ·
+👍 potvrđeno, samo za info
+
+---
+
+h1. A. Potvrde / izmjene na 10.09 pitanja
+
+h2. 👍 A.1 (dio) - URL i Bearer auth potvrđeni, CORS *nije*
+
+@POST /dispatcher/orders/{id}/offer@ i @GET .../offers@ rade tačno kako je ugovoreno
+(vidi B dolje). Ali kad app poslije @GET /offers@ pokuša da se pretplati na
+@private-orders.{orderId}@ preko Reverb-a, Echo zove
+@POST https://api.kurir.ordera.app/broadcasting/auth@ i browser ga blokira:
+
+<pre>
+Access to fetch at 'https://api.kurir.ordera.app/broadcasting/auth' from origin
+'http://localhost:3000' has been blocked by CORS policy: Response to preflight request
+doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present
+on the requested resource.
+</pre>
+
+Ovo je *preflight OPTIONS* (zahtjev nosi @Authorization@ + @Content-Type: application/json@,
+pa browser prvo šalje OPTIONS) - znači @/broadcasting/auth@ ruta trenutno ne vraća
+@Access-Control-Allow-Origin@ ni na OPTIONS ni na POST, bar ne za @localhost:3000@.
+@curl@ testovi (S1-S3) ovo *ne mogu otkriti* jer CORS nije nešto što curl provjerava -
+samo browser. Ostaje otvoreno da li je URL/host uopšte tačan (S2/S3 nismo probali) i da
+li auth logika sama radi (guard, token) - do toga ne možemo doći dok CORS ne propusti
+zahtjev.
+
+# Treba CORS za @/broadcasting/auth@ (OPTIONS + POST) - origin dev @localhost:3000@ i
+  produkcijski origin dispečerskog frontenda. Ako @/api/*@ već ima CORS podešen u
+  @config/cors.php@, provjeriti da @paths@ niz uključuje i @broadcasting/auth@ (taj path
+  je van @api/*@ prefiksa pa možda promakao istoj konfiguraciji).
+# Kad CORS propusti zahtjev - koji je stvarni odgovor (200 @{auth:"..."}@ / 403 / 419)?
+
+h2. 👍 A.5 - oblik @GET /offers@ odgovora, sada potvrđeno
+
+Stvaran omotač (isti i na D1 @POST@ i na D2 @GET@):
+
+<pre>
+{
+  "success": true,
+  "data": {
+    "round": {
+      "id": "0bd7d87b-a901-4ea5-a069-5ca9d02ded5b",
+      "order_id": 3892,
+      "mode": "sequential",
+      "batch_size": 1,
+      "is_automatic": false,
+      "status": "active",
+      "timeout_seconds": 20,
+      "candidate_ids": [30189, 30369, 30576, 30577, 30584, 30592, 30700, 30710],
+      "timeout_action": "NEXT_NEAREST",
+      "accepted_by": null,
+      "created_at": "2026-09-12T14:30:19+02:00",
+      "resolved_at": null
+    },
+    "offers": [
+      {
+        "courier_id": 30189,
+        "offer_status": "pending",
+        "offer_expires_at": "2026-09-12T14:30:39+02:00",
+        "responded_at": null
+      }
+    ],
+    "server_now": "2026-09-12T14:30:19+02:00"
+  }
+}
+</pre>
+
+Ovo je drugačije od svega što smo pretpostavili u parseru (@{ offers: [...] }@ na
+top-levelu) - treba nam da se @orderOffersService.ts@ prepravi na @data.round@ /
+@data.offers@ / @data.server_now@. Prije toga:
+
+# @round.status@ - potvrđujemo @active@; koje su ostale vrijednosti (@accepted@ /
+  @exhausted@ / @cancelled@ / nešto peto)? Treba nam *potpun enum* da front zna kad je
+  runda gotova.
+# @candidate_ids@ na @round@ nosi *svih 8* poslatih kurira, ali @offers@ niz ima *samo
+  jednu* stavku (prvi kandidat, @pending@). Znači li to da @offers@ raste kako runda
+  odmiče (nova stavka se dodaje kad prvi @decline@/istekne i backend pređe na drugog), ili
+  se stara stavka *zamjenjuje* pa @offers@ uvijek ima samo trenutnog kandidata? Frontu
+  treba da znamo da li da prikazuje *historiju* odbijanja ili samo "trenutno na potezu".
+# @server_now@ na svakom odgovoru - namjerno za front da računa countdown bez zavisnosti
+  od klijentskog sata (umjesto @offer_expires_at@ direktno)? Ako da, hoće li i socket
+  event nositi @server_now@?
+# @timeout_action: "NEXT_NEAREST"@ - postoji li enum dokumentacija (koje druge vrijednosti
+  su moguće, npr. @CANCEL@ / @STOP@)?
+
+h2. 👍 A.6 (dio) - @POST /offer@ 201 vraća puno stanje runde
+
+Potvrđeno: @201@ telo je *identično* @GET /offers@ telu (isti @data.round@ +
+@data.offers@ + @server_now@) - front *ne mora* zvati @GET@ odmah poslije @POST@-a. Ostaje
+otvoreno iz 10.09: @422@/@409@ oblici grešaka (V1-V6, D4 iz test plana - nismo još
+probali).
+
+h2. 🟡 A.8 (dio) - default @offer_timeout_seconds@ = 20 kad se izostavi
+
+Poslati @POST@ nije imao @offer_timeout_seconds@ u tijelu
+(@{"courier_ids":[...],"mode":"sequential"}@) i vraćeni @round.timeout_seconds@ je @20@.
+
+# Je li @20@ hardkodiran default, ili dolazi iz firminog @finance-settings.offer_timeout_seconds@
+  (pa bi za drugu firmu default bio drugačiji)? Ako čitamo firminih podešavanja, front bi
+  mogao prikazati taj broj kao placeholder u UI-ju umjesto fiksnog 25 koji sad šalje.
+# Ako se @offer_timeout_seconds@ *pošalje* u tijelu - poštuje li se, i je li ograničen na
+  isti 5-120 raspon kao @finance-settings@ (V5/V6 iz test plana - još nismo probali)?
+
+---
+
+h1. B. Nova pitanja iz 12.09 odgovora
+
+h2. 🟠 B.1 @mode@ nije poslat u testu, ali je bio @"sequential"@ - koji je pravi default?
+
+Test je poslao @mode:"sequential"@ eksplicitno (test plan V3 - poziv *bez* @mode@ - nismo
+još probali). Ne mijenja hitnost, samo napomena da V3 iz test plana ostaje da se odradi
+prije nego zaključimo default.
+
+h2. 🟡 B.2 @batch_size@ - odakle dolazi, kontroliše li ga front?
+
+Odgovor nosi @batch_size: 1@ koje front nije slao. Da li je @batch_size@:
+# Uvijek @1@ za @mode:"sequential"@ (a @parallel@ bi imao @batch_size > 1@, npr. broj
+  poslatih @courier_ids@)?
+# Podesivo iz tijela @POST@-a (nismo probali polje), ili isključivo firmino
+  @finance-settings@?
+
+h2. 🟡 B.3 @responded_at@ na offer redu - kad se popunjava?
+
+Vidimo @responded_at: null@ za @pending@. Očekivano je da se popuni na @accept@/@decline@
+(K2/K3 iz test plana - nismo još probali) - samo potvrda da je to plan, ne posebno pitanje
+ako se poklopi.
+
+h2. 👍 A.11 - @GET /courier/offers@ oblik reda, sada potvrđeno
+
+K1 odrađen uživo (narudžba #3896). Stvaran red je bogatiji od pretpostavke - nosi *pun*
+@order@ objekat (@restaurant@, @location@ sa @coordination@/@city@, @currency@, @state@),
+plus @restaurant_name@ i @delivery_price@ na top-levelu:
+
+<pre>
+{
+  "offer_id": 9, "order_id": 3896, "expires_at": "2026-09-12T13:12:19.000000Z",
+  "mode": "sequential", "restaurant_name": "Doner Rio", "delivery_price": 0,
+  "order": { "id": 3896, "state": "STATE_ACCEPTED", "restaurant": {...}, "location": {...}, ... }
+}
+</pre>
+
+Dva odstupanja od pretpostavke koja su *sakrila ponudu iz UI-ja* (front je filtrirao po
+polju koje ne postoji - popravljeno lokalno, ne treba ništa od backenda):
+
+# Nema @offer_status@ polja - pretpostavili smo @pending@/@none@/... na redu, ruta
+  očigledno vraća *samo* ponude koje čekaju odgovor. Potvrda: je li to tačno - ruta nikad
+  ne vraća @declined@/@expired@/@accepted@ redove za tog kurira?
+# Polje je @expires_at@, ne @offer_expires_at@ (razlika od dispečerskog @CourierOfferDto@
+  reda koji *ima* @offer_@ prefiks).
+
+h2. 🟡 A.14 @GET /courier/offers@ - @delivery_price: 0@ i top-level vs. @order.delivery_price@
+
+Oba polja (top-level i @order.delivery_price@) su @0@ na test narudžbi - je li to
+placeholder za test podatak, ili @delivery_price@ na ovoj ruti *uvijek* 0 (npr. cijena se
+računa tek na @accept@)? Front bi htio prikazati stvarnu cijenu na banneru/detalju ponude.
+
+---
+
+h1. C. Odgovor na backend (12.09, poslije CORS ispravke + A.5/A.8/B.1-B.3)
+
+Puni odgovor je u @12_09_2026_odgovor-backend-cors-i-offers.textile@. Ovdje samo naš
+odgovor nazad + šta smo popravili na osnovu njega.
+
+h2. 👍 A.1 - CORS ispravka POTVRĐENA uživo, RADI
+
+Ponovljen test na @CandidateCouriersPanel@ (Dodela narudžbi) - @POST .../offer@ → @auth@
+(broadcasting/auth, bez CORS greške) → @GET .../offers@, sve prošlo čisto. UI ispravno
+prikazuje "Runda: u toku" i live odbrojavanje ("Ponuđeno · 4s") za prvog kandidata u
+@sequential@ redu. A.1 zatvoreno.
+
+Sledeće za probati: da li countdown/status stiže preko *stvarnog* @.offer.round.changed@
+WS eventa ili se oslanjamo na poll fallback (10s) - test plan S4 (@ws-test.mjs@ ili
+Network tab "Socket"/"WS" filter dok traje runda), plus K1-K4 (kurirska strana:
+accept/decline) i D3-D5 (GET bez runde, dupli offer, cancel).
+
+h2. 🔴 Odgovor na pitanje backenda - DA, frontend koristi @credentials: include@
+
+Ne samo Bearer. Dva konkretna poziva:
+
+# *Refresh token* (@app/plugins/api.client.ts@, @refreshAccessToken()@) - @POST /login@
+  sa @grant_type: "refresh_token"@ i @credentials: "include"@. Refresh token je
+  @httpOnly@ cookie (backendov sopstveni snippet ga tako postavlja na login) - ne može ići
+  kroz @Authorization@ header, mora kroz cookie, pa mora i @credentials: include@ da bi
+  browser uopšte poslao taj cookie cross-origin.
+# *Logout* (@app/services/authService.ts@, @logout()@) - @POST /logout@ takođe sa
+  @credentials: "include"@, iz istog razloga (da httpOnly refresh cookie stigne do
+  servera radi invalidacije).
+
+Zato @allowed_origins: ['*']@ *nije dovoljno* za ova dva poziva - CORS spec eksplicitno
+zabranjuje @*@ kad je @credentials: include@ prisutan; browser odbija odgovor prije nego
+što JS i vidi status kod (to je i bio uzrok CORS greške koju smo vidjeli na @/logout@
+tokom testa danas, odvojeno od A.1). Treba: @Access-Control-Allow-Origin@ da echo-uje
+tačan origin (ne @*@) *i* @Access-Control-Allow-Credentials: true@, bar za @/login@ i
+@/logout@ - ili generalno kad god zahtjev nosi cookie.
+
+h2. 🔴 NOVO pitanje - @/logout@ ruta stvarno ne postoji?
+
+Backend kaže da @/logout@ nije pronađen ni u @routes/api.php@ ni @routes/web.php@. Naš
+poziv (@POST {api_base}/logout@ sa @credentials: include@) trenutno tiho puca (best-effort,
+@try/catch@, korisnika izbacujemo lokalno bez obzira na ishod) - ali ako ruta stvarno ne
+postoji, refresh-token cookie na serveru *nikad ne bude invalidiran* kad se korisnik
+odjavi.
+
+# Treba li implementirati @POST /logout@ (invalidacija refresh cookie-ja), ili je
+  namjerno da se logout radi isključivo lokalno (frontend samo briše token, refresh cookie
+  ostaje da istekne sam po TTL-u)?
+# Ako drugo - možemo ukloniti taj poziv iz frontenda i credentials-CORS pitanje za
+  @/logout@ otpada samo od sebe (ostaje samo za @/login@ refresh).
+
+h2. 👍 A.5 / A.8 / B.1 / B.2 / B.3 - zatvoreno, primjenjeno u kodu
+
+Sve potvrđeno kako je backend odgovorio, bez daljih pitanja:
+* @round.status@ enum (@active@/@accepted@/@canceled@/@exhausted@) - ugrađeno u
+  @types/offer.ts@ + @useCandidateOfferRound.ts@ (chip za otkazanu rundu). Napomena:
+  backend koristi @"canceled"@ (JEDNO "l") - naš tip/switch je prvobitno imao @"cancelled"@
+  (dva "l"), popravljeno da se poklopi sa stvarnim API odgovorom.
+* @offers@ niz raste (ne zamjenjuje) - front već ionako samo dodaje/ažurira redove po
+  @courier_id@-u, kompatibilno bez izmjene.
+* @offer_timeout_seconds@ default iz @delivery_companies@ kolone, fallback 20 - front ne
+  šalje fiksni 25 nigdje u stvarnom UI-ju (samo u @/dev/api@ test prečicama), pa nema šta
+  da se mijenja; @CandidateCouriersPanel@ već izostavlja polje i pušta backend da odluči.
+* @mode@ required (nema default) - @openOfferRound()@ već ima @mode@ kao required
+  parametar, nema izmjene.
+* @batch_size@ isključivo backend (ručna runda uvijek 1) - front ga i ne šalje, nema
+  izmjene.
+* @responded_at@ ostaje @null@ na expire (backend sam navodi da treba provjeriti da li
+  treba popuniti) - front ne zavisi od @responded_at@ za @expired@ prikaz (koristi
+  @offer_status@), nema akcije s naše strane dok se to ne odluči na backendu.
+
+---
+
+Sljedeći korak s naše strane: čim potvrdimo da CORS ispravka radi, radimo S1-S3 + S4 (WS
+smoke) i K2-K4 (accept/decline/kasno) iz test plana, pa D3-D5 i V1-V7 (greške/validacija).
+Razmatramo i da kurirski banner (@deliveries.vue@) proširimo na pun @OrderOfferDetail@
+prikaz (adresa/cijena/ruta) kad @order@ iz A.11 ima potvrđen oblik za to - trenutno je i
+dalje samo tekstualni banner.
+
+---
+
+h1. D. Nalazi iz D3-D5 (13. septembar 2026)
+
+h2. 👍 D3 - @GET .../offers@ bez runde, čisto
+
+Narudžba bez ikad otvorene runde (#3912): @200 {"success":true,"data":{"round":null,"offers":[]}}@.
+Nema @404@ dvosmislenosti (nema runde vs. nema narudžbe) - front može zvati ovo pri svakom
+otvaranju narudžbe bez posebnog error-handlinga.
+
+h2. 👍 D4 - dupli offer dok je runda aktivna, čista greška
+
+Ponovljen @POST .../offer@ dok je runda već @active@: @409 {"success":false,"message":"Za
+ovu narudžbu vec postoji aktivna ponuda.","order_status":"ACCEPTED"}@. Poruka je čitljiva,
+front je može prikazati direktno korisniku.
+
+h2. 🔴 D5 - NEMA rute za prekid runde, BLOKIRA
+
+Probali oba kandidata iz test plana, obje ne postoje:
+* @DELETE /dispatcher/orders/{id}/offer@ → @405@ (@"The DELETE method is not supported for
+  route api/dispatcher/orders/{id}/offer. Supported methods: POST."@) - ruta postoji, ali
+  je POST-only.
+* @POST /dispatcher/orders/{id}/offer/cancel@ → @404@ (@"The route
+  api/dispatcher/orders/{id}/offer/cancel could not be found."@) - ruta ne postoji uopšte.
+
+Trenutno nema backend načina da dispečer prekine aktivnu rundu. Frontovo "Zatvori rundu"
+dugme (@CandidateCouriersPanel@ / @OfferRoundBar@) samo gasi klijentsku WS pretplatu i poll -
+backend job i dalje šalje ponude sljedećim kandidatima iz reda, runda ostaje @active@ na
+serveru.
+
+# Da li postoji prava ruta za prekid runde pod drugim imenom/putanjom, ili je ovo
+  namjerno neimplementirano (rundu je moguće samo pustiti da istekne/@exhausted@)?
+# Ako namjerno neimplementirano - planira li se? Bez toga dispečer nema način da povuče
+  pogrešno poslatu ponudu (npr. selektovao pogrešne kurire) prije nego runda sama istekne.
+
+---
+
+h1. E. Novo pitanje - limit gotovine (pazar) blokira @accept@, dispečer to ne vidi unaprijed (K3, 13.09)
+
+Test K3 (@POST /orders/{ORDER}/offer-response@ @{action:"accept"}@) na kuriru 30189:
+
+<pre>
+409 Conflict
+{
+  "success": false,
+  "message": "Dostigli ste limit gotovine (694.00 od 600.00). Predajte pazar prije nove narudzbe.",
+  "current_cash_amount": 694,
+  "cash_limit_amount": 600
+}
+</pre>
+
+Kurir je bio validan kandidat (u @candidate-couriers@ listi, `vehicle_suitable`, `currently_available`), dobio je ponudu (@pending@), ali ne može je prihvatiti dok ne preda pazar - a dispečer to ne zna dok ne pokuša da mu ponudi. @candidate-couriers@ odgovor trenutno nosi samo `vehicle`, `distance_km`, `zone`, `vehicle_suitable`, `currently_available`, `on_delivery` (@app/types/candidateCourier.ts@) - nema nikakvog cash/pazar polja.
+
+# Da li @candidate-couriers@ može vratiti i cash status kandidata (npr. `cash_over_limit: bool`, ili `current_cash_amount`/`cash_limit_amount` kao u gornjem odgovoru)? Front bi mogao prikazati chip ("Prekoračio pazar") kao što već ima za neodgovarajuće vozilo, da dispečer ne bira takvog kurira unaprijed.
+# Šta se dešava sa @offer_status@ tog kandidata u rundi kad se @accept@ odbije zbog limita - ostaje @pending@ do isteka @offer_timeout_seconds@ (blokira ceo slot dok ne istekne), ili backend odmah prelazi na sljedećeg kandidata?
+
+*Odgovoreno uživo 13.09* (narudžba #3897, jedan kandidat 30189, `timeout_seconds: 20`): ponuda ostaje `pending` (`responded_at: null`) - neuspio `accept` (409 cash limit) se *ne broji kao odgovor*. Tek kad `offer_expires_at` prirodno istekne, red prelazi u `expired` i runda u `exhausted` (ovdje nije bilo sljedećeg kandidata). Znači *cijeli timeout slot se protraći* na kuriru koji unaprijed ne može prihvatiti - jači argument za pitanje #1 (front treba da vidi cash status *prije* nego ponudi, ne da čeka pun timeout da otkrije da kurir ionako ne može prihvatiti).
+
+---
+
+h1. F. 🔴 SIGURNOSNI NALAZ - @GET /orders/driver/{id}@ nema proveru vlasništva (IDOR)
+
+Test K3b (13.09, poslije uspješnog prihvatanja narudžbe #3914 od strane kurira *30189*):
+ulogovan kao **drugi** kurir (*30577*, potpuno nepovezan sa tom narudžbom/firmom tog
+poziva) pozvao @GET /orders/driver/30189@ (tuđi @courier_id@ u putanji) i dobio **200**
+sa punim podacima narudžbe 3914 (restoran, lokacija sa koordinatama, adresa korisnika)
+- identično kao da je pozvao vlastiti @GET /orders/driver/30577@.
+
+Endpoint očigledno ne provjerava da li @{id}@ u putanji odgovara ulogovanom korisniku -
+bilo koji ulogovan kurir može čitati aktivne narudžbe (adresa dostave, koordinate,
+restoran) bilo kog drugog kurira samo znajući/pogađajući njegov @courier_id@ (mali
+sekvencijalni broj, lako za brute-force).
+
+# Treba autorizacija na ovoj ruti - ili vezati @{id}@ na @auth()->id()@ (ignorisati path
+  parametar, uvijek vratiti narudžbe pozvaoca), ili provjeriti da pozvalac SMIJE vidjeti
+  tog kurira (npr. isti dispečer/firma) prije vraćanja podataka.
+# Da li isti problem postoji i na drugim @/orders/driver/*@ ili sličnim rutama koje uzimaju
+  tuđi ID iz putanje (vrijedi generalno provjeriti sve courier-scoped rute)?
+
+---
+
+h1. G. S4 - @offer.round.changed@ broadcast se nikad ne pojavljuje na socketu
+
+Test S4 (13.09, DevTools Network → WS → Messages, narudžba #3921, pravi @CandidateCouriersPanel@
+tok): auth/subscribe je potpuno čist -
+
+<pre>
+{"event":"pusher:subscribe","data":{"auth":"...","channel":"private-orders.3921"}}
+{"event":"pusher_internal:subscription_succeeded","data":{},"channel":"private-orders.3921"}
+</pre>
+
+Ali dok su, vidljivo u UI-ju, dva kandidata prešla @pending -> expired@ i runda u
+@exhausted@, na socketu su se u tom periodu pojavili **isključivo** @pusher:ping@/
+@pusher:pong@ (keepalive, ~30s razmak) - nijedan application event. Front sluša tačno
+@.offer.round.changed@ na kanalu @orders.{orderId}@ (@useOrderOfferRound.ts@ - dakle
+@private-orders.{orderId}@ na WS nivou, kanal se i vidi u Messages tabu). UI se u ovom
+testu ažurirao isključivo preko 10s poll fallback-a, ne preko socketa.
+
+# Da li backend uopšte emituje broadcast event kad se stanje runde promijeni (offer
+  @declined@/@expired@, runda @accepted@/@exhausted@/@canceled@)? Ako da - koje je tačno
+  ime eventa i na kom kanalu (da provjerimo poklapa li se sa @.offer.round.changed@ /
+  @orders.{orderId}@ koje front sluša)?
+# Ako event postoji ali se ne emituje na ovom test primjeru - da li treba da prođe kroz
+  queue/job koji možda nije pokrenut u test okruženju (npr. @queue:work@ nije aktivan), pa
+  bismo ovo trebali retestirati poslije potvrde da je queue worker živ?
+
+---
+
+h1. H. 🟠 V2 - @POST .../offer@ prima nepostojeći @courier_id@ bez provjere
+
+Test V2 (13.09, narudžba #3921): @POST .../offer@ sa @{"courier_ids":[999999999],"mode":"sequential"}@
+- @999999999@ nije stvaran korisnik, niti je u @candidate-couriers@ listi te narudžbe.
+Backend je ipak vratio @201@ i otvorio aktivnu rundu s tim ID-jem kao jedinim kandidatom
+(@round.status:"active"@, offer red @offer_status:"pending"@ za @courier_id:999999999@).
+
+Nema validacije da @courier_ids@ moraju postojati kao korisnici, niti da moraju biti iz
+@candidate-couriers@ liste te narudžbe. Kod sequential moda sa jednim (lošim) kandidatom
+ovo znači da bi runda samo istekla poslije punog @offer_timeout_seconds@ bez ikog da
+odgovori - efektivno "gubljenje" narudžbe na taj period bez ikakve povratne informacije
+dispečeru da je nešto pogrešno poslao.
+
+# Da li bi trebalo dodati validaciju - @courier_ids.*@ mora postojati u @candidate-couriers@
+  listi za tu narudžbu (ili bar postojati kao validan @courier@ nalog)?
+# Frontend trenutno šalje samo ID-jeve iz iste @candidate-couriers@ liste (nema unosa
+  proizvoljnog ID-a u UI-ju), pa je ovo prije svega odbrambena validacija za buduće/tuđe
+  klijente API-ja nego trenutni frontend rizik - manji prioritet od DIO F/G.
