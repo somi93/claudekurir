@@ -1,0 +1,815 @@
+<title>Dizajn stranice Cjenovnik</title>
+<style>
+/* Layout: dokument-tabla kao "Dizajn stranice Firma". Gore zaključci, pa snimci stvarne aplikacije sa oznakama i mjerenjima (računar prvo), predlog
+   (prototip koji radi, računar i telefon), stanja, dijelovi, podaci, specifikacija, odluke, redosled izrade i pitanja za backend. Tabla ima svoje tokene
+   (svijetla i tamna tema). Prototip i telefoni prikazuju aplikaciju, koja je samo svijetla, pa imaju zasebne tokene u app.css koji se ne mijenjaju sa temom. */
+:root{
+  --bg:#f2f3f6; --surface:#ffffff; --surface-2:#f7f8fa; --fg:#0b1220; --fg-2:#46505f; --fg-3:#5d6879;
+  --line:#e2e5ea; --accent:#2459c7; --accent-soft:#e9f0ff; --good:#0a7650; --good-soft:#e0f5ec;
+  --warn:#8f4406; --warn-soft:#fff1dc; --bad:#b42318; --bad-soft:#fde8e6; --stage:#e6e9ef; --code:#eceff4;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1017; --surface:#141a24; --surface-2:#19202c; --fg:#e8ecf3; --fg-2:#b4bdca; --fg-3:#8e99a9;
+    --line:#252d3b; --accent:#7aa2ff; --accent-soft:#1a2740; --good:#4cd6a0; --good-soft:#12302a; --warn:#ffb866; --warn-soft:#33270f;
+    --bad:#ff8a80; --bad-soft:#3a1c19; --stage:#10151d; --code:#1c2330; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1017; --surface:#141a24; --surface-2:#19202c; --fg:#e8ecf3; --fg-2:#b4bdca; --fg-3:#8e99a9;
+  --line:#252d3b; --accent:#7aa2ff; --accent-soft:#1a2740; --good:#4cd6a0; --good-soft:#12302a; --warn:#ffb866; --warn-soft:#33270f;
+  --bad:#ff8a80; --bad-soft:#3a1c19; --stage:#10151d; --code:#1c2330; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);-webkit-font-smoothing:antialiased;line-height:1.5}
+.wrap{max-width:1240px;margin-inline:auto;padding-inline:16px;padding-block:28px 72px;display:grid;gap:68px}
+h1,h2,h3,h4,p{margin:0}
+h1{font-size:clamp(1.9rem,4.4vw,2.8rem);font-weight:800;letter-spacing:-.025em;line-height:1.08;text-wrap:balance}
+h2{font-size:1.45rem;font-weight:800;letter-spacing:-.02em;line-height:1.2;text-wrap:balance}
+h3{font-size:1rem;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:.9rem;font-weight:800}
+.eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-3)}
+.lede{color:var(--fg-2);font-size:1.02rem;max-width:72ch}
+.small{font-size:.86rem;color:var(--fg-2);max-width:78ch}
+code,.mono{font-family:var(--mono);font-size:.84em;background:var(--code);padding:1px 6px;border-radius:6px;overflow-wrap:anywhere}
+a{color:var(--accent)}
+.top{display:grid;gap:18px}
+.nav{display:flex;flex-wrap:wrap;gap:8px}
+.nav a{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--fg);text-decoration:none;font-size:.84rem;font-weight:700}
+.nav a:hover{border-color:var(--accent);color:var(--accent)}
+.nav a:focus-visible,.bb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:14px}
+.fact{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:grid;gap:6px;align-content:start}
+.fact b{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.fact span{color:var(--fg-2);font-size:.88rem}
+.fact .tag{font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--bad)}
+
+.sec{display:grid;gap:24px}
+.sec-head{display:grid;gap:8px}
+.sub-head{display:grid;gap:4px;padding-top:6px}
+.sub-head h3{font-size:1.12rem}
+.group-title{font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-3)}
+
+.pill{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.pill--bad{background:var(--bad-soft);color:var(--bad)} .pill--good{background:var(--good-soft);color:var(--good)}
+.pill--warn{background:var(--warn-soft);color:var(--warn)} .pill--acc{background:var(--accent-soft);color:var(--accent)}
+.pill--mute{background:var(--code);color:var(--fg-2)}
+
+/* snimci aplikacije sa oznakama */
+.shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),380px));gap:28px 26px;align-items:start}
+.shots--wide{grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))}
+.shot{display:grid;gap:12px;align-content:start;margin:0;min-width:0}
+.shot-frame{position:relative;border-radius:22px;overflow:hidden;border:1px solid rgba(11,18,32,.16);box-shadow:0 18px 40px -18px rgba(11,18,32,.38),0 0 0 5px rgba(11,18,32,.05);background:#fff;line-height:0}
+.shot-frame--desk{border-radius:14px}
+.shot-frame img{display:block;width:100%;height:auto}
+.shot figcaption{display:grid;gap:2px}
+.shot figcaption b{font-size:.94rem}
+.shot figcaption span{font-size:.84rem;color:var(--fg-3)}
+.leg{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.leg--2{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:8px 28px}
+.leg li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:start;font-size:.84rem;color:var(--fg-2);line-height:1.4}
+.leg li::before{content:attr(data-n);width:20px;height:20px;border-radius:50%;background:#e5484d;color:#fff;font:800 .68rem/20px var(--font);text-align:center;margin-top:1px}
+.leg li b{color:var(--fg)}
+
+/* tabele i kartice */
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-3);text-align:left;font-weight:800;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--fg-2)}
+td:first-child{color:var(--fg)}
+tr:last-child td{border-bottom:0}
+.scroll-x{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:16px}
+.scroll-x table.wide{min-width:760px}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.sw{display:inline-block;width:16px;height:16px;border-radius:5px;border:1px solid rgba(0,0,0,.14);vertical-align:-3px;margin-right:8px}
+.ok{color:var(--good);font-weight:800}.no{color:var(--bad);font-weight:800}
+.cols-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}
+.cols-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:grid;gap:12px;align-content:start;min-width:0}
+.card--rec{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.card p{font-size:.88rem;color:var(--fg-2)}
+.opts{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.opts li{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;font-size:.88rem;color:var(--fg-2)}
+.opts li b{color:var(--fg)}
+.opts li i{font-style:normal;font-weight:800;color:var(--fg-3)}
+.opts li.rec i{color:var(--accent)}
+.undo{font-size:.8rem;color:var(--fg-3);border-top:1px dashed var(--line);padding-top:10px}
+.phases{display:grid;gap:12px;padding:0;margin:0;list-style:none;counter-reset:ph}
+.phases>li{counter-increment:ph;display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.phases>li::before{content:counter(ph);width:36px;height:36px;border-radius:12px;background:var(--accent-soft);color:var(--accent);font-weight:800;display:grid;place-items:center}
+.phases b{display:block;font-size:.95rem}.phases span{font-size:.86rem;color:var(--fg-2)}
+.phases ul{margin:6px 0 0;padding-left:18px;font-size:.84rem;color:var(--fg-2);display:grid;gap:2px}
+.verify{display:grid;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px}
+.verify ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:.88rem;color:var(--fg-2)}
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px}
+.flow>div{flex:1 1 150px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:12px;font-size:.84rem;color:var(--fg-2);display:grid;gap:4px;align-content:start}
+.flow>div b{color:var(--fg);font-size:.88rem}
+.flow>i{align-self:center;color:var(--fg-3);font-style:normal;font-weight:800}
+.td-note{font-size:.8rem;color:var(--fg-3)}
+
+/* prototip */
+.proto{display:grid;gap:18px}
+.stage{background:var(--stage);border-radius:28px;padding:24px 14px;display:grid;justify-items:center;gap:18px;width:100%}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.bb{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 15px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:700 .84rem/1 var(--font);cursor:pointer}
+.bb:hover{border-color:var(--accent);color:var(--accent)}
+.bb[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.proto-frame{border-radius:36px;border:1px solid rgba(11,18,32,.14);box-shadow:0 30px 60px -20px rgba(11,18,32,.35),0 0 0 6px rgba(11,18,32,.06)}
+.proto-frame.phone-mode{width:min(390px,100%);height:780px}
+.proto-frame.desk-mode{width:100%;max-width:1180px;height:780px;border-radius:18px}
+.now{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:grid;gap:10px}
+.now ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:.88rem;color:var(--fg-2)}
+.now li b{color:var(--fg)}
+.row-phones{display:flex;flex-wrap:wrap;justify-content:center;gap:34px 26px}
+.row-phones .pw{width:min(372px,100%);display:grid;gap:12px;justify-items:center}
+.phone{position:relative;width:100%;height:700px;border-radius:34px;border:1px solid rgba(11,18,32,.14);box-shadow:0 30px 60px -20px rgba(11,18,32,.35),0 0 0 6px rgba(11,18,32,.06)}
+.cap{display:grid;gap:4px;justify-items:center;text-align:center;max-width:372px}
+.cap b{font-size:.92rem}
+.cap span{font-size:.82rem;color:var(--fg-3)}
+
+@media (max-width:700px){
+  .wrap{gap:54px}
+  .proto-frame.phone-mode{border-radius:32px}
+  .stage{padding:18px 8px}
+  .scroll-x table.stack,.scroll-x table.stack tbody,.scroll-x table.stack tr,.scroll-x table.stack td{display:block;min-width:0!important}
+  .scroll-x table.stack thead{display:none}
+  .scroll-x table.stack tr{padding:12px 14px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+  .scroll-x table.stack tr:last-child{border-bottom:0}
+  .scroll-x table.stack td{padding:0;border:0;white-space:normal;grid-column:1/-1}
+  .scroll-x table.stack td[data-half]{grid-column:auto}
+  .scroll-x table.stack td::before{content:attr(data-l);display:block;font-size:.66rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-3);margin-bottom:1px}
+  .scroll-x table.stack td:first-child::before{display:none}
+  .scroll-x table.stack td.num{white-space:normal}
+}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
+
+/* računar u prototipu: stvarnih 1440×900, smanjeno da stane u širinu table */
+.stage--desk{display:block;padding:16px}
+.deskwrap{position:relative;width:100%}
+.proto-frame.desk-mode{position:absolute;left:0;top:0;width:1440px;max-width:none;height:900px;border-radius:12px;transform-origin:top left}
+.proto-frame.phone-mode{position:relative}
+.dsk{position:relative;width:100%;border-radius:14px;overflow:hidden;border:1px solid rgba(11,18,32,.16);box-shadow:0 18px 40px -18px rgba(11,18,32,.38),0 0 0 5px rgba(11,18,32,.05);background:#f5f6f8}
+.dsk>.apx{position:absolute;left:0;top:0;width:1440px;transform-origin:top left;border-radius:0}
+.dsk-cap{display:grid;gap:2px;margin-top:10px}
+.dsk-cap b{font-size:.92rem}.dsk-cap span{font-size:.84rem;color:var(--fg-3)}
+.states-d{display:grid;gap:30px}
+.facts{grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.fact strong{color:var(--fg)}
+/*__APP_CSS__*/
+</style>
+
+<main class="wrap">
+
+<header class="top">
+  <span class="eyebrow">Dispečer · Cjenovnik · 05.10.2026</span>
+  <h1>Dizajn stranice Cjenovnik</h1>
+  <p class="lede">Dispečer otvara Cjenovnik da odredi koliko kupac plaća dostavu, koje doplate važe i koje vozilo ide na koju narudžbu. Pokrenuo sam aplikaciju (grana <span class="mono">master</span>) u pravom Chrome-u nad lažnim API-jem i izmjerio šta stranica radi. Računar je prvi prikaz, jer dispečeri rade uglavnom na računaru; telefon je drugi. Kalkulator se zamrzne čim se isprazni polje startne cijene, a kad cijena ne stigne piše „Ukupna cena dostave 1.35“. Nova doplata je odmah na snazi za kupce. Doplata se poslije dodavanja ne može izmijeniti. Svaki red pravila za vozila počinje rečenicom „Klikni za izmenu pravila“.</p>
+  <p class="lede">Predlog je jedan radni prostor: tri taba kao danas, ali uz svaki od njih stalan <b>Primjer narudžbe</b> koji računa cijenu i bira vozilo nad istim podacima, pa dispečer odmah vidi posljedicu svake izmjene. Cijena se mijenja kao nacrt sa trakom „Nesačuvane izmjene“, doplata je red sa prekidačem i editorom, a pravilo za vozila red sa redoslijedom i zasebnim redom „Sve ostalo“. Prototip ispod radi na računaru i na telefonu.</p>
+  <nav class="nav" aria-label="Sadržaj">
+    <a href="#analiza">Analiza</a><a href="#predlog">Predlog</a><a href="#stanja">Stanja</a><a href="#dijelovi">Dijelovi</a><a href="#podaci">Podaci</a><a href="#spec">Specifikacija</a><a href="#odluke">Odluke</a><a href="#izrada">Redosled izrade</a><a href="#backend">Backend</a><a href="#provjera">Provjera</a>
+  </nav>
+</header>
+
+<section class="facts" aria-label="Ključni nalazi">
+  <div class="fact"><span class="tag">Obračun</span><b>7.45 KM</b><span>ostaje na kartici „Primer obračuna“ kad se polje startne cijene isprazni. Prikaz baca <span class="mono">base.toFixed is not a function</span> i kartica stoji na staroj cifri. Kad učitavanje cijene padne, ista kartica piše <strong>1.35 KM</strong> (samo doplata Kiša).</span></div>
+  <div class="fact"><span class="tag">Klizač</span><b>1 : 1</b><span>je odnos boje ručice, trake i ispune prema tamnoj kartici „Primer obračuna“. Sve tri su <span class="mono">#0b1220</span> (boja <span class="mono">primary</span>), pa se klizač udaljenosti ne vidi.</span></div>
+  <div class="fact"><span class="tag">Doplata</span><b>active: true</b><span>šalje se pri svakom dodavanju. „Test doplata“ od 0.5 po km odmah je na snazi za kupce, a kartica piše „Aktivno 0min“ i „+0.5“ bez jedinice. Kartica doplate ima 2 kontrole (prekidač i brisanje), izmjene nema.</span></div>
+  <div class="fact"><span class="tag">Pravila</span><b>6. iza 5.</b><span>je novo pravilo „preko 2 km“: <span class="mono">priority</span> = broj pravila + 1, pa završi iza „Uvijek“. U simulaciji (uz pretpostavku da server uzima prvo pravilo koje se poklopi) 3 km bira „Uvijek“, ne novo pravilo. To je pitanje B1.</span></div>
+  <div class="fact"><span class="tag">Unos</span><b>9.9</b><span>upisana startna cijena nestaje bez pitanja kad dispečer ode na Firmu. „Sačuvano.“ ostaje na ekranu i poslije sljedeće izmjene. Greška pri čuvanju je opšta poruka na vrhu, polje nije označeno.</span></div>
+  <div class="fact"><span class="tag">Kontrast</span><b>2.05 : 1</b><span>ima „Aktivno 1h 12min“ (narandžasto na bijelom); opisi i podnaslovi 2.27 : 1. Pet prekidača doplata nema ime za čitač ekrana, mete su 32–40 px.</span></div>
+</section>
+
+<!-- ============================================ ANALIZA -->
+<section class="sec" id="analiza">
+  <div class="sec-head">
+    <span class="eyebrow">Analiza</span>
+    <h2>Šta danas ne radi, na stvarnim snimcima</h2>
+    <p class="small">Snimci su iz aplikacije (grana <span class="mono">master</span>, <span class="mono">nuxt dev</span>, računar 1440×900 bez bočne trake i telefon 390×844). API je lažan: oblici tačno po <span class="mono">types/pricing.ts</span> i <span class="mono">services/*Service.ts</span>, vrijednosti izmišljene (firma 24, 5 doplata, 5 pravila, 4 zone). Brojevi na slikama odgovaraju spisku ispod slike. Brojevi koji zavise od količine podataka važe za te probne podatke, ponašanje koje ih izaziva je u kodu. <b>Ono što backend radi sa pravilima (redoslijed, brisanje doplate) nije u repou dokumentovano i u lažnom API-ju je moja pretpostavka;</b> takvi nalazi su označeni i vode na pitanja B1 do B4.</p>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Cijena dostave, računar</span><h3>Forma je prazna do pola, a kalkulator pored nje ima klizač koji se ne vidi</h3></div>
+  <div class="shots shots--wide">
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-base__" alt="Računar: tab Cijena dostave, forma sa dva polja i tamna kartica Primer obračuna" width="1176" height="560"></div>
+      <figcaption><b>Cijena dostave, 1440×900</b><span>Dva polja i dugme, uz tamnu karticu obračuna za 4.5 km.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Forma je 48 % prazna.</b> Kartica je 340 px visoka, sadržaj završava na 176 px. Visinu joj daje kartica pored, ne sadržaj.</span></li>
+        <li data-n="2"><span><b>Klizač udaljenosti se ne vidi.</b> Traka, ispuna i ručica imaju istu boju kao kartica (<span class="mono">#0b1220</span>). Klizač nema ime za čitač ekrana. Opseg 0.5–12 km, podrazumijevano 4.5.</span></li>
+        <li data-n="3"><span><b>„Sačuvaj cenu“ je 116×36 px</b> i uvijek aktivno. Nigdje ne piše da postoje nesačuvane izmjene.</span></li>
+        <li data-n="4"><span><b>Podnaslov je 2.27 : 1</b> (<span class="mono">#9aa4b2</span> na bijelom).</span></li>
+        <li data-n="5"><span><b>Valuta je samo sufiks</b> („KM“, „KM/km“). Na stranici nema izbora ni upute gdje se valuta mijenja (0 izbora, riječ „valuta“ se ne pojavljuje).</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-422__" alt="Računar: prazno polje startne cijene, poruka Ne mogu da sačuvam cenu dostave, kalkulator na staroj cifri" width="1176" height="560"></div>
+      <figcaption><b>Prazno polje, pa Sačuvaj</b><span>Polje obrisano, kliknuto „Sačuvaj cenu“.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Opšta poruka na vrhu stranice:</b> „Ne mogu da sačuvam cenu dostave.“ Polje nije označeno (0 poruka uz polje), a ne piše ni šta je pogrešno. (422 je ovdje odgovor lažnog API-ja po Laravel obrascu, ne potvrđen backend.)</span></li>
+        <li data-n="2"><span><b>Prazno polje se šalje kao <span class="mono">""</span></b> (<span class="mono">base_price: ""</span>). Negativan iznos (−5) klijent takođe pušta: polje nema <span class="mono">min</span>.</span></li>
+        <li data-n="3"><span><b>Kalkulator je zamrznut na 7.45 KM.</b> Prikaz baca <span class="mono">TypeError: previewBreakdown.base.toFixed is not a function</span> (Vue: „Unhandled error during execution of render function“). Kad se upiše „4“, ispravi se.</span></li>
+      </ul>
+    </figure>
+  </div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Nalaz</th><th>Kako je izmjereno</th><th>Šta to znači dispečeru</th></tr></thead>
+    <tbody>
+      <tr><td><b>„Sačuvano.“ ostaje</b></td><td data-l="Kako je izmjereno">Startna cijena 3.2, Sačuvaj: PUT <span class="mono">{base_price: 3.2, price_per_km: 0.8, currency: "KM"}</span>, piše „Sačuvano.“. Nova izmjena na 3.9: „Sačuvano.“ i dalje piše, a kalkulator računa 8.85. Tekst se briše samo pri promjeni firme.</td><td data-l="Značenje">Ekran tvrdi da je sačuvano, a na serveru je 3.2. Dispečer odlazi misleći da je 3.9 snimljeno.</td></tr>
+      <tr><td><b>Izlaz bez pitanja</b></td><td data-l="Kako je izmjereno">Upisano 9.9, klik na „Firma“ u bočnoj traci: stranica se promijeni, bez dijaloga. Firma ima pitanje za nesačuvano (<span class="mono">useSheetGuard</span>), Cjenovnik ga ne koristi.</td><td data-l="Značenje">Izmjena nestaje bez znaka.</td></tr>
+      <tr><td><b>Dva obračuna</b></td><td data-l="Kako je izmjereno">„Primer obračuna“ (tab 1) računa na klijentu: klizač 0.5–12 km, podrazumijevano 4.5. „Simulacija narudžbe“ (tab 3) pita server (<span class="mono">recommend-vehicle</span>) tek kad se uključi „Odredi udaljenost“: raspon 0.5–20 km, podrazumijevano 5.0. Za 5.0 km cijena je 8.00 KM, za 4.5 km 7.45 KM.</td><td data-l="Značenje">Isti pojam, dva klizača, dva podrazumijevana primjera. Funkcija <span class="mono">calculateDeliveryPricing</span> (server) postoji u servisu, ali je niko ne zove.</td></tr>
+      <tr><td><b>Obračun ne zna za vrijeme</b></td><td data-l="Kako je izmjereno">Kod: kalkulator sabira sve doplate sa <span class="mono">active: true</span>, bez obzira na <span class="mono">time_from</span>/<span class="mono">time_to</span>. Doplata je „na snazi“ ili nije, trenutno.</td><td data-l="Značenje">Dispečer ne može da vidi šta kupac plaća noću ili po kiši, dok to nije stvarno uključeno.</td></tr>
+      <tr><td><b>Brojke bez zareza i nula</b></td><td data-l="Kako je izmjereno">U poljima „2.5“ i „0.8“, u obračunu „2.50 KM“ i „0.8 KM/km“. Firma i Poruke pišu „2,50“.</td><td data-l="Značenje">Isti iznos izgleda različito u tri mjesta.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Doplate, računar</span><h3>Doplata se doda uključena i poslije se ne može izmijeniti</h3></div>
+  <figure class="shot">
+    <div class="shot-frame shot-frame--desk"><img src="__IMG_d-sur__" alt="Računar: tab Dodatni parametri, brzo dodavanje i mreža kartica doplata" width="1176" height="800"></div>
+    <figcaption><b>Dodatni parametri, 1440×900</b><span>Pet doplata u tri kolone, kartica 355×266 px.</span></figcaption>
+    <ul class="leg leg--2">
+      <li data-n="1"><span><b>Prekidač bez imena, 33×33 px.</b> Čitač ekrana kaže samo „checkbox“ (5 od 5 kartica). Bez izmjene vrijednosti: kartica ima 2 kontrole, prekidač i brisanje.</span></li>
+      <li data-n="2"><span><b>Klik na karticu ne radi ništa.</b> Naziv, iznos, tip i vrijeme ne mogu se mijenjati poslije dodavanja, samo obrisati i dodati ponovo. Servis šalje samo <span class="mono">{active}</span> (PUT).</span></li>
+      <li data-n="3"><span><b>„Brzo dodavanje“ nudi i ono što već postoji.</b> Kiša, Gužva i Noćna dostava su na listi iako su već dodane; filtriraju se samo lokalni predlozi (Centar grada), ne katalog.</span></li>
+      <li data-n="4"><span><b>Isključena doplata je na 60 % prozirnosti.</b> Opis je 2.27 : 1 na već blijedoj kartici, pa se Noćna dostava i Gužva jedva čitaju.</span></li>
+      <li data-n="5"><span><b>„Aktivno 1h 12min“ je narandžasto na bijelom: 2.05 : 1.</b> Podatak „od kad važi“ je najvažniji na kartici, a najteže se čita.</span></li>
+    </ul>
+  </figure>
+  <div class="shots shots--wide">
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-sur-form__" alt="Računar: forma za novu doplatu sa poljima Naziv, Tip, Iznos, Jedinica, Opis i Automatski po vremenu" width="1176" height="560"></div>
+      <figcaption><b>Forma za novu doplatu</b><span>Naziv „Test doplata“, po kilometru, iznos 0.5, jedinica prazna.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Jedinica je slobodan tekst</b> („npr. KM/km“), iako je određuju tip i valuta firme. Prazna ostaje <span class="mono">null</span>.</span></li>
+        <li data-n="2"><span><b>Iznos</b> je broj sa korakom 0.05, bez najmanje vrijednosti. Nema pokazatelja šta to znači za cijenu.</span></li>
+        <li data-n="3"><span><b>„Automatski po vremenu“.</b> Kad je uključeno, server sam uključuje i isključuje doplatu u prozoru (<span class="mono">activated_at</span>). Šta radi ručni prekidač usred prozora, nije opisano (B3).</span></li>
+        <li data-n="4"><span><b>„Sačuvaj parametar“ uvijek uključuje doplatu:</b> payload nosi <span class="mono">active: true</span> bez prekidača i bez pitanja.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-sur-created__" alt="Računar: nova kartica Test doplata, aktivna 0 minuta, iznos +0.5 bez jedinice" width="1176" height="540"></div>
+      <figcaption><b>Poslije „Sačuvaj parametar“</b><span>Isti ekran, pomaknut do kraja liste.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Doplata je odmah uključena.</b> Svaki kupac koji sad pregleda cijenu plaća 0.5 po kilometru više, bez potvrde.</span></li>
+        <li data-n="2"><span><b>„+0.5“ bez jedinice</b> i „Aktivno 0min“. Za doplatu tipa „napomena“ oznaka je tekst iz polja <span class="mono">unit</span> („prilagođeno vozilo“), jer za napomenu nema drugog mjesta osim opisa.</span></li>
+      </ul>
+    </figure>
+  </div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Nalaz</th><th>Kako je izmjereno</th><th>Šta to znači dispečeru</th></tr></thead>
+    <tbody>
+      <tr><td><b>Brisanje bez posljedice</b></td><td data-l="Kako je izmjereno">Brisanje „Kiša“: dijalog „Obrisati naknadu „Kiša“?“. Pravilo za vozila „Naknada: Kiša“ koristi tu doplatu (<span class="mono">surcharge_id</span>), a dijalog to ne pominje.</td><td data-l="Značenje">Šta se dešava sa pravilom, front ne zna i ne kaže (B4). U lažnom API-ju pravilo ostaje i pokazuje na ništa.</td></tr>
+      <tr><td><b>Kiša se uključuje u hodu</b></td><td data-l="Kako je izmjereno">Doplate tipa „Kiša“ i „Gužva“ se uključuju kad vrijeme ili saobraćaj to traže, ne pri postavljanju cjenovnika. Prekidač je na kartici u mreži od tri kolone, bez poruke šta se tada dešava sa cijenom.</td><td data-l="Značenje">Najčešća radnja je najmanje vidljiva: uključi, a kupcu ne znaš koliko košta.</td></tr>
+      <tr><td><b>Mreža umjesto liste</b></td><td data-l="Kako je izmjereno">5 kartica zauzme 2 reda (po 266 px), 3 kolone. Telefon: 1759 px visine za 5 kartica, od čega se na prvom ekranu vide dvije.</td><td data-l="Značenje">Uključene i isključene su pomiješane, a broj „2 na snazi“ je samo bedž na tabu.</td></tr>
+      <tr><td><b>Neimenovana polja</b></td><td data-l="Kako je izmjereno">5 prekidača bez imena i <span class="mono">tablist</span> bez imena. Mete: prekidač 33×33, brisanje 40×40, „Novi parametar“ 150×36.</td><td data-l="Značenje">Čitač ekrana ne zna koju doplatu uključuje.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Vozila i pravila, računar</span><h3>Svaki red počinje rečenicom „Klikni za izmenu pravila“, a „Uvijek“ je običan red</h3></div>
+  <div class="shots shots--wide">
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-veh__" alt="Računar: tab Vozila i pravila, pet pravila i Simulacija narudžbe" width="1176" height="780"></div>
+      <figcaption><b>Vozila i pravila, 1440×900</b><span>Pet pravila lijevo, simulacija desno.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Prvi red svakog pravila je „Klikni za izmenu pravila“.</b> To je prop <span class="mono">title</span> na <span class="mono">v-list-item</span>, pa se ispiše kao naslov; pravi naziv je u drugom redu.</span></li>
+        <li data-n="2"><span><b>Podnaslov ponavlja naslov:</b> „· Zona: Centar“, „· Udaljenost preko 4 km“. Napomena je prazna, a uslov se ispiše još jednom.</span></li>
+        <li data-n="3"><span><b>Strelice su 32×32 px.</b> Jedan pomak šalje dva PUT poziva (pravilo 702: priority 3, pravilo 703: priority 2), jedan za drugim.</span></li>
+        <li data-n="4"><span><b>„Uvijek“ je red 5 kao i ostali:</b> može se pomjeriti gore, a iza njega se može dodati novo pravilo. Nigdje ne piše da pravila važe odozgo prema dolje.</span></li>
+        <li data-n="5"><span><b>Cijena u simulaciji postoji tek kad se uključi „Odredi udaljenost“</b> (prekidač 33×33). Podrazumijevano piše samo „Uključi … da vidiš i cenu“.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-veh-shadow__" alt="Računar: novo pravilo Udaljenost preko 2 km je šesto, iza Uvijek; simulacija 3 km bira Uvijek" width="1176" height="810"></div>
+      <figcaption><b>Novo pravilo „preko 2 km“</b><span>Dodano preko forme, simulacija na 3.0 km, Kiša isključena.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>„Uvijek“ se poklapa pri 3.0 km</b> i simulacija pokazuje 4.90 KM i vozila Motor, Bicikl, Automobil.</span></li>
+        <li data-n="2"><span><b>Novo pravilo je šesto.</b> POST nosi <span class="mono">priority: 6</span> (broj pravila + 1), pa je iza „Uvijek“. U lažnom API-ju (prvo poklapanje, po rastućem priority) ono se nikad ne primjenjuje.</span></li>
+        <li data-n="3"><span><b>Poklapa se „Uvijek“, ne „preko 2 km“.</b> Da li je pravi server prvo-poklapanje ili najbolje-poklapanje, nije potvrđeno (B1).</span></li>
+      </ul>
+    </figure>
+  </div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Nalaz</th><th>Kako je izmjereno</th><th>Šta to znači dispečeru</th></tr></thead>
+    <tbody>
+      <tr><td><b>Redoslijed bez objašnjenja</b></td><td data-l="Kako je izmjereno">Na ekranu nigdje ne piše kako se pravila biraju. Brojevi 1–5 i strelice sugerišu redoslijed, a podnaslov kaže samo „Pravila se podešavaju po firmi i utiču na predlog vozila“.</td><td data-l="Značenje">Dispečer ne zna da li je red važan niti zašto.</td></tr>
+      <tr><td><b>Dva PUT-a po pomjeranju</b></td><td data-l="Kako je izmjereno">Zamjena mjesta dva pravila: PUT <span class="mono">/delivery-companies/vehicle-rules/702 {priority: 3}</span> i <span class="mono">…/703 {priority: 2}</span> paralelno (<span class="mono">Promise.all</span>). Ako jedan padne, vraća se oba, a server može ostati sa dva ista priority.</td><td data-l="Značenje">Nije atomično (B6).</td></tr>
+      <tr><td><b>Forma iznad liste</b></td><td data-l="Kako je izmjereno">Klik na red otvara formu na vrhu kartice, iznad liste. Na telefonu je forma 569 px visoka, a dispečer je u listi: forma se otvori iznad njega.</td><td data-l="Značenje">Mijenja se jedno pravilo, a editor je daleko od njega.</td></tr>
+      <tr><td><b>Kontrast i mete</b></td><td data-l="Kako je izmjereno">Čip „Uvijek“ 2.68 : 1, indeks 4.07 : 1, napomena „Uključi … da vidiš“ 2.52 : 1. Strelice 32×32, brisanje 40×40, „Novo pravilo“ 132×36.</td><td data-l="Značenje">Prst promašuje, tekst se jedva čita.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Stanja koja danas postoje</span><h3>Pad učitavanja pokazuje cijenu koja nije cijena</h3></div>
+  <div class="shots shots--wide">
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-fail__" alt="Računar: cijena nije učitana, prazna kartica forme, kalkulator piše 1.35" width="1176" height="560"></div>
+      <figcaption><b>Pad učitavanja cijene (500)</b><span>Doplate su stigle, cijena nije.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Poruka je na vrhu stranice</b>, ne u kartici: „Ne mogu da učitam cenu dostave.“ Nema „Pokušaj ponovo“.</span></li>
+        <li data-n="2"><span><b>Kartica forme je prazna:</b> samo naslov i podnaslov, 340 px visine bez i jednog polja.</span></li>
+        <li data-n="3"><span><b>„Ukupna cena dostave 1.35“.</b> Kalkulator računa startnu cijenu i cijenu po km kao 0, pa pokazuje samo doplatu. Izgleda kao prava cijena.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-loading__" alt="Računar: dok se cijena učitava, forma je skeleton, a kalkulator piše 0.00" width="1176" height="560"></div>
+      <figcaption><b>Sporo učitavanje (4 s)</b><span>Odgovori na cijenu i doplate kasne.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Kalkulator piše „Ukupna cena dostave 0.00“</b> i „Startna cena 0.00“ dok se čeka. Dispečer vidi nulu kao cijenu.</span></li>
+        <li data-n="2"><span><b>Skeleton postoji samo u formi</b> (dvije trake i dugme), ne u kalkulatoru ni na ostalim tabovima. Bedž „Dodatni parametri“ je 0 dok doplate ne stignu.</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Telefon</span><h3>Isti sadržaj u jednoj koloni: obračun je ispod forme, a naslovi pravila se režu</h3></div>
+  <div class="shots">
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_p-base__" alt="Telefon: tab Cijena dostave, dva polja, dugme Sačuvaj cenu, tamna kartica obračuna" width="1560" height="3376"></div>
+      <figcaption><b>Cijena dostave, 390×844</b><span>Prvi ekran: zaglavlje 57 + 64 px, pa forma, pa obračun.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Klizač udaljenosti nevidljiv</b>, isto kao na računaru. Obračun je ispod forme, a bez pomjeranja se ne vidi.</span></li>
+        <li data-n="2"><span><b>Sačuvaj 36 px</b>, uz formu, a obračun koji se mijenja je van ekrana. Dispečer kuca, a rezultat ne vidi.</span></li>
+        <li data-n="3"><span><b>Bedž „2“ lebdi iznad naslova taba</b>, ne uz njega (tab je širok trećinu kartice).</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_p-sur__" alt="Telefon: tab Dodatni parametri, brzo dodavanje, prva kartica Kiša" width="1560" height="4400"></div>
+      <figcaption><b>Dodatni parametri, 390×844</b><span>Prvih 1100 px od ukupnih 1759.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Prekidač 33×33 px bez imena</b>, uz brisanje 40×40 koje stoji tik do njega. Promašaj briše doplatu (dijalog pita).</span></li>
+        <li data-n="2"><span><b>Brzo dodavanje</b> opet nudi Kišu, koja je već tu.</span></li>
+        <li data-n="3"><span><b>„Aktivno 1h 12min“ 2.05 : 1.</b></span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_p-veh__" alt="Telefon: tab Vozila i pravila, redovi pravila sa naslovom Klikni za izmenu pravila" width="1560" height="4400"></div>
+      <figcaption><b>Vozila i pravila, 390×844</b><span>Prvih 1100 px od ukupnih 1656.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>„Klikni za izmenu …“ se reže</b> u prvom redu, a pravi naziv je ispod. Red je 143 px visok, a na ekranu stane šest redova manje nego što bi trebalo.</span></li>
+        <li data-n="2"><span><b>Strelice 32×32 px</b> jedna ispod druge, uz brisanje 40×40.</span></li>
+        <li data-n="3"><span><b>„Novo pravilo“ 132×36 px.</b> Forma se otvara iznad liste, 569 px visoka.</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Šta je dobro i ostaje</span><h3>Funkcionalnost ostaje, mijenja se način na koji se koristi</h3></div>
+  <div class="cols-2">
+    <div class="card">
+      <h3>Nedostaje</h3>
+      <ul class="opts">
+        <li><i>•</i><span><b>Jedan primjer za sve.</b> Cijena i vozilo za isti primjer narudžbe, uz svaki tab, nad nacrtom izmjene.</span></li>
+        <li><i>•</i><span><b>Šta je sad na snazi</b> i koliko to košta kupca, vidljivo bez otvaranja taba doplata.</span></li>
+        <li><i>•</i><span><b>Izmjena doplate.</b> Danas je samo uključi, isključi, obriši.</span></li>
+        <li><i>•</i><span><b>Razlika izmjene.</b> „Bilo 7.45, bit će 7.95 KM za 4.5 km“ prije snimanja.</span></li>
+        <li><i>•</i><span><b>Pravilo u kontekstu.</b> Koje pravilo se poklapa za izabranu zonu i udaljenost, sa vezom ka njemu.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Dobro i ostaje</h3>
+      <ul class="opts">
+        <li class="rec"><i>✓</i><span><b>Lijeni tabovi</b> (<span class="mono">openedTabs</span>): pravila i zone se učitavaju tek kad zatrebaju.</span></li>
+        <li class="rec"><i>✓</i><span><b>Katalog uslova</b> (<span class="mono">condition-tags</span>) i unaprijed ispunjena forma iz „Brzog dodavanja“.</span></li>
+        <li class="rec"><i>✓</i><span><b>Potvrda pri brisanju</b> (<span class="mono">useConfirmStore</span>) i povratak prekidača kad PUT padne.</span></li>
+        <li class="rec"><i>✓</i><span><b>Server računa cijenu i vozilo</b> u jednom pozivu (<span class="mono">recommend-vehicle</span> vraća i <span class="mono">price</span>), sa prekidanjem starih zahtjeva i zadrškom 300 ms.</span></li>
+        <li class="rec"><i>✓</i><span><b>Rječnik vozila odvojen od registracije</b> (<span class="mono">car/motorbike/bicycle/walk</span>) i tipovi uslova (zona, doplata, udaljenost, uvijek).</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ PREDLOG -->
+<section class="sec" id="predlog">
+  <div class="sec-head">
+    <span class="eyebrow">Predlog</span>
+    <h2>Cjenovnik kao radni prostor: izmjena i njena posljedica na istom ekranu</h2>
+    <p class="small">Isti jezik kao Firma, Kuriri i Poruke: bijele kartice radijusa 20, redovi sa ikonom, tonirane poruke, tamno dugme od 48 do 52 px, mete od 44 px, pilule za tabove. Na računaru je rad lijevo, a <b>Primjer narudžbe</b> desno (372 px, ljepljiv), i on je uz sva tri taba. Na telefonu je primjer traka na dnu ekrana koja se otvara u donji list. Svaki editor je u redu koji se mijenja (računar) ili u donjem listu (telefon). Prototip računa cijenu i bira vozilo istom logikom kakvu pretpostavljamo na serveru (prvo pravilo koje se poklopi); to je pitanje B1.</p>
+  </div>
+
+  <div class="cols-3">
+    <div class="card"><h3>Izmjena uz posljedicu</h3><p>Dok dispečer kuca cijenu, tabela „Šta kupac plaća po udaljenosti“ i Primjer narudžbe prikazuju nacrt, a traka „Nesačuvane izmjene“ kaže koliko je bilo, a koliko će biti. Zarez na pogrešnom mjestu dobija upozorenje prije snimanja.</p></div>
+    <div class="card"><h3>Doplata je red, ne kartica</h3><p>Naziv, iznos, kad važi i prekidač su u jednom redu. Klik otvara editor sa izmjenom. Uključivanje kaže šta se desilo sa cijenom i nudi „Poništi“. Nova doplata ne važi dok je ne uključiš.</p></div>
+    <div class="card"><h3>Pravila imaju redoslijed i kraj</h3><p>Odozgo prema dolje bira se prvo pravilo koje se poklopi. „Sve ostalo“ je zasebno na dnu i ne pomjera se. Novo pravilo se dodaje iznad njega. Ako uslov već postoji, piše koje pravilo ga zasjenjuje.</p></div>
+  </div>
+
+  <div class="proto">
+    <div class="ctl" role="group" aria-label="Izbor uređaja i početak">
+      <button type="button" class="bb" id="dev-desk" aria-pressed="true">Računar</button>
+      <button type="button" class="bb" id="dev-phone" aria-pressed="false">Telefon</button>
+      <button type="button" class="bb" id="proto-reset">Počni ispočetka</button>
+    </div>
+    <div class="stage stage--desk" id="stage"><div class="deskwrap" id="deskwrap"><div class="apx proto-frame desk-mode" id="proto"></div></div></div>
+    <div class="now">
+      <h4>Šta probati (podaci su izmišljeni)</h4>
+      <ul>
+        <li><b>Nacrt cijene.</b> Na tabu Cijena promijeni cijenu po kilometru na 8,00: pojavi se upozorenje o zarezu, tabela se prepravi, a Primjer narudžbe piše „Nacrt“. Pokušaj otići na Doplate: pita se šta sa izmjenom.</li>
+        <li><b>Šta ako.</b> Dodirni „Noćna dostava“ u Primjeru narudžbe: cijena i vozilo se računaju kao da je uključena. Ništa se ne mijenja u cjenovniku („Vrati na stvarno“).</li>
+        <li><b>Uključi doplatu.</b> Na tabu Doplate uključi „Gužva“: poruka kaže koliko kupac sada plaća za izabranu udaljenost, a „Poništi“ vraća. Otvori „Kiša“, promijeni iznos, vidi uticaj na 4,5 km.</li>
+        <li><b>Nova doplata.</b> „Snijeg“ iz kataloga (nestaje sa liste kad je dodaš), pa „Po vremenu“. Pokušaj prazno ime ili iznos „abc“.</li>
+        <li><b>Brisanje.</b> Obriši „Kiša“: dijalog navodi pravilo za vozila koje je koristi.</li>
+        <li><b>Pravila.</b> Postavi zonu „Centar“ u Primjeru: poklapa se „Zona: Centar“ i vidi se u listi. Pomjeri pravilo, dodaj novo (ide iznad „Sve ostalo“), pa isprobaj isti uslov dva puta.</li>
+        <li><b>Telefon.</b> Dugme „Telefon“ iznad: donja traka primjera, editori u donjem listu.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Šta se mijenja i zašto</span><h3>Svaki nalaz iz analize ima rješenje u prototipu</h3></div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Nalaz</th><th>Rješenje</th><th>Gdje se vidi</th></tr></thead>
+    <tbody>
+      <tr><td>Prazno polje ruši kalkulator, šalje se <span class="mono">""</span></td><td data-l="Rješenje">Polje je tekst sa zarezom; prazno ili neispravno ima poruku uz polje, Sačuvaj je onemogućen, obračun koristi sačuvanu vrijednost.</td><td data-l="Gdje">Cijena</td></tr>
+      <tr><td>„Sačuvano.“ ostaje, izlaz bez pitanja</td><td data-l="Rješenje">Traka „Nesačuvane izmjene“ (šta se mijenja, Poništi, Sačuvaj), tačka na tabu, oznaka „Nesačuvano“ u zaglavlju i pitanje pri prelasku.</td><td data-l="Gdje">Cijena, nacrt</td></tr>
+      <tr><td>Opšta greška, polje neoznačeno</td><td data-l="Rješenje">Poruka uz polje; ono što server odbije dolazi uz isto polje (<span class="mono">getValidationMessage</span>).</td><td data-l="Gdje">Cijena, doplata, pravilo</td></tr>
+      <tr><td>Dva obračuna, nevidljiv klizač</td><td data-l="Rješenje">Jedan Primjer narudžbe uz sva tri taba. Klizač sa vidljivom trakom i dugmadima ±0,5 km, zona, doplate „šta ako“.</td><td data-l="Gdje">Desna kolona; traka na telefonu</td></tr>
+      <tr><td>Pad učitavanja: 1.35 KM, 0.00</td><td data-l="Rješenje">Skeleton u obliku stranice; greška u mjestu forme sa „Pokušaj ponovo“; primjer onemogućen dok nema cijene.</td><td data-l="Gdje">Stanja</td></tr>
+      <tr><td>Kartica doplate nema izmjenu, doda se uključena</td><td data-l="Rješenje">Red sa editorom za sva polja; nova doplata je isključena dok se ne uključi („Odmah uključi“); jedinica prati tip i valutu.</td><td data-l="Gdje">Doplate</td></tr>
+      <tr><td>Uključivanje bez posljedice, kiša u hodu</td><td data-l="Rješenje">Poruka „Za 4,5 km kupac plaća 7,45 KM“ sa „Poništi“ 6 s. Prekidač 44 px sa imenom.</td><td data-l="Gdje">Doplate</td></tr>
+      <tr><td>Brisanje doplate koju koristi pravilo</td><td data-l="Rješenje">Dijalog navodi pravila koja se brišu zajedno sa doplatom.</td><td data-l="Gdje">Doplate, brisanje</td></tr>
+      <tr><td>Brzo dodavanje nudi postojeće</td><td data-l="Rješenje">Katalog nudi samo ono što još nije dodano.</td><td data-l="Gdje">Doplate</td></tr>
+      <tr><td>„Klikni za izmenu pravila“, duplirani podnaslov</td><td data-l="Rješenje">Naslov je uslov, podnaslov napomena, ispod redoslijed vozila; „Poklapa se“ prati primjer.</td><td data-l="Gdje">Vozila</td></tr>
+      <tr><td>Pravilo iza „Uvijek“, red bez objašnjenja</td><td data-l="Rješenje">„Sve ostalo“ zaseban red na dnu bez strelica i brisanja; novo pravilo ide iznad; rečenica o redoslijedu; upozorenje za isti uslov.</td><td data-l="Gdje">Vozila</td></tr>
+      <tr><td>Dva PUT-a po pomjeranju, strelice 32 px</td><td data-l="Rješenje">Strelice 44 px, „Poništi“ poslije pomjeranja. Atomičan poziv traži backend (B6).</td><td data-l="Gdje">Vozila</td></tr>
+      <tr><td>Kontrast 2.05–2.68, mete 32–40 px, bez imena</td><td data-l="Rješenje">Tamniji tonovi (≥ 4.5 : 1), mete 44 px, labele na svim kontrolama.</td><td data-l="Gdje">Cijeli ekran</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================ STANJA -->
+<section class="sec" id="stanja">
+  <div class="sec-head">
+    <span class="eyebrow">Stanja</span>
+    <h2>Učitavanje, greška, prazno, nesačuvano, brisanje</h2>
+    <p class="small">Isti prototip u tačno određenim trenucima. Svaki prikaz je živa instanca, pa se može kliknuti. Računar je prvi (isječci prozora 1440×900, smanjeni na širinu table), telefon drugi.</p>
+  </div>
+  <div class="states-d">
+    <div><div class="dsk" data-h="520" data-st="loading"></div><div class="dsk-cap"><b>Učitavanje, računar</b><span>Skeleton u obliku stranice (forma, tabela, primjer). Nema nule kao cijene.</span></div></div>
+    <div><div class="dsk" data-h="520" data-st="error"></div><div class="dsk-cap"><b>Pad učitavanja, računar</b><span>Poruka u mjestu forme sa „Pokušaj ponovo“, primjer onemogućen.</span></div></div>
+    <div><div class="dsk" data-h="620" data-st="ask"></div><div class="dsk-cap"><b>Nesačuvane izmjene pri prelasku, računar</b><span>Nacrt cijene, traka sa razlikom, pitanje „Imaš nesačuvane izmjene“ kad se klikne drugi tab.</span></div></div>
+    <div><div class="dsk" data-h="620" data-st="empty"></div><div class="dsk-cap"><b>Nema doplata, računar</b><span>Kaže šta je doplata i nudi katalog. Tab „Vozila“ bez pravila nudi zadano pravilo.</span></div></div>
+    <div><div class="dsk" data-h="640" data-st="delete"></div><div class="dsk-cap"><b>Brisanje doplate koju koristi pravilo, računar</b><span>Dijalog navodi pravilo koje se briše zajedno sa doplatom.</span></div></div>
+  </div>
+  <div class="sub-head"><span class="group-title">Telefon</span><h3>Isto na 390 px</h3></div>
+  <div class="row-phones">
+    <div class="pw"><div class="phone apx" data-st="p-load"></div><div class="cap"><b>Učitavanje</b><span>Skeleton liste, ne tekst.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="p-error"></div><div class="cap"><b>Pad učitavanja</b><span>Poruka i „Pokušaj ponovo“ u mjestu liste.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="p-dirty"></div><div class="cap"><b>Nacrt cijene</b><span>Upozorenje o zarezu, traka sa razlikom zalijepljena uz dno, tačka na tabu.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="p-ask"></div><div class="cap"><b>Nesačuvano pri prelasku</b><span>Pitanje u mjestu sadržaja; „Nastavi uređivanje“ ima fokus.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="p-sim"></div><div class="cap"><b>Primjer narudžbe</b><span>Traka na dnu otvara donji list sa istim obračunom.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="p-sur"></div><div class="cap"><b>Greška u polju doplate</b><span>Ime već postoji, iznos nije broj; Sačuvaj onemogućen.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="p-rule"></div><div class="cap"><b>Greška u pravilu</b><span>„Do“ manje od „od“, nijedno vozilo; poruke uz polja.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="p-del"></div><div class="cap"><b>Brisanje doplate</b><span>Donji list navodi pravilo koje se briše sa njom.</span></div></div>
+    <div class="pw"><div class="phone apx" data-st="p-empty"></div><div class="cap"><b>Nema doplata</b><span>Kaže šta je doplata, nudi katalog.</span></div></div>
+  </div>
+</section>
+
+<!-- ============================================ DIJELOVI -->
+<section class="sec" id="dijelovi">
+  <div class="sec-head">
+    <span class="eyebrow">Dijelovi</span>
+    <h2>Šta se koristi što već postoji, a šta je novo</h2>
+    <p class="small">Redovi, listovi, pilule i tonirane poruke već postoje iz Firme, Kuriri i Poruka. Novo su Primjer narudžbe, nacrt cijene sa trakom, tabela cijena po udaljenosti, editor doplate i editor pravila. Prototip nije Vue, pa se portuju ponašanje i tekstovi, ne markup.</p>
+  </div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Dio</th><th>Stanje</th><th>Gdje</th><th>Šta radi</th></tr></thead>
+    <tbody>
+      <tr><td><b>Zaglavlje</b></td><td data-l="Stanje"><span class="pill pill--acc">izmjena</span></td><td data-l="Gdje"><span class="mono">PageHeader.vue</span>, <span class="mono">pricing.vue</span></td><td data-l="Šta radi">Naslov „Cjenovnik“, podnaslov naziv firme i valuta; oznaka „Nesačuvano“ / „Sve je sačuvano“.</td></tr>
+      <tr><td><b>Tabovi</b></td><td data-l="Stanje"><span class="pill pill--acc">izmjena</span></td><td data-l="Gdje"><span class="mono">GlobalTabBar.vue</span></td><td data-l="Šta radi">Pilule (kao na Firmi), 44 px, bedž uz naziv, tačka za nesačuvano, strelice i <span class="mono">tabpanel</span>.</td></tr>
+      <tr><td><b>Red doplate, red pravila</b></td><td data-l="Stanje"><span class="pill pill--warn">novo</span></td><td data-l="Gdje"><span class="mono">pricing/SurchargeRow.vue</span>, <span class="mono">VehicleRuleRow.vue</span></td><td data-l="Šta radi">Obrazac <span class="mono">SettingRow</span> (ikona 40/44 px, vrijednost, oznake). Zamjenjuju <span class="mono">SurchargeCard</span> i <span class="mono">v-list-item</span> u <span class="mono">VehicleRulesPanel</span>.</td></tr>
+      <tr><td><b>Editor doplate, editor pravila</b></td><td data-l="Stanje"><span class="pill pill--warn">novo</span></td><td data-l="Gdje"><span class="mono">SurchargeEditor.vue</span>, <span class="mono">VehicleRuleEditor.vue</span></td><td data-l="Šta radi">Računar: u redu koji se mijenja. Telefon: <span class="mono">AppSheet</span>. Forma + uticaj + footer. Koriste <span class="mono">useSheetDraft</span> / <span class="mono">useSheetSave</span> / <span class="mono">useSheetGuard</span>.</td></tr>
+      <tr><td><b>Primjer narudžbe</b></td><td data-l="Stanje"><span class="pill pill--warn">novo</span></td><td data-l="Gdje"><span class="mono">pricing/PricingSimulator.vue</span></td><td data-l="Šta radi">Zamjenjuje <span class="mono">PricingCalculator</span> i <span class="mono">VehicleSimulationPanel</span>. Ulaz: udaljenost, zona, doplate „šta ako“. Izlaz: cijena, vozila, pravilo.</td></tr>
+      <tr><td><b>Obračun i izbor pravila</b></td><td data-l="Stanje"><span class="pill pill--warn">novo</span></td><td data-l="Gdje"><span class="mono">utils/pricing.ts</span></td><td data-l="Šta radi">Čiste funkcije <span class="mono">calcPrice(dist, cfg, active)</span> i <span class="mono">matchRule(rule, zone, dist, active)</span> sa testovima. Jedan izvor za primjer, tabelu i uticaj doplate.</td></tr>
+      <tr><td><b>Nacrt cijene i traka</b></td><td data-l="Stanje"><span class="pill pill--warn">novo</span></td><td data-l="Gdje"><span class="mono">usePricingDraft.ts</span>, <span class="mono">pricing/DirtyBar.vue</span></td><td data-l="Šta radi">Nacrt (tekst sa zarezom), validacija, razlika spram sačuvanog, provjera iznosa. <span class="mono">DirtyBar</span> je ljepljiva traka sa „Poništi“ / „Sačuvaj“.</td></tr>
+      <tr><td><b>Polje za iznos</b></td><td data-l="Stanje"><span class="pill pill--warn">novo</span></td><td data-l="Gdje"><span class="mono">common/MoneyField.vue</span></td><td data-l="Šta radi">Tekst sa zarezom, jedinica, ± dugmad 44 px, poruka uz polje. Koriste Cijena i editor doplate.</td></tr>
+      <tr><td><b>Izbor, polje, dugme, poruka, list</b></td><td data-l="Stanje"><span class="pill pill--good">postoji</span></td><td data-l="Gdje"><span class="mono">ChoiceGroup</span>, <span class="mono">SheetField</span>, <span class="mono">AppButton</span>, <span class="mono">TintAlert</span>, <span class="mono">AppSheet</span>, <span class="mono">SettingSwitch</span></td><td data-l="Šta radi">Bez izmjena. <span class="mono">ChoiceGroup</span> treba <span class="mono">columns: 3</span>.</td></tr>
+      <tr><td><b>Podaci</b></td><td data-l="Stanje"><span class="pill pill--acc">izmjena</span></td><td data-l="Gdje"><span class="mono">useDeliveryPricing</span>, <span class="mono">useSurcharges</span>, <span class="mono">useVehicleRules</span>, <span class="mono">useVehicleRecommendation</span></td><td data-l="Šta radi">Greške po polju, <span class="mono">reload()</span>, nova doplata isključena, novo pravilo ispred „Sve ostalo“, brisanje doplate sa pravilima, uključivanje sa „Poništi“.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================ PODACI -->
+<section class="sec" id="podaci">
+  <div class="sec-head">
+    <span class="eyebrow">Podaci</span>
+    <h2>Šta ekran čita i šta piše</h2>
+    <p class="small">Prva verzija ne traži nove pozive. Sve što prototip pokazuje dolazi iz poziva koje stranica već pravi. Izmjena svih polja doplate zavisi od B2.</p>
+  </div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Element</th><th>Izvor</th><th>Polja</th><th>Napomena</th></tr></thead>
+    <tbody>
+      <tr><td>Zaglavlje, valuta</td><td data-l="Izvor"><span class="mono">GET /dispatcher/my-companies</span></td><td data-l="Polja"><span class="mono">name</span>, <span class="mono">city_name</span>, <span class="mono">currency</span></td><td data-l="Napomena">Već u <span class="mono">useDeliveryCompaniesStore</span>. Valuta se ne mijenja ovdje (Firma).</td></tr>
+      <tr><td>Cijena</td><td data-l="Izvor"><span class="mono">GET/PUT /delivery-companies/{id}/pricing</span></td><td data-l="Polja"><span class="mono">base_price</span>, <span class="mono">price_per_km</span>, <span class="mono">currency</span></td><td data-l="Napomena">PUT šalje isto tijelo kao danas (brojevi, ne tekst). Granice i oblik 422: B5.</td></tr>
+      <tr><td>Doplate</td><td data-l="Izvor"><span class="mono">GET/POST /delivery-companies/{id}/surcharges</span>, <span class="mono">PUT/DELETE …/surcharges/{id}</span></td><td data-l="Polja"><span class="mono">name</span>, <span class="mono">type</span>, <span class="mono">value</span>, <span class="mono">unit</span>, <span class="mono">time_from/to</span>, <span class="mono">active</span>, <span class="mono">activated_at</span>, <span class="mono">condition_tag</span></td><td data-l="Napomena">Nova doplata šalje <span class="mono">active: false</span> (D2). Jedinica se izvodi iz tipa i valute. PUT sa svim poljima: B2.</td></tr>
+      <tr><td>Katalog</td><td data-l="Izvor"><span class="mono">GET /condition-tags</span></td><td data-l="Polja"><span class="mono">key</span>, <span class="mono">name</span>, <span class="mono">icon</span>, <span class="mono">default_time_from/to</span></td><td data-l="Napomena">Isključuje se ono što je već dodano (po <span class="mono">condition_tag.id</span>, ne po nazivu).</td></tr>
+      <tr><td>Pravila</td><td data-l="Izvor"><span class="mono">GET/POST …/vehicle-rules</span>, <span class="mono">PUT/DELETE …/vehicle-rules/{id}</span></td><td data-l="Polja"><span class="mono">condition_type</span>, <span class="mono">zone_id</span>, <span class="mono">surcharge_id</span>, <span class="mono">min/max_distance_km</span>, <span class="mono">preferred_vehicles</span>, <span class="mono">priority</span>, <span class="mono">max_terrain_factor</span>, <span class="mono">note</span></td><td data-l="Napomena">Novo pravilo: <span class="mono">priority</span> ispred zadanog, zadano pomjeri za jedan (ili pošalji više PUT-ova). Atomičan poziv: B6.</td></tr>
+      <tr><td>Primjer narudžbe: vozilo</td><td data-l="Izvor"><span class="mono">GET …/recommend-vehicle?zone_id&amp;distance_km</span></td><td data-l="Polja"><span class="mono">recommended_vehicles</span>, <span class="mono">matched_rule</span>, <span class="mono">price</span></td><td data-l="Napomena">Isti poziv kao danas. Pokazuje SAČUVANO stanje, pa se prototip „šta ako“ i nacrt računaju na klijentu.</td></tr>
+      <tr><td>Primjer narudžbe: cijena</td><td data-l="Izvor">klijent, <span class="mono">utils/pricing.ts</span></td><td data-l="Polja">nacrt cijene, doplate (<span class="mono">active</span>), udaljenost</td><td data-l="Napomena">Provjera: nakon snimanja uporediti sa <span class="mono">recommend-vehicle.price</span> za isti primjer. Zaokruživanje: B5.</td></tr>
+      <tr><td>Zone</td><td data-l="Izvor"><span class="mono">GET /dispatcher/zones?city_id</span></td><td data-l="Polja"><span class="mono">id</span>, <span class="mono">name</span>, <span class="mono">terrain_factor</span></td><td data-l="Napomena">Već se učitava lijeno; sada i za Primjer narudžbe na svim tabovima.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="card">
+    <h3>Šta se ne može prikazati dok backend ne vrati</h3>
+    <ul class="opts">
+      <li><i>•</i><span><b>Izmjena naziva, tipa, iznosa i vremena doplate</b>: front danas šalje samo <span class="mono">{active}</span>; da li PUT prima ostala polja nije potvrđeno (B2).</span></li>
+      <li><i>•</i><span><b>Ko i kada je promijenio cijenu ili doplatu</b>: nijedan odgovor ne nosi autora ni vrijeme izmjene (B8).</span></li>
+      <li><i>•</i><span><b>Cijena za vrijeme koje nije sada</b> („šta bi bilo noću“) na serveru: <span class="mono">pricing/calculate</span> prima samo koordinate (B7). Prototip to radi na klijentu.</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================ SPECIFIKACIJA -->
+<section class="sec" id="spec">
+  <div class="sec-head">
+    <span class="eyebrow">Specifikacija</span>
+    <h2>Mjere, boje, ponašanje i tekstovi</h2>
+  </div>
+  <div class="cols-2">
+    <div class="card">
+      <h3>Raspored</h3>
+      <ul class="opts">
+        <li><i>•</i><span><b>Računar</b> (stranica ≥ 900 px): bočna traka 264 px, zaglavlje, pilule, pa dvije kolone: <b>rad (fleksibilno) | Primjer narudžbe 372 px</b>, razmak 20 px. Desna kolona je ljepljiva. Sadržaj najviše 1180 px.</span></li>
+        <li><i>•</i><span><b>Telefon:</b> jedna kolona; Primjer narudžbe je traka od 64 px na dnu (tamna, ukupna cijena i vozilo) koja otvara <span class="mono">AppSheet</span>. Editori su donji listovi (najviše 92 % visine).</span></li>
+        <li><i>•</i><span><b>Redovi:</b> doplata najmanje 68 px, pravilo 76 px, ikona 40 / 44 px. Mete ≥ 44×44, prekidač 56×44.</span></li>
+        <li><i>•</i><span><b>Polja:</b> iznos 56 px (1.3rem / 800), tekst 52 px, radijus 14. ± dugmad 44 px unutar polja.</span></li>
+        <li><i>•</i><span><b>Zaglavlje:</b> naslov 1.05rem / 800, podnaslov .76rem / 600 u <span class="mono">#5b6676</span>; oznaka stanja desno (28 px).</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Boje</h3>
+      <ul class="opts">
+        <li><i>•</i><span><span class="sw" style="background:#0b1220"></span><b>Primjer narudžbe: ukupno</b> tamna kartica unutra (<span class="mono">#0b1220</span>), iznos <span class="mono">#00d290</span> (9.3 : 1), doplate <span class="mono">#ffc247</span>. Klizač je svijetao na bijeloj kartici.</span></li>
+        <li><i>•</i><span><span class="sw" style="background:#e3f8ef"></span><b>Na snazi</b> tamnozelena <span class="mono">#00734f</span> na blagoj zelenoj. <span class="sw" style="background:#f1f3f6"></span><b>Isključena</b> siva <span class="mono">#46505f</span>. <span class="sw" style="background:#eef4ff"></span><b>Automatski</b> plava <span class="mono">#2459c7</span>.</span></li>
+        <li><i>•</i><span><span class="sw" style="background:#fff2df"></span><b>Upozorenje (zarez, isti uslov)</b> <span class="mono">#5c3305</span> na <span class="mono">#fff2df</span>; ikona <span class="mono">#9a4a07</span>.</span></li>
+        <li><i>•</i><span><b>Tekst</b> najmanje 4.5 : 1: <span class="mono">#5b6676</span> za pomoćni tekst, <span class="mono">#9a4a07</span> za narandžasto, nema <span class="mono">#9aa4b2</span> i prozirnosti za „isključeno“.</span></li>
+        <li><i>•</i><span><b>Razlika cijene:</b> poskupljenje <span class="mono">#b42318</span>, pojeftinjenje <span class="mono">#00734f</span> (tabela po udaljenosti), staro precrtano.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Ponašanje</th><th>Pravilo</th></tr></thead>
+    <tbody>
+      <tr><td><b>Nacrt cijene</b></td><td data-l="Pravilo">Polje je tekst sa zarezom (<span class="mono">inputmode="decimal"</span>). Korak ± je 0,10 za startnu i 0,05 za km. Prazno ili neispravno: poruka uz polje, Sačuvaj onemogućen, obračun koristi sačuvanu vrijednost. Nikad se ne šalje <span class="mono">""</span>.</td></tr>
+      <tr><td><b>Provjera iznosa</b></td><td data-l="Pravilo">Žuta poruka bez blokade kad se jedan iznos promijeni za ≥ 50 %, ili kad je cijena po km ≥ 3: „Za 10 km to je 82,50 KM. Ako si mislio na manji iznos, provjeri zarez.“ Pragovi su prijedlog (D5).</td></tr>
+      <tr><td><b>Traka nesačuvanog</b></td><td data-l="Pravilo">Ljepljiva uz dno, pojavi se tek kad ima izmjene. Pokazuje svaku promijenjenu stavku (staro precrtano) i „Za 4,5 km: 7,45 → 7,95 KM“. „Poništi“ vraća sačuvano. Sačuvaj čuva i pokaže poruku „Cijena je sačuvana. Važi za nove narudžbe.“</td></tr>
+      <tr><td><b>Pitanje pri prelasku</b></td><td data-l="Pravilo">Isto kao na Firmi: promjena taba, firme u ladici i dugme Nazad sa nesačuvanim nacrtom ili otvorenim editorom pita „Imaš nesačuvane izmjene“. „Nastavi uređivanje“ ima fokus.</td></tr>
+      <tr><td><b>Primjer narudžbe</b></td><td data-l="Pravilo">Udaljenost 0,5–15 km korak 0,5 (klizač + ± dugmad), zona („Svejedno“ ili iz liste), doplate „šta ako“ (dodir mijenja primjer, isprekidan rub kad se razlikuje od stvarnog, „Vrati na stvarno“). Izlaz: ukupno, stavke, preporučena vozila redom, pravilo koje se poklapa sa vezom „Otvori pravilo“. Piše: „Pregled za odabrani primjer. Cijenu za narudžbu računa server.“</td></tr>
+      <tr><td><b>Uključivanje doplate</b></td><td data-l="Pravilo">Prekidač važi odmah, poruka „„Kiša“ je uključena. Za 4,5 km kupac plaća 7,45 KM.“ sa „Poništi“ 6 s. Ako PUT padne, prekidač se vraća i piše uz red.</td></tr>
+      <tr><td><b>Nova doplata</b></td><td data-l="Pravilo">Iz kataloga (nestaje kad je dodana) ili prazna. Ime obavezno i jedinstveno, iznos ≥ 0 (osim napomene), „Po vremenu“ traži Od ≠ Do. „Odmah uključi“ je isključeno. Greške se pokazuju tek kad polje dodirneš.</td></tr>
+      <tr><td><b>Pravila</b></td><td data-l="Pravilo">Odozgo: prvo pravilo koje se poklopi. „Sve ostalo“ je zasebno, uvijek posljednje, bez strelica i brisanja (edituje se). Novo pravilo ide iznad njega. Isti uslov kao ranije pravilo: „Ovo pravilo se nikad ne primjenjuje“. Uslovi: Zona, Doplata, Udaljenost (od ili do, „do“ &gt; „od“). Vozila redom preferencije, najmanje jedno.</td></tr>
+      <tr><td><b>Brisanje</b></td><td data-l="Pravilo">Dijalog (računar) / donji list (telefon). Za doplatu koju koriste pravila navodi ih; ona se brišu sa njom (ili se pravilo prvo briše, B4). Poslije brisanja poruka sa brojem pravila.</td></tr>
+      <tr><td><b>Tastatura</b></td><td data-l="Pravilo">Strelice na pilulama i grupama izbora (<span class="mono">tabindex</span>, <span class="mono">role=radiogroup</span>), Escape zatvara list ili dijalog, Enter u editoru čuva. Svaka kontrola ima ime; prekidač „Uključi doplatu Kiša“.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="card">
+    <h3>Tekstovi (ijekavica, latinica, kao Firma i Poruke)</h3>
+    <ul class="opts">
+      <li><i>•</i><span>Naslov „Cjenovnik“ (nav: „Cjenovnik · Cijene, doplate, pravila“). Tabovi: <b>Cijena</b>, <b>Doplate</b>, <b>Vozila</b>.</span></li>
+      <li><i>•</i><span>„Šta kupac plaća po udaljenosti“, „Primjer narudžbe“, „Kupac plaća“, „Preporučeno vozilo“, „Nesačuvane izmjene“, „Čim sačuvaš, važi za nove narudžbe.“</span></li>
+      <li><i>•</i><span>„Odozgo prema dolje: prvo pravilo koje se poklopi bira vozila. „Sve ostalo“ važi kad se nijedno ne poklopi.““ (rečenica zavisi od B1)</span></li>
+      <li><i>•</i><span>Greške: „Unesi iznos, npr. 2,50.“, „Doplata sa tim nazivom već postoji.“, „„Do“ mora biti veće od „od“.“, „Izaberi bar jedno vozilo.“</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================ ODLUKE -->
+<section class="sec" id="odluke">
+  <div class="sec-head">
+    <span class="eyebrow">Odluke</span>
+    <h2>Šta treba da odlučite</h2>
+    <p class="small">Za svako pitanje je preporuka uz opis posljedice. Odluke D2, D4 i D6 mijenjaju navike dispečera i ponašanje prema kupcu; ako kažete drugačije, vraća se vaš izbor.</p>
+  </div>
+  <div class="cols-2">
+    <div class="card card--rec">
+      <h3>D1 · Raspored stranice <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Tri taba, svaki sa svojim kalkulatorom ili simulacijom (danas).</span></li>
+        <li class="rec"><i>b</i><span><b>Tri taba i jedan stalan Primjer narudžbe</b> (desno na računaru, traka na dnu na telefonu). Izmjena i posljedica na istom ekranu.</span></li>
+        <li><i>c</i><span>Jedna duga stranica sa sekcijama. Sve se vidi, ali se gubi fokus.</span></li>
+      </ul>
+      <p class="undo">Povratak: primjer se skloni iz kolone, tabovi ostaju.</p>
+    </div>
+    <div class="card card--rec">
+      <h3>D2 · Nova doplata <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Odmah uključena (danas, <span class="mono">active: true</span>). Kupac plaća čim se sačuva.</span></li>
+        <li class="rec"><i>b</i><span><b>Isključena dok je dispečer ne uključi</b>, uz prekidač „Odmah uključi“ i rečenicu šta to znači za kupca.</span></li>
+        <li><i>c</i><span>Potvrdni dijalog pri svakom uključivanju: usporava najčešću radnju.</span></li>
+      </ul>
+      <p class="undo">Povratak: jedan red u payload-u (<span class="mono">active</span>).</p>
+    </div>
+    <div class="card card--rec">
+      <h3>D3 · Uključivanje i isključivanje doplate <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Odmah, bez poruke (danas).</span></li>
+        <li class="rec"><i>b</i><span><b>Odmah, uz poruku „Za 4,5 km kupac plaća 7,45 KM“ i „Poništi“ 6 s.</b> Kiša se uključuje u hodu.</span></li>
+        <li><i>c</i><span>Potvrdni dijalog. Sporo, a radnja se često ponavlja.</span></li>
+      </ul>
+    </div>
+    <div class="card card--rec">
+      <h3>D4 · Čuvanje cijene <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Polja u kartici i dugme koje je uvijek aktivno (danas).</span></li>
+        <li class="rec"><i>b</i><span><b>Nacrt sa trakom „Nesačuvane izmjene“</b> (razlika, Poništi, Sačuvaj) i pitanjem pri izlazu.</span></li>
+        <li><i>c</i><span>Automatsko čuvanje: ne, cijena važi za kupce odmah.</span></li>
+      </ul>
+    </div>
+    <div class="card card--rec">
+      <h3>D5 · Provjera iznosa <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Bez provjere (danas): 8,00 umjesto 0,80 prolazi.</span></li>
+        <li class="rec"><i>b</i><span><b>Upozorenje bez blokade</b> kad se iznos mijenja za ≥ 50 % ili km ≥ 3. Pragovi se podešavaju.</span></li>
+        <li><i>c</i><span>Tvrde granice na serveru (B5). Bolje, ali traži backend.</span></li>
+      </ul>
+    </div>
+    <div class="card card--rec">
+      <h3>D6 · Redoslijed pravila <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Ravna lista, „Uvijek“ običan red (danas).</span></li>
+        <li class="rec"><i>b</i><span><b>„Sve ostalo“ je zaseban red na dnu</b> koji se ne pomjera i ne briše; novo pravilo ide iznad njega; piše da važi prvo poklapanje. <b>Zavisi od B1.</b></span></li>
+        <li><i>c</i><span>Automatski red po „specifičnosti“: dispečer gubi kontrolu.</span></li>
+      </ul>
+      <p class="undo">Ako B1 kaže drugačije, mijenja se samo rečenica i redoslijed u listi.</p>
+    </div>
+    <div class="card card--rec">
+      <h3>D7 · Brisanje doplate koju koristi pravilo <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Tiho, pravilo ostaje (danas).</span></li>
+        <li class="rec"><i>b</i><span><b>Dijalog navodi pravila</b> koja se brišu sa doplatom (front briše prvo pravila, pa doplatu, ako backend ne kaskadira).</span></li>
+        <li><i>c</i><span>Zabrana dok pravilo postoji. Najsigurnije, ali dispečer mora ručno.</span></li>
+      </ul>
+    </div>
+    <div class="card card--rec">
+      <h3>D8 · Jezik i brojke <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Mješavina: „Cenovnik“, „Primer obračuna“, „Pešice“, „2.5“ (danas).</span></li>
+        <li class="rec"><i>b</i><span><b>Ijekavica kao Firma i Poruke:</b> „Cjenovnik“, „Primjer narudžbe“, „Pješice“, „Snijeg“; brojke „2,50 KM“.</span></li>
+      </ul>
+    </div>
+    <div class="card card--rec">
+      <h3>D9 · Valuta na ovoj stranici <span class="pill pill--acc">preporuka</span></h3>
+      <ul class="opts">
+        <li><i>a</i><span>Samo sufiks (danas); nigdje se ne vidi gdje se mijenja.</span></li>
+        <li class="rec"><i>b</i><span><b>Red „Valuta firme“ samo za čitanje</b> sa vezom „Mijenja se u Firmi“. Jedan izvor istine.</span></li>
+        <li><i>c</i><span>Izbor i ovdje: dva mjesta za isto polje.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ REDOSLED -->
+<section class="sec" id="izrada">
+  <div class="sec-head">
+    <span class="eyebrow">Redosled izrade</span>
+    <h2>Od popravki koje ne mijenjaju izgled do novog radnog prostora</h2>
+    <p class="small">Ništa od ovoga nije izgrađeno; ovo je predlog. Faza 0 može posebno i odmah, na postojećoj stranici. Faze 1 do 4 grade novi izgled, računar prvo. Svaka faza se mjeri istim mjerilom kao analiza (mete, kontrast, tastatura, telefon, pad učitavanja).</p>
+  </div>
+  <ol class="phases">
+    <li><div><b>Faza 0 · popravke na postojećoj stranici</b><span>Mali, nezavisni popravci. Svaki vrijedi bez nove strukture.</span>
+      <ul>
+        <li>0.1 Prazno polje: prije obračuna i slanja provjeriti broj (<span class="mono">toAmount</span> iz <span class="mono">utils/currency.ts</span>); kalkulator ne smije pasti ni računati bez učitane cijene.</li>
+        <li>0.2 Red pravila: ukloniti <span class="mono">title="Klikni za izmenu pravila"</span> sa <span class="mono">v-list-item</span> (ostaje kao <span class="mono">aria-label</span>); podnaslov bez ponavljanja uslova.</li>
+        <li>0.3 Imena: <span class="mono">aria-label</span> na prekidačima doplata, klizačima i <span class="mono">tablist</span>; mete 44 px.</li>
+        <li>0.4 Kontrast: <span class="mono">#9aa4b2</span> → <span class="mono">#5b6676</span>; „Aktivno …“ → <span class="mono">#9a4a07</span>; klizač na tamnoj kartici u svijetloj boji; isključena kartica bez prozirnosti.</li>
+        <li>0.5 „Sačuvano.“ nestaje pri novoj izmjeni; greška uz polje (<span class="mono">getValidationMessage</span>).</li>
+        <li>0.6 Pad učitavanja: kalkulator ne prikazuje cijenu bez učitane cijene; „Pokušaj ponovo“; skeleton i za kalkulator.</li>
+        <li>0.7 Pitanje pri izlazu sa nesačuvanom cijenom (<span class="mono">useSheetGuard</span>).</li>
+        <li>0.8 „Brzo dodavanje“ izostavlja već dodane tagove (po <span class="mono">condition_tag.id</span>).</li>
+        <li>0.9 Nova doplata <span class="mono">active: false</span> (D2); jedinica izvedena iz tipa i valute.</li>
+        <li>0.10 Novo pravilo ispred zadanog (<span class="mono">priority</span>); čeka B1.</li>
+      </ul></div></li>
+    <li><div><b>Faza 1 · Cijena i Primjer narudžbe</b><span>Prvi vidljiv dio, računar.</span>
+      <ul>
+        <li><span class="mono">utils/pricing.ts</span> (<span class="mono">calcPrice</span>, <span class="mono">matchRule</span>) sa testovima; poređenje sa <span class="mono">recommend-vehicle.price</span>.</li>
+        <li><span class="mono">usePricingDraft</span>, <span class="mono">MoneyField</span>, <span class="mono">DirtyBar</span>, tabela po udaljenosti.</li>
+        <li><span class="mono">PricingSimulator</span> u desnoj koloni na sva tri taba; zamjena <span class="mono">PricingCalculator</span> i <span class="mono">VehicleSimulationPanel</span>.</li>
+      </ul></div></li>
+    <li><div><b>Faza 2 · Doplate</b><span>Poslije Faze 1.</span>
+      <ul>
+        <li><span class="mono">SurchargeRow</span> i <span class="mono">SurchargeEditor</span> (izmjena svih polja ako B2 dozvoli), uticaj na primjer, uključivanje sa „Poništi“.</li>
+        <li>Brisanje sa popisom pravila (D7), katalog bez postojećih.</li>
+      </ul></div></li>
+    <li><div><b>Faza 3 · Vozila i pravila</b><span>Poslije B1.</span>
+      <ul>
+        <li><span class="mono">VehicleRuleRow</span>, <span class="mono">VehicleRuleEditor</span>, zaseban red „Sve ostalo“, upozorenje za isti uslov.</li>
+        <li>Pomjeranje: strelice 44 px sa „Poništi“; atomičan poziv ako ga backend doda (B6).</li>
+      </ul></div></li>
+    <li><div><b>Faza 4 · Telefon i provjera</b><span>Ne samo tipovi.</span>
+      <ul>
+        <li>Traka primjera i donji listovi (<span class="mono">AppSheet</span>), jedna kolona.</li>
+        <li><span class="mono">nuxi typecheck</span>, jedinični testovi obračuna i izbora pravila, E2E u pravom Chrome-u nad lažnim API-jem (alati u <span class="mono">docs/2026/10/cjenovnik-prototip/e2e/</span>): sva stanja iz ove table, računar 1440×900 i telefon 390 i 320, kontrast, mete 44 px, tastatura.</li>
+      </ul></div></li>
+  </ol>
+</section>
+
+<!-- ============================================ BACKEND -->
+<section class="sec" id="backend">
+  <div class="sec-head">
+    <span class="eyebrow">Backend</span>
+    <h2>Pitanja prije Faze 2 i 3</h2>
+    <p class="small">Faze 0 i 1 se grade bez ijednog odgovora. Pitanja idu u dnevni dokument <span class="mono">*_Frontend_pitanja_za_backend.textile</span>, po formatu (legenda, „Šta vidimo / Prijedlog / Pitanja“). Ovdje nijedan odgovor nije u repou; sve što je označeno kao pretpostavka u lažnom API-ju čeka ove odgovore.</p>
+  </div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>#</th><th>Pitanje</th><th>Zašto je važno</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill pill--bad">🔴 B1</span></td><td data-l="Pitanje">Kako <span class="mono">recommend-vehicle</span> bira pravilo: prvo koje se poklopi po rastućem <span class="mono">priority</span>, ili najbolje poklapanje? Kako se tretira <span class="mono">default</span> sa <span class="mono">priority</span> nižim od drugih, i kako <span class="mono">max_terrain_factor</span>?</td><td data-l="Zašto">Cijela logika „Sve ostalo je posljednje“, upozorenje o istom uslovu i rečenica uz listu. Danas novo pravilo ide iza „Uvijek“ (<span class="mono">priority</span> = broj pravila + 1).</td></tr>
+      <tr><td><span class="pill pill--warn">🟠 B2</span></td><td data-l="Pitanje">Prima li <span class="mono">PUT /delivery-companies/surcharges/{id}</span> sva polja (<span class="mono">name</span>, <span class="mono">type</span>, <span class="mono">value</span>, <span class="mono">unit</span>, <span class="mono">time_from/to</span>, <span class="mono">description</span>), ili samo <span class="mono">active</span>?</td><td data-l="Zašto">Izmjena doplate je najveća funkcionalna rupa. Front danas šalje samo <span class="mono">{active}</span>.</td></tr>
+      <tr><td><span class="pill pill--warn">🟠 B3</span></td><td data-l="Pitanje">Doplata sa vremenskim prozorom: šta radi ručni prekidač usred prozora (do kraja prozora, do sljedeće promjene, trajno) i šta tačno znači <span class="mono">activated_at</span>?</td><td data-l="Zašto">Tekst uz red („Uključuje se u 22:00“, „Na snazi 1 h 12 min“) i ponašanje prekidača.</td></tr>
+      <tr><td><span class="pill pill--warn">🟠 B4</span></td><td data-l="Pitanje">Šta se dešava sa pravilom za vozila kad se obriše doplata koju koristi (<span class="mono">surcharge_id</span>): kaskadno brisanje, <span class="mono">null</span>, ili 422?</td><td data-l="Zašto">Dijalog pri brisanju i redoslijed poziva (D7).</td></tr>
+      <tr><td><span class="pill pill--mute">🟡 B5</span></td><td data-l="Pitanje">Granice i greške za <span class="mono">PUT …/pricing</span>: najmanji i najveći <span class="mono">base_price</span> i <span class="mono">price_per_km</span>, oblik <span class="mono">errors.polje</span>. Kako se zaokružuje obračun (po stavci ili ukupno)?</td><td data-l="Zašto">Tvrde granice umjesto upozorenja (D5) i tačno poklapanje klijentskog primjera sa serverom.</td></tr>
+      <tr><td><span class="pill pill--mute">🟡 B6</span></td><td data-l="Pitanje">Atomično preuređivanje: <span class="mono">PUT …/vehicle-rules/reorder {ids: […]}</span> umjesto dva PUT-a po pomjeranju?</td><td data-l="Zašto">Danas pad jednog od dva poziva ostavlja dva pravila sa istim <span class="mono">priority</span>.</td></tr>
+      <tr><td><span class="pill pill--mute">🟡 B7</span></td><td data-l="Pitanje">Može li <span class="mono">pricing/calculate</span> primiti <span class="mono">distance_km</span>, <span class="mono">zone_id</span> i vrijeme (<span class="mono">at</span>) umjesto koordinata?</td><td data-l="Zašto">Primjer narudžbe bi „šta bi bilo noću“ računao na serveru istom logikom kao pravi obračun.</td></tr>
+      <tr><td><span class="pill pill--good">🟢 B8</span></td><td data-l="Pitanje">Može li cijena i doplata nositi <span class="mono">updated_at</span> i <span class="mono">updated_by</span>?</td><td data-l="Zašto">Red „Zadnja izmjena“ uz cijenu i doplatu.</td></tr>
+      <tr><td><span class="pill pill--good">🟢 B9</span></td><td data-l="Pitanje">Je li <span class="mono">pricing.currency</span> isti izvor kao <span class="mono">finance-settings.currency</span>, i da li je vrijednost prikazni „KM“ ili ISO „BAM“? (C.3 u <span class="mono">network-provjera.md</span> je otvoreno.)</td><td data-l="Zašto">Red „Valuta firme“ samo za čitanje (D9).</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================ PROVJERA -->
+<section class="sec" id="provjera">
+  <div class="sec-head">
+    <span class="eyebrow">Provjera</span>
+    <h2>Šta sam pokrenuo, a šta nije provjereno</h2>
+  </div>
+  <div class="cols-2">
+    <div class="verify">
+      <h3>Pokrenuto</h3>
+      <ul>
+        <li>Aplikacija sa grane <span class="mono">master</span> (spojena u radnu granu), <span class="mono">nuxt dev</span> na 3100, pravi Chrome (headless, CDP), API presretnut i odgovara skripta (<span class="mono">e2e/pr-fx.mjs</span>), oblici po tipovima iz koda.</li>
+        <li>Računar 1440×900 i telefon 390×844 (dodir, razmjera 2). Alati su isti kao u <span class="mono">firma-prototip/e2e</span>, proširen za cijenu, doplate, katalog, pravila, zone i <span class="mono">recommend-vehicle</span>.</li>
+        <li>Izmjereno: raspored i visine, kontrast svakog teksta (WCAG), neimenovana polja, mete, tijela PUT i POST poziva (cijena, doplata, pravilo, pomjeranje), ponašanje pri praznom polju (izuzetak u konzoli), negativnom iznosu, izlazu sa nesačuvanim, 500 i sporom odgovoru, prazna firma.</li>
+        <li>Prototip istim mjerilom kao stara stranica (<span class="mono">proto-check.mjs</span>): 21 stanje (računar 11, telefon 10), 1 381 mjerenih tekstova. Najniži kontrast 4.53 : 1, nijedna meta ispod 44×44 px, svako polje ima ime, najmanji font 11.2 px (sitni natpisi u bočnoj traci), bez vodoravnog skrola, konzola bez grešaka.</li>
+        <li>Tokovi glavnog prototipa (<span class="mono">board-test.mjs</span>, 35 provjera): nacrt cijene i upozorenje o zarezu, prazno polje, pitanje pri prelasku, uključivanje sa „Poništi“, izmjena i nova doplata, brisanje sa pravilom, novo pravilo ispred „Sve ostalo“, isti uslov, pomjeranje, primjer za zonu, telefon sa donjim listom.</li>
+        <li>Skripte stare stranice: <span class="mono">a-measure.mjs</span>, <span class="mono">a-extra.mjs</span>, <span class="mono">shots.mjs</span>, <span class="mono">shadow.mjs</span> (uputstvo u <span class="mono">e2e/README.md</span>).</li>
+      </ul>
+    </div>
+    <div class="verify">
+      <h3>Nije provjereno</h3>
+      <ul>
+        <li><b>Pravi backend.</b> Redoslijed izbora pravila, brisanje doplate koju koristi pravilo, oblik grešaka 422, zaokruživanje: sve je u lažnom API-ju pretpostavka (B1 do B5).</li>
+        <li>Da li se klijentski primjer poklapa sa serverskim <span class="mono">price</span> za isti ulaz. U lažnom API-ju su isti jer sam ih ja napisao isto.</li>
+        <li>iOS / pravi telefon i čitači ekrana.</li>
+        <li>Prototip nije Vue i ne dokazuje ponašanje aplikacije. Podaci u njemu (firma, doplate, pravila, zone) su izmišljeni.</li>
+        <li>Brojevi iz analize (5 doplata, 5 pravila, 4 zone, 1.35, 7.45, 8.00) važe za probne podatke opisane gore; ponašanje koje ih izaziva je u kodu.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+<script>
+/*__APP_JS__*/
+</script>
+<script>
+(function () {
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var proto = $("#proto"), wrap = $("#deskwrap");
+  /* glavni prototip: računar (stvarnih 1440×900, smanjeno na širinu table) ili telefon */
+  var layout = function () {
+    var phone = proto.classList.contains("phone-mode");
+    if (phone) { proto.style.transform = "none"; wrap.style.height = "auto"; wrap.style.display = "flex"; wrap.style.justifyContent = "center"; }
+    else { var k = Math.min(1, wrap.clientWidth / 1440); wrap.style.display = "block"; proto.style.transform = "scale(" + k + ")"; wrap.style.height = Math.round(900 * k) + "px"; }
+  };
+  var start = function () { PricingProto.create(proto); layout(); };
+  var mode = function (m) {
+    proto.classList.toggle("phone-mode", m === "phone"); proto.classList.toggle("desk-mode", m === "desk");
+    $("#dev-phone").setAttribute("aria-pressed", String(m === "phone")); $("#dev-desk").setAttribute("aria-pressed", String(m === "desk"));
+    layout();
+  };
+  $("#dev-phone").onclick = function () { mode("phone"); };
+  $("#dev-desk").onclick = function () { mode("desk"); };
+  $("#proto-reset").onclick = function () { start(); };
+  mode("desk"); start();
+  if (window.ResizeObserver) new ResizeObserver(layout).observe(wrap); else window.addEventListener("resize", layout);
+
+  /* stanja */
+  var DESK = {
+    loading: { mode: "loading", fixed: true },
+    error: { mode: "error", fixed: true },
+    ask: { draft: { base: "3,10", km: "0,95" }, ask: true, fixed: true },
+    empty: { mode: "empty", tab: "sur", fixed: true },
+    "delete": { tab: "sur", es: 501, del: { kind: "sur", id: 501 }, fixed: true }
+  };
+  var PH = {
+    "p-load": { mode: "loading", tab: "sur", fixed: true },
+    "p-error": { mode: "error", fixed: true },
+    "p-dirty": { draft: { base: "2,50", km: "8,00" }, fixed: true },
+    "p-ask": { draft: { base: "3,10", km: "0,95" }, ask: true, fixed: true },
+    "p-sim": { simSheet: true, fixed: true },
+    "p-sur": { tab: "sur", es: "new", esDraft: { name: "Kiša", val: "abc" }, fixed: true },
+    "p-rule": { tab: "rules", er: "new", erDraft: { type: "dist", min: "6", max: "4", veh: [] }, fixed: true },
+    "p-del": { tab: "sur", del: { kind: "sur", id: 501 }, fixed: true },
+    "p-empty": { mode: "empty", tab: "sur", fixed: true }
+  };
+  var desks = [];
+  Array.prototype.forEach.call(document.querySelectorAll(".dsk[data-st]"), function (box) {
+    var o = DESK[box.getAttribute("data-st")]; if (!o) return;
+    var inner = document.createElement("div"); inner.className = "apx"; box.appendChild(inner);
+    var h = Number(box.getAttribute("data-h")) || 600; inner.style.height = h + "px";
+    PricingProto.create(inner, o);
+    desks.push({ box: box, inner: inner, h: h });
+  });
+  var fit = function () { desks.forEach(function (d) { var k = Math.min(1, d.box.clientWidth / 1440); d.inner.style.transform = "scale(" + k + ")"; d.box.style.height = Math.round(d.h * k) + "px"; }); };
+  fit(); if (window.ResizeObserver) desks.forEach(function (d) { new ResizeObserver(fit).observe(d.box); }); else window.addEventListener("resize", fit);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-st].phone"), function (el) {
+    var o = PH[el.getAttribute("data-st")]; if (o) PricingProto.create(el, o);
+  });
+})();
+</script>
