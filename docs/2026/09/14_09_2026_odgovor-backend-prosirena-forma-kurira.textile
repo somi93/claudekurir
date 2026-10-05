@@ -1,0 +1,70 @@
+{{toc}}
+
+h1. Odgovor backend-a: proširena forma kurira, retest (14. septembar 2026, kasno popodne)
+
+Odgovor na @14_09_2026_Frontend_pitanja_za_backend.textile@ (DIO I - 8 polja lični
+podaci/naplata-ugovor se tiho ignorišu na POST/PATCH/GET). Retest u
+@14_09_2026_Network_checklist_prosirena-forma-kurira.md@.
+
+---
+
+h2. ✅ SREĐENO - svih 8 polja sad rade (store/update/index/toggle)
+
+Backend: @store()@ i @update()@ na @/dispatcher/delivery-companies/{companyId}/couriers@
+sad prihvataju i čuvaju svih 8 polja (@date_of_birth@, @iban@,
+@emergency_contact_name@, @emergency_contact_phone@ → @UserDetail@; @paying_type@,
+@paying@, @contract_signed_at@, @contract_active_from@ → @delivery_company_user@ pivot).
+@bank_account@/@note@ na POST (kreiranje) - takođe popravljeno, sad rade kao i na PATCH.
+
+Odgovor sva 4 endpointa (@index@/@store@/@update@/@toggle@, preko zajedničkog
+@DispatcherCourierResource@) sad vraća:
+* @detail@ objekat (7 @UserDetail@ polja - @date_of_birth@/@iban@/
+  @emergency_contact_*@/@referral_*@)
+* @paying_type@, @paying@, @contract_signed_at@, @contract_active_from@ na vrhnjem
+  nivou (pivot polja)
+
+Backend traži retest - da vratimo polja nazad u formu (kreiranje i izmjena) i potvrdimo
+da se čuvaju i vraćaju u odgovoru.
+
+*Frontend*: nema šta da se "vraća" - polja NIKAD nisu uklonjena iz forme. Zahtjev 14.09
+(@14_09_2026_Frontend_pitanja_za_backend.textile@, DIO I, stavka 4) je samo PITAO da li
+treba privremeno izbaciti - backend nije eksplicitno odgovorio na to pitanje pa do
+uklanjanja nije ni došlo, forme (@CourierCreateDialog.vue@, @CourierEditDialog.vue@) i
+tipovi (@CourierCreatePayload@/@CourierUpdatePayload@ u
+@types/company-courier.ts@) su cijelo vrijeme slali svih 8 polja (plus
+@bank_account@/@note@ na POST). Ažurirani su samo komentari u kodu koji su opisivali
+staro ("backend tiho ignoriše") stanje - upućuju sad na ovaj odgovor i na retest
+checklistu.
+
+*Live retest 14.09 večernje* (@14_09_2026_Network_checklist_prosirena-forma-kurira.md@,
+DIO A, kurir 30753) - DJELIMIČNO potvrđeno, ne u cijelosti kako backend tvrdi:
+
+* ✅ @detail@ objekat (@UserDetail@: @date_of_birth@/@iban@/
+  @emergency_contact_name@/@emergency_contact_phone@) - potvrđeno, POST vraća tačno
+  poslate vrijednosti.
+* ✅ @bank_account@/@note@ na POST - potvrđeno, vraćaju poslate vrijednosti.
+* ❌ @paying_type@/@paying@/@contract_signed_at@/@contract_active_from@ (pivot
+  @delivery_company_user@) - NE RADE. Poslato @paying_type:1, paying:"255",
+  contract_signed_at:"2026-09-08", contract_active_from:"2026-09-13"@, POST odgovor
+  vraća sva 4 kao @null@ - identično stanju prije ovog fixa. Naknadni
+  @GET couriers-status@ za istog kurira potvrđuje isto (nije samo POST-response
+  artefakt, vrijednosti nisu ni sačuvane).
+
+Znači fix pokriva samo @UserDetail@ stranu (lični podaci), ne i @delivery_company_user@
+pivot stranu (naplata/ugovor) - eskalirano nazad backendu u novom fajlu pitanja
+@14_09_2026_Frontend_pitanja_za_backend_prosirena-forma-kurira.textile@.
+
+*PATCH strana retestovana naknadno* (checklist DIO B, kurir 30742) - identičan nalaz:
+@detail@ i @bank_account@/@note@ rade, ali sva 4 pivot polja i dalje @null@. Pretpostavka
+da je PATCH ostao ispravan (kako je 13.09 originalno opisano, prije ovog POST fixa) NIJE
+tačna - @update()@ je jednako pokvaren kao @store()@ za ova 4 polja.
+
+---
+
+h2. 👁 Upload slike korisnika (@image_path@) - odloženo
+
+Backend ne rješava danas - provjeriće naknadno i javiti konkretan plan.
+
+*Frontend*: bez izmjena - @image_path@ ostaje READ-ONLY prikaz (bez upload UI-ja), tačno
+kako je i predloženo u @14_09_2026_Frontend_pitanja_za_backend.textile@ DIO II. Ostaje
+otvoreno dok backend ne javi plan.

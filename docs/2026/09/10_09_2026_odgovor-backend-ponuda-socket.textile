@@ -1,0 +1,100 @@
+{{toc}}
+
+h1. Backend odgovor: model ponude više kurira + socket (10. septembar 2026)
+
+Backend je odgovorio na @09_09_2026_otvorene-stavke-DETALJNO.textile@ stavke *2.3* i *2.4*.
+Oznake u originalu: *"2.3 Sredjeno"* (sekvencijalna + paralelna ponuda) i *"2.4 Sredjeno"*
+(dodat socket umjesto poll-a). Ovdje je taj odgovor prepisan strukturirano; naša
+integracija je u @10_09_2026_Frontend_implementacija-ponuda-socket.textile@, a nova /
+preostala pitanja u @10_09_2026_Frontend_pitanja_za_backend.textile@.
+
+---
+
+h1. 2.3 Puni model ponude - rute i tok
+
+h2. Rute (ko šta zove)
+
+|_. # |_. Ko |_. Ruta |_. Kad |
+| 1 | dispečer | @GET /dispatcher/orders/{id}/candidate-couriers?delivery_company_id=@ | prije ponude, da vidi rangiranu listu |
+| 2 | dispečer | @POST /dispatcher/orders/{id}/offer@ | jednom, otvara rundu |
+| 3 | dispečer | @GET /dispatcher/orders/{id}/offers@ | *početno stanje* pri otvaranju narudžbe; dalje preko socket-a (2.4) |
+| 4 | kurir | @GET /courier/offers@ | poll fallback dok push ne stigne |
+| 5 | kurir | @POST /orders/{id}/offer-response@ | jednom po ponudi, @accept@ ili @decline@ |
+
+Prelaz *"na sljedećeg kandidata"* nije ruta - radi ga backend sam (@ResolveOfferRound@ job
+na isteku, ili odmah na @decline@).
+
+h2. @POST /dispatcher/orders/{id}/offer@ - telo
+
+bc.. {
+  "courier_ids": [812, 431, 905],
+  "mode": "sequential" | "parallel",
+  "offer_timeout_seconds": 25
+}
+
+p. → @201@, kreira rundu. Ne mijenja vlasništvo narudžbe dok neko ne prihvati.
+→ push @order_offer@ prvom kuriru (sequential) ili svima (parallel).
+→ @ResolveOfferRound@ job (delay @offer_timeout_seconds@ + ~3s).
+
+h2. Sekvencijalna ponuda (@mode: "sequential"@)
+
+# @POST .../offer { courier_ids:[812,431,905], mode:"sequential", offer_timeout_seconds:25 }@
+  → kreira rundu, push @order_offer@ kuriru *812*, zakazan @ResolveOfferRound@ job.
+# Kurir 812 vidi ponudu (@GET /courier/offers@ ili push).
+# *Grana A - kurir 812 odbije:* @POST /orders/{id}/offer-response { action:"decline" }@
+  → 812 = @declined@ → @advanceRound()@ → push @order_offer@ kuriru *431* → novi
+  @ResolveOfferRound@ job.
+# *Grana B - kurir 812 ne odgovori (25s):* nema poziva → job → 812 = @expired@ →
+  push @order_offer@ kuriru *431*.
+# Dispečer @GET /dispatcher/orders/{id}/offers@ → @812: declined/expired@, @431: pending@.
+# Kurir 431 @POST /orders/{id}/offer-response { action:"accept" }@ →
+  @Order::accept()@ (state 2→3) → 431 = @accepted@, runda = @accepted@. Kurir *905*
+  nikad nije ni dobio ponudu.
+
+h2. Paralelna ponuda (@mode: "parallel"@)
+
+Korak 2 isti, samo @mode:"parallel"@ → backend *odmah* šalje @order_offer@ svima
+(812, 431, 905), svi @pending@ sa *istim @expires_at@*.
+* Prvi koji pošalje @POST /orders/{id}/offer-response {accept}@ → @Order::accept()@,
+  ostali @pending@ → @superseded@.
+* Ako svi odbiju / isteknu → runda @exhausted@ → primijeni @assignment_timeout_action@
+  (@OPEN_TO_ALL@ = push svima; inače dispečeru @order_unassigned_timeout@).
+
+h2. Stanja
+
+* *Ponuda po kuriru* (@GET /dispatcher/orders/{id}/offers@, red po kuriru):
+  @{ courier_id, offer_status, offer_expires_at }@.
+  @offer_status@ ∈ @none@ (još nije na redu, sequential) · @pending@ · @accepted@ ·
+  @declined@ · @expired@ · @superseded@ (parallel, neko drugi prihvatio prije njega).
+* *Runda:* @active@ · @accepted@ · @exhausted@ (svi odbili/istekli) · @cancelled@.
+
+---
+
+h1. 2.4 Socket umjesto poll-a
+
+*Prije:* dispečerski board bi zvao @GET /dispatcher/orders/{id}/offers@ svakih ~5-10s dok
+je runda @active@, plus ekstra poziv poslije svakog @offer_expires_at@.
+
+*Sad:*
+# @GET /dispatcher/orders/{id}/offers@ *jednom* kad se otvori narudžba (početno stanje).
+# Pretplata na @orders.{orderId}@, event @.offer.round.changed@ - *payload je identičan
+  REST odgovoru* (@{ offers: [...] }@). Stanje se ažurira iz eventa.
+# @GET .../offers@ ponovo *samo na reconnect* (ako WS padne pa se vrati) - da se uhvati
+  propušteno.
+# Nema više @setInterval@.
+
+h2. Konekcija (iz backend snippet-a)
+
+bc.. REVERB_APP_KEY = 'uqrwfjx8bqxf0qtfhmrt'
+REVERB_HOST      = 'ws.kurir.ordera.app'
+REVERB_PORT      = 443
+scheme           = wss (forceTLS)
+
+p. Klijent: @laravel-echo@ + @pusher-js@, @broadcaster: 'reverb'@.
+Privatni kanal → custom @authorizer@ koji šalje @POST { socket_id, channel_name }@ na
+@/broadcasting/auth@ sa @Authorization: Bearer <API_TOKEN>@.
+
+bc.. echo.private(`orders.${ORDER_ID}`)
+    .listen('.offer.round.changed', (data) => {
+      // data.offers === REST /offers odgovor
+    });

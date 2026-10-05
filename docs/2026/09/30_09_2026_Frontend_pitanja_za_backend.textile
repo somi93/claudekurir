@@ -1,0 +1,234 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja (30. septembar 2026)
+
+Legenda: 🔴 blokira/kvari podatak · 🟠 kvari/ograničava funkciju · 🟡 nejasno/treba potvrda ·
+🟢 niži prioritet
+
+---
+
+h2. 🟠 1. @GET /dispatcher/orders/pending-restaurant-confirmation@ vraća i narudžbe koje NISU za dostavu
+
+*Šta vidimo (uživo 30.09):*
+
+@GET /dispatcher/orders/pending-restaurant-confirmation?delivery_company_id=24&days_back=7&days_forward=7@ → @200@,
+među stavkama u @data[]@ su i narudžbe čiji je @delivery_type != 0@. Primjer:
+
+* @id: 4257@, @restaurant_name: "Roštiljnica Laguna"@, @delivery_type: 2@ (ručak u restoranu),
+  @location: null@, @delivery_price: 1.65@
+* @id: 4258@, @delivery_type: 0@, @location@ popunjen (dostava na adresu) - ovo je ispravna stavka.
+
+Dispečerski ekran "Dodela narudžbi" (tab "Čeka restoran") služi za narudžbe koje kuriri dostavljaju.
+Narudžba tipa 2 (ručak u restoranu), 1 (preuzimanje), 3 (pošta) ili 4 (rezervacija stola) nema šta da
+traži na tom tabu: nema adresu dostave, kurir joj ne može biti dodijeljen, a dispečer je ipak vidi u
+broju na tabu i mora da je prihvati/odbije kao da je dostava.
+
+*Kontekst:* backend je 30.08 (odgovor §2.1) potvrdio rječnik @delivery_type@: @0@ = dostava na adresu,
+@1@ = preuzimanje u restoranu, @2@ = ručak u restoranu (rezervacija), @3@ = slanje poštom,
+@4@ = napušteno (rezervacije stolova - posebna tabela, "ne bi se trebalo pojaviti na ovoj listi").
+Front zato ranije nije filtrirao po tipu i samo prikazuje labelu tipa uz stavku (vidi
+@deliveryTypeMeta@), ali se sad pokazalo da lista sadrži tipove osim @0@.
+
+*Pitanja:*
+
+# Da li je namjerno da ovaj endpoint vraća i tipove @1@/@2@/@3@ (npr. zato što restoran mora da
+  potvrdi i njih), ili je propust u upitu?
+# Ako je propust - može li se filtrirati na strani backenda na @delivery_type = 0@ (ili prihvatiti
+  query parametar, npr. @delivery_type=0@)? Isto pitanje važi i za druge dispečerske liste
+  (@waiting@, @active-deliveries@, @refused@) - ako i one vraćaju tipove osim @0@, treba nam
+  potvrda kako da ih razlikujemo.
+# Ako je namjerno - da li dispečer treba da ih uopšte vidi i akcijama @Prihvati@ / @Odbij@ na njima?
+  Dok ne dobijemo odgovor, front ih ostavlja kako stižu.
+
+---
+
+h2. 🟡 2. Plan cijele runde ponude u @round@ (GET /offers, POST /offer, socket)
+
+Dispečerski ekran "Dodela narudžbi" (prikaz *Tok*) treba da pokaže kako će ići cijela runda: ko se
+trenutno nudi, ko je sljedeći, ko dolazi kasnije i ko je preskočen. Danas front to mora da pogađa iz
+@candidate_ids@ i @offers@, pa je već imao pogrešne prikaze:
+
+* kurir koji je u rundi bio prikazan kao "neće dobiti ponudu",
+* kurir sa @superseded@ u otkazanoj rundi prikazan kao "preskočen".
+
+*Šta danas nedostaje:*
+
+# Redoslijed i grupisanje. Iz @candidate_ids@ i @batch_size@ front pretpostavlja ko je u kojoj grupi,
+  ali nemamo potvrdu.
+# Ko je preskočen i zašto. Razlog stiže samo u odgovoru na @POST /offer@, kao tekst
+  ("Kurir #30576 trenutno vozi drugu dostavu."), a front iz njega parsira ID. GET i socket ga ne
+  nose, pa poslije osvježavanja stranice razlog nestaje.
+# Kad se runda otkaže, ponuda koja je bila aktivna dobija @superseded@. Po dokumentaciji to znači
+  "neko drugi je prihvatio", a ovdje niko nije.
+
+*Prijedlog:* u @data.round@ (isti oblik u POST /offer, GET /offers i socketu
+@.offer.round.changed@) dodati @batches@, niz grupa po redoslijedu slanja:
+
+bc.. "batches": [
+  {
+    "index": 1,
+    "state": "done",
+    "couriers": [
+      { "courier_id": 30584, "state": "expired", "skip_reason": null }
+    ]
+  },
+  {
+    "index": 2,
+    "state": "offered",
+    "offer_expires_at": "2026-09-29T11:34:18+02:00",
+    "couriers": [
+      { "courier_id": 30592, "state": "offered", "skip_reason": null },
+      { "courier_id": 30710, "state": "offered", "skip_reason": null },
+      { "courier_id": 30711, "state": "skipped", "skip_reason": "on_delivery" }
+    ]
+  },
+  {
+    "index": 3,
+    "state": "queued",
+    "couriers": [
+      { "courier_id": 30719, "state": "queued", "skip_reason": null }
+    ]
+  }
+]
+
+p. * Grupa je veličine @batch_size@. Sekvencijalno je @batch_size: 1@, pa je svaka grupa jedan kurir.
+  Paralelno je jedna grupa sa svima.
+* @batches[].state@: @queued@ | @offered@ | @done@.
+* @couriers[].state@: @queued@ | @offered@ | @accepted@ | @declined@ | @expired@ | @superseded@ |
+  @skipped@.
+* @skip_reason@: strukturirana vrijednost (npr. @on_delivery@, @unavailable@,
+  @vehicle_unsuitable@), ne slobodan tekst. Tekst može ostati u top-level @skipped@ radi
+  kompatibilnosti.
+* @offer_expires_at@ na grupi je isti rok za sve u njoj.
+* Front tada ne računa ko je "trenutno" ili "sljedeći" - to se čita iz @state@ grupe.
+
+*Zašto na backendu:* preskakanje može biti dinamično, npr. kurir postane zauzet baš kad njegovoj
+grupi dođe red. Backend to zna u tom trenutku, a front bi samo nagađao.
+
+*Pitanja:*
+
+# Da li kuriri iz iste grupe dobijaju ponudu istovremeno? Ako jedan prihvati, da li ostali iz te
+  grupe postaju @superseded@?
+# Da li se kurir može preskočiti tek kad njegovoj grupi dođe red (poslije slanja runde)? Ako da,
+  da li se tada @state@ mijenja u @skipped@ i šalje kroz socket?
+# Da li se sljedeća grupa bira po redoslijedu iz @candidate_ids@, ili se rangira ponovo pri svakom
+  koraku (@NEXT_NEAREST@)?
+# Kad je runda @canceled@, koji je status ponude koja je bila aktivna? Prijedlog: poseban status
+  (npr. @canceled@) ili @expired@, a ne @superseded@.
+# Šta tačno rade @OPEN_TO_ALL@ i ostale vrijednosti @timeout_action@ kad se sve grupe iscrpe?
+
+---
+
+h2. 🟠 3. @GET /orders/driver/{courierId}@ - fali ukupna cijena (koliko kupac daje kuriru)
+
+*Šta vidimo (uživo 30.09, kurir @30189@, narudžba @4259@):*
+
+U odgovoru je samo @delivery_price: 1.36@ (cijena dostave). Ekran aktivne dostave kuriru prikazuje
+upravo to ("1.36 KM"), ali kuriru je bitno i *koliko para kupac treba da mu preda pri isporuci* -
+a to je ukupan iznos narudžbe, ne samo dostava. U istom odgovoru nema nijednog polja sa ukupnim
+iznosom (hrana + dostava). Uz to je @currency: ""@ (prazan string), pa ni valuta nije poznata.
+
+Trenutni odgovor (skraćeno):
+
+bc.. {
+  "id": 4259,
+  "state": "STATE_BOOKED_DELIVERY",
+  "delivery_type": 0,
+  "currency": "",
+  "delivery_price": 1.36,
+  "restaurant": { ... },
+  "location": { ... }
+}
+
+p. *Prijedlog:* dodati u svaku stavku @data[]@ (i, ako već postoji, u kurirsku ponudu
+@GET /courier/offers@ radi konzistentnosti):
+
+bc.. "total_price": 23.86,
+"amount_to_collect": 23.86,
+"currency": "BAM"
+
+p. * @total_price@ = ukupan iznos narudžbe (hrana + dostava, sa popustima) - informativno.
+* @amount_to_collect@ = iznos koji kurir treba da naplati od kupca pri isporuci. Ako je narudžba
+  već plaćena online/karticom, ovo je @0@. Ovo je polje koje ekran zaista treba da istakne.
+* @currency@ - popunjena stvarna valuta (danas dolazi prazan string).
+
+*Pitanja:*
+
+# Da li postoji već polje koje nosi ukupan iznos ili iznos za naplatu, a samo se ne serijalizuje u
+  ovom endpointu?
+# Kako se razlikuje "plaćeno unaprijed" od "plaća kuriru gotovinom"? Da li je za to dovoljan
+  @amount_to_collect@, ili treba i @payment_method@ (npr. @cash@ / @card@ / @prepaid@)?
+# Zašto je @currency@ prazan string za ovu narudžbu (@4259@)? Da li to znači da valuta dolazi iz
+  drugog izvora (firma/restoran)?
+
+---
+
+h2. 🟡 4. @GET /couriers/{id}/wallet-balance@ - potvrda obračuna za "Kurir plaća restoranu" i efekat po dostavi
+
+_Ova stavka zamjenjuje raniju verziju iz istog dana, u kojoj smo pogrešno tražili da
+@cash_owed_to_company@ raste za cijeli naplaćeni iznos. Ako ste je već pročitali, molimo ignorišite -
+za ovaj način plaćanja današnji obračun je ispravan._
+
+*Šta vidimo (uživo 30.09, kurir @30189@, ekran "Novčanik"):*
+
+@GET /couriers/30189/wallet-balance@ → @cash_owed_to_company: 180.70@, @wage_owed_to_courier: 6.00@,
+@cash_limit_amount: 50.00@.
+
+@GET /couriers/30189/earnings@, @data[]@ - dostave @4258@ i @4261@ imaju
+@payment_type_label: "Kurir plaća restoranu pri preuzimanju"@ i @pay_rate_label: "Po dostavi"@ (natpis
+za @4260@ nismo provjerili):
+
+|_. order_id |_. food_collected |_. delivery_collected |_. collected_from_customer |_. wage |
+| 4258 | 6.8 | 1.36 | 8.16 | 2 |
+| 4260 | 16 | 1.36 | 17.36 | 2 |
+| 4261 | 9.2 | 177.98 | 187.18 | 2 |
+
+Stanje @180.70@ odgovara zbiru *samo cijena dostave* (@177.98 + 1.36 + 1.36@), a ne zbiru naplaćenih
+iznosa (@collected_from_customer@); @6.00@ zarade su @3 × 2.00@. Dostava @4261@ je test narudžba na
+~262 km pa je njena cijena dostave @177.98@ - zato je limit od @50.00@ premašen, a ne zbog obračuna.
+
+*Naš zaključak (nije potvrđen od backenda):* kad kurir plaća restoranu iz svog džepa, hranu koju je
+avansirao mu vraća kupac pri isporuci, pa @cash_owed_to_company@ raste samo za @delivery_collected@. To je
+tačno - tu hranu kurir ne duguje firmi, a da se računa @collected_from_customer@ platio bi je dvaput
+(restoranu i firmi) i stalno bi probijao limit. Komentar u samom @earnings@ odgovoru to i opisuje
+(@payment_type_label@: "kurir avansirao restoranu pa mu se dio naplate poništava"). Zato je na kurirskom
+ekranu "Novčanik" naslov promijenjen u "Duguješ firmi", a lista "Transakcije" više ne prikazuje naplaćeni
+iznos kao promjenu stanja (zeleni "+8.16"), nego "naplaćeno od kupca 8.16 KM (hrana 6.80 + dostava 1.36)".
+
+Uz stavku 3: @amount_to_collect@ ostaje ono što kurir naplaćuje od kupca na vratima (hrana + dostava) i
+nije isto što i saldo gotovine.
+
+*Šta nam fali:* red u @/earnings@ ne kaže koliko je *ta dostava* promijenila saldo gotovine, a front to ne
+može sam izračunati - pravilo zavisi od načina plaćanja, a jedino što imamo je lokalizovan tekst
+@payment_type_label@. Zato lista "Transakcije" ne može da pokaže šta je promijenilo stanje.
+
+*Pitanja:*
+
+# Potvrda: za @payment_type_label: "Kurir plaća restoranu pri preuzimanju"@ @cash_owed_to_company@ raste
+  tačno za @delivery_collected@ (hrana koju je kurir avansirao se poništava) - da li je to namjerno
+  pravilo?
+# Koji još načini plaćanja postoje (vrijednosti i značenje) i kako se za svaki računa
+  @cash_owed_to_company@ (npr. firma plaća restoranu -> cijeli naplaćeni iznos; kartica -> ništa)? Treba
+  nam stabilan ključ (npr. @payment_type@) uz lokalizovani @payment_type_label@, da front ne izvodi
+  obračun iz teksta.
+# Može li svaki red u @GET /couriers/{id}/earnings@ @data[]@ nositi efekat te dostave na saldo gotovine
+  (npr. @cash_effect: 1.36@)? Alternativa je lista knjiženja kurirovog konta (ledger unosi) sa iznosom,
+  vremenom i razlogom.
+# Da li se saldo mijenja pri isporuci ili pri potvrdi plaćanja? Ako pri isporuci - da li se to događa za
+  narudžbe plaćene karticom (očekujemo da ne)?
+
+---
+
+h2. 🟠 5. @POST /courier/location@ vraća @500@
+
+*Šta vidimo (uživo 30.09, kurir @30189@, ekran "Dostave"):* pri otvaranju stranice front šalje dva
+@POST /courier/location@ (prvi brzi/približni fix i prvi precizni GPS fix - namjerno dva), i oba
+dobijaju @500@. Kurir vidi "Ne mogu da pošaljem lokaciju." Payload: @driver_id@, @latitude@,
+@longitude@, @accuracy@, @speed@, @heading@, @altitude@, @battery: null@,
+@status: "online" | "delivering"@, @timestamp@ (ISO).
+
+*Pitanja:*
+
+# Šta je uzrok @500@ (log/stack trace)? Da li neko polje u payload-u pada (npr. @battery: null@,
+  @speed: null@, @altitude: null@, @heading: null@ - browser često šalje @null@ kad nema podatak)?
+# Da li je ovo novo (regresija) ili je bilo i ranije? Ranije je slanje lokacije radilo.

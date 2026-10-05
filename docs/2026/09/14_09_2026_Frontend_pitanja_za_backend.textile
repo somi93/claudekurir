@@ -1,0 +1,117 @@
+{{toc}}
+
+h1. Frontend → backend: proširena forma kurira (14. septembar 2026)
+
+Odvojeno od @13_09_2026_Frontend_pitanja_za_backend.textile@ (konsolidovani dokument od
+13.09) - ovo je nov nalaz iz 14.09, uživo testiranje proširene "Izmeni kurira" / "Dodaj
+kurira" forme (vidi zahtjev 13.09, "Proširena forma za izmjenu korisnika firme za
+dostavu").
+
+Legenda: 🔴 blokira/sigurnost · 🟠 kvari/ograničava funkciju · 🟡 nejasno/treba potvrda ·
+⏳ veći posao · 👁 čeka produkcijsku potvrdu
+
+---
+
+h1. I. 🟠 Kvari / ograničava funkciju
+
+h2. 🟠 Proširena forma "Lični podaci"/"Naplata i ugovor" (13.09) - ne radi ni na POST, ni na PATCH, ni na GET
+
+Proširena forma "Izmeni kurira" + "Dodaj kurira" (13.09, vidi @CourierUpdatePayload@/
+@CourierCreatePayload@ u @types/company-courier.ts@) šalje lične podatke
+(@date_of_birth@, @iban@, @emergency_contact_name@, @emergency_contact_phone@) i
+naplatu/ugovor za firmu (@paying_type@, @paying@, @contract_signed_at@,
+@contract_active_from@ - @bank_account@/@note@ su STARA polja, postoje od 26.08) i na
+@POST /dispatcher/delivery-companies/{companyId}/couriers@ i na
+@PATCH .../couriers/{courierId}@. *Namjerno nismo implementirali nikakav
+POST-pa-PATCH ili slični workaround* - tražimo da svi endpoint-i dobiju identičnu
+podršku (isti raspored polja na @users@/@user_details@/@delivery_company_user@ tabele).
+
+*Potvrđeno uživo 14.09, oba smjera:*
+
+*(a) POST (kreiranje)* - poslato:
+
+<pre>
+{"name":"Milos","lastname":"Petrovic","phone":"065565656","email":"...",
+"temporary_password":"...","vehicle_type":"motorbike","date_of_birth":"1993-09-22",
+"iban":"11-111111-1111","emergency_contact_name":"Kontakt",
+"emergency_contact_phone":"05565658","paying_type":2,"paying":"50",
+"bank_account":"121-15544545-56565","contract_signed_at":"2026-09-08",
+"contract_active_from":"2026-09-14","note":"dsaddsa"}
+</pre>
+
+Odgovor (@201@, kurir 30752) vraća STARI, uzak red - nijedno prošireno polje se ne vidi,
+uključujući i @bank_account@/@note@ (iako su to stara, već podržana polja - i njih
+@store()@ ignoriše):
+
+<pre>
+{"success":true,"data":{"courier_id":30752, ...,
+"contact_phone":null,"bank_account":null,"note":null}}
+</pre>
+
+*(b) PATCH (izmjena, isti kurir 30752)* - poslato:
+
+<pre>
+{"name":"Milos","lastname":"Petrovic","phone":"065565656","vehicle_type":"motorbike",
+"date_of_birth":"1993-09-15","iban":"22-2222222-222","emergency_contact_name":"hitna",
+"emergency_contact_phone":"2144124412","paying_type":1,"paying":"599",
+"bank_account":"111-11111-11","contract_signed_at":"2026-09-08",
+"contract_active_from":"2026-09-13","note":"Napomena2"}
+</pre>
+
+Odgovor (@200@) - @bank_account@/@note@ OVOG PUTA JESU sačuvani (@"111-11111-11"@ /
+@"Napomena2"@, kako i očekujemo od postojećeg @update()@ ponašanja), ali *nijedno od 8
+novih polja* (@date_of_birth@/@iban@/@emergency_contact_name@/
+@emergency_contact_phone@/@paying_type@/@paying@/@contract_signed_at@/
+@contract_active_from@) se ne vidi u odgovoru:
+
+<pre>
+{"success":true,"data":{"courier_id":30752,"name":"Milos Petrovic",
+"first_name":"Milos","last_name":"Petrovic","email":"...","phone":"065565656",
+"suspended":false,"suspended_reason":null,"suspended_at":null,
+"vehicle":{"id":9,"type":"motorbike"},"contact_phone":null,
+"bank_account":"111-11111-11","note":"Napomena2"}}
+</pre>
+
+Naknadni @GET couriers-status@ (16 kurira) potvrđuje isto - @bank_account@/@note@ su
+ažurirani na listi, ali nijedan red nema nijedno od 8 novih polja (ni kao @null@,
+ključevi potpuno izostavljeni). Znači *ni @update()@ (PATCH) trenutno ne perzistira
+nova polja* - suprotno onome što je originalna specifikacija (backend-ov opis
+proširene forme) navela. Samo stara @bank_account@/@note@ i dalje rade kako i prije
+13.09 na oba endpoint-a (PATCH da, POST ne).
+
+# @store()@ i @update()@ trebaju podršku za svih 8 novih polja (@date_of_birth@,
+  @iban@, @emergency_contact_name@, @emergency_contact_phone@, @paying_type@,
+  @paying@, @contract_signed_at@, @contract_active_from@) - trenutno ih OBA tiho
+  ignorišu.
+# @store()@ dodatno treba i staru podršku za @bank_account@/@note@ (PATCH ih već ima,
+  POST ne).
+# @couriers-status@ (index) treba isti prošireni red kao PATCH bi trebalo da vraća,
+  inače dispečer nikad ne vidi sačuvane podatke u "Izmeni kurira" formi čak i pošto
+  backend doda podršku za snimanje.
+# Dok se ne sredi - potvrdite da front treba privremeno da izbaci ovih 8 polja iz
+  obje forme (create i edit), pa dispečer podatke prati van sistema dok backend ne
+  javi da je spremno.
+
+---
+
+h1. II. 🟡 Nejasno / treba potvrda
+
+h2. 🟡 Upload slike korisnika (@image_path@) - kako se radi?
+
+@image_path@ (13.09, vidi @CompanyCourier@ u @types/company-courier.ts@) je na frontu
+trenutno READ-ONLY prikaz putanje u "Izmeni kurira" - nemamo nikakav upload mehanizam
+za njega (provjereno - u cijelom frontend projektu ne postoji nijedan postojeći
+image/file-upload endpoint niti UI, ni za kurire ni za restorane, pa nemamo se na šta
+ugledati). Prije nego što dodamo UI za upload, treba nam od backend-a:
+
+# Da li postoji (ili je planiran) poseban endpoint za upload slike korisnika -
+  @multipart/form-data@ POST/PATCH, koja ruta i koji naziv polja za fajl?
+# Da li je to dio istog "Izmeni kurira" toka (dispečer uploaduje sliku u ime kurira),
+  ili je @image_path@ isključivo nešto što kurir sam postavlja kroz svoju (kurirsku)
+  aplikaciju - pa dispečer treba samo da je VIDI, ne i mijenja?
+# Ograničenja: dozvoljeni formati (jpg/png/...), max veličina fajla, da li backend
+  sam radi resize/kompresiju?
+# Da li je @image_path@ relativna putanja (treba nam base URL da sastavimo puni link
+  za prikaz) ili već pun URL?
+# Odgovor na upload - vraća li se novi @image_path@ odmah, ili front treba re-fetch
+  cijelog reda?

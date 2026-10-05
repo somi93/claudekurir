@@ -1,0 +1,102 @@
+{{toc}}
+
+h1. Frontend → backend: otvorene stavke (4. septembar 2026)
+
+Integrisali smo kompletan odgovor backenda od 01.09 ("Одговори — Дио 1–4"). Ispod je
+*samo ono što ostaje otvoreno* nakon te integracije — grupisano po tome ko je na potezu.
+Zatvorene stavke (1.1 djelimično, 1.2, 1.3, 1.4, 2.1, 2.2, C.1–C.8, D.1, D.2) se ne
+ponavljaju.
+
+@otvorene-stavke-frontend-31-08.textile@ ostaje master tracker; ovo je delta.
+
+Legenda: 🔴 blokira nas · 🟠 kvari / ograničava funkciju · 🟡 nejasno / treba potvrda ·
+⏳ veći posao / druga sesija · 👁 čeka produkcijsku potvrdu
+
+---
+
+h1. 1. NOVO
+
+h2. 🔴 1.1 Valuta firme — treba nam *lista ponuđenih valuta sa API-ja*
+
+Backend je dodao @currency@ na @GET@/@PATCH /dispatcher/delivery-companies/{id}/finance-settings@
+kao *slobodan string* ("KM"). Za dispečerski UI to nije dovoljno — *ne želimo slobodan
+unos*, nego *padajuću listu ponuđenih valuta*. Tu listu mora da vrati backend, front ne
+smije da je hardkoduje.
+
+Konkretno tražimo:
+# *Kanonski set dozvoljenih valuta* — vraćen sa API-ja. Predlog: novo polje u
+  @GET .../finance-settings@ odgovoru, npr.
+  bc. "available_currencies": ["KM", "BAM", "EUR", "RSD"]
+  ili poseban lightweight endpoint (npr. @GET /dispatcher/currencies@), ili u
+  @GET /me@ / config bloku — kako vam je lakše.
+# *Da li je lista globalna ili po firmi / gradu / državi?* (BiH firme vs. RS firme.)
+# *Da li @PATCH@ treba da odbije (@422@) vrijednost van seta?* Ako da, front će računati na
+  server-side validaciju; ako ne, front sam ograničava na listu.
+
+*Privremeno na frontu:* @FinanceSettingsPanel@ ima @GlobalSelect@ s fiksnim setom
+(@KM / BAM / EUR / RSD@) + zadržava eventualnu postojeću vrijednost van seta. Čim stigne
+lista sa API-ja, mijenjamo izvor. Sve ostalo (čitanje @currency@, @PATCH@, provlačenje kroz
+"Cenovnik" + "Kase kurira" + upozorenje o neslaganju valute) je već povezano.
+
+h2. 🟡 1.2 @order_status@ u 409 — treba nam *spisak mogućih vrijednosti*
+
+@POST /orders/{id}/accept@ sad vraća @order_status@ u 409 odgovoru — integrisano, front na
+osnovu njega prikazuje čitljivu poruku umjesto @"Order is no longer available for pickup."@.
+Da mapiranje bude 1:1 (a ne heuristika po normalizovanom ključu), *pošaljite tačan enum*
+mogućih @order_status@ vrijednosti (npr. @on-hold@, @assigned@, @picked_up@, @in_delivery@,
+@delivered@, @cancelled@, @refused@ …) i njihovo značenje.
+
+---
+
+h1. 2. I DALJE OTVORENO — čeka backend (veći posao / druga sesija)
+
+h2. ⏳ 2.1 "Pošalji ponudu" — pun model ponude više kurira (tracker A.5)
+
+@order_status@ u 409 je isporučen (1.2 gore). *Ostaje glavni dio:* accept/decline tok +
+timeout → prebacivanje na sljedećeg kandidata. Bez toga dispečer i dalje ima *jedan
+pokušaj* po narudžbi (svaki naredni @accept@ vraća 409). Vezano za 2.2 i 2.3.
+
+h2. ⏳ 2.2 Prošireni model dodjele narudžbi — stvarna logika (tracker A.3)
+
+Integrisali smo prošireni skup polja iz Uputstva 02.09 (@assignment_mode@ =
+@ALL@/@NEAREST@/@TOP_N@, @assignment_courier_count@, @assignment_timeout_action@,
+@assignment_courier_pool@, @offer_timeout_seconds@) u @FinanceSettingsPanel@ + @PATCH@.
+Stara @BEST_MATCH@ vrijednost se čuva i prikazuje samo firmama koje je već imaju.
+
+*Ostaje:* čuva se kroz @PATCH@, *nema efekta* — nije povezano sa
+@NotifyCouriersOrderAccepted@ Job-om (filtriranje liste po najbližem kuriru + timeout →
+sljedeći kandidat). Panel prikazuje napomenu da nije aktivno dok ne javite da je faza
+spremna. Zahtijeva SSH pristup @api.kurir.ordera@.
+
+h2. ⏳ 2.3 @/earnings@ — @hours_online@ / metrika "po satu" (tracker A.1)
+
+Potvrđeno: @GET /couriers/{id}/earnings@ i dalje ne vraća @hours_online@ / @avg_per_hour@.
+Čeka novi "sesije" sistem (vaša procjena 1.5–2.5h). Kurirska "Ova sedmica" kartica
+prikazuje broj dostava umjesto sati online.
+
+Kad bude gotovo: dodati @hours_online@ u @daily[]@ redove — front agregira po sedmici.
+
+h2. ⏳ 2.4 Push kanal (tracker A.2)
+
+Bez promjene — pollujemo na interval (Dodela narudžbi 5 min, ostalo on-demand). Treba nam
+*push kanal* ili *preporučeni interval* za: nova ponuda kuriru, novi
+@cash-handovers/report@ dispečeru, narudžba dugo čeka kurira, restoran ne prihvata
+narudžbu.
+
+h2. 🟠 2.5 Valuta firme na @my-companies@ / @me@ (tracker A.4)
+
+Za sad neblokirajuće — upozorenje o neslaganju valute radi jer su @RestaurantCooperationPanel@
+i @finance-settings@ na istom ekranu ("Firma"). *Ako* taj panel ikad izađe van tog ekrana,
+treba @currency@ po redu u @GET /dispatcher/my-companies@ i/ili @GET /me@ (nijedno ga sad
+ne vraća).
+
+---
+
+h1. 3. 👁 Čeka produkcijsku potvrdu
+
+h2. D.1 / D.3 — format i pomak vremena
+
+@payouts.created_at@ prešao na ISO + @Z@ (usklađeno s @cash-handovers@). @formatDateTime@
+na frontu barata s oba oblika, nije bilo promjene koda. *Molimo potvrdu s produkcije* da
+nema pomaka u prikazu datuma isplata — i općenito nakon uklanjanja wall-clock workaround-a
+(@ordered_at@, @waiting_minutes@, @minutes_until_delivery@, trajanja).

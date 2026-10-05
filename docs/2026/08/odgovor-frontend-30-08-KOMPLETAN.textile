@@ -1,0 +1,85 @@
+{{toc}}
+
+h1. Одговор на извjeштaj од 30. августа — комплетан преглед
+
+Хвала на детаљном извjeштajу. Испод су одговори на *све* ставке, по вашоj нумерациjи. Свака ставка jе тестирана уживо пре него што jе означена као завршена.
+
+---
+
+h2. 1. Bugovi na backendu
+
+*1.1 Edit kurira — ime se GOMILA na svaki edit* — Разjašnjeno. Backend *исправно* ажурира @name@ и @lastname@ независно, ако *оба* стигну у захтjeву — проблем jе био на *frontend* страни (слање пуног имена у @name@, без слања @lastname@). Договорено: forma треба *два одвоjена* поља (Име, Презиме), и шаље *оба* независно у @PATCH@ захтjeву. Backend не треба измjeну.
+
+*1.2 Три различита облика за исти ентитет* — *Ријешено*. Направљена jе заjедничка @fullCourierRow()@ помоћна метода, коjу сад *све четири* акциjе (@index@/@store@/@toggle@/@update@) користе — идентичан облик одговора укључуjуcи @suspended*@, @vehicle@, @contact_phone@, @bank_account@, @note@.
+
+*1.3 Погрешна рута у тикету #223636* — Потврђено, тачна рута jе @POST /dispatcher/couriers/{courierId}/payout@ (не @/api/couriers/{courierId}/payout@ како jе тикет наводио). Тикет ће бити исправљен.
+
+*1.4 earnings облик* — Потврђено, стваран облик (@total@/@daily@/@data@) остаjе такав. §6 из тикета (weekly агрегати, @hours_online@) остаjе делимично отворено — видjeti 3.3.
+
+---
+
+h2. 2. Nejasno / treba potvrda
+
+*2.1 delivery_type вредности* — Разjašnjeno, потпун mapping:
+@0@ = dostava na adresu, @1@ = preuzimanje u restoranu, @2@ = ručak u restoranu (rezervacija), @3@ = slanje poštom, @4@ = napušteno (rezervacije stolova, posebna tabela — ne bi se trebalo pojaviti na ovoj listi).
+
+*2.2 Серијализациja датума* — Потврђено, @ordered_at@ jе *прави UTC* (тестирано уживо: наруџба направљена у 08:03 локално → @ordered_at: "...T06:03:09.000000Z"@, тачно -2h). Можете *уклонити* wall-clock workaround. Успут исправљено: @date@ поље на @pending-restaurant-confirmation@ jе форматирано као чист датум (@"2026-08-31"@), без збуњуjuće UTC конверзиjе времена.
+
+*2.3 Негативан cash_owed_to_company* — Разjašnjeno. Позитивно = курир дугуje фирми (нормалан случаj). Негативно = курир jе *предао ВИШЕ* него што jе икад наплатио (нпр. dispečer унео већи износ него стваран дуг). Нема доње границе на нивоу формуле, али jе *данас додато упозорење*: ако cash-receipt/payout износ *премашуje* тренутни дуг, одговор укључуje @warning@ поље (не блокира, само упозорава).
+
+*2.4 cash-receipt/payout ефекат + method* — Потврђено: обе акциje *одмах* мjeњаjу баланс (upisuju direktno u ledger). @method@ jе *слободан текст* (нпр. "gotovina", "bankovni transfer" — оба раде).
+
+*2.5 Ситне потврде* — Све потврђено:
+* Ауторизациjа постоjи на свих 5 нових финансиjских рута
+* @daily[].amount@ = збир @data[].wage@ за тaj дан
+* @delivery_collected: null@ = достава ниjе наплаћена купцу (картица, или restoran plaća)
+* @payouts ?from=/?to=@ формат @YYYY-MM-DD@, филтрира по @created_at@
+* @couriers-status phone: null@ jе легитимно (нема обавезног телефона при креирању)
+* @pending-restaurant-confirmation@: @delivery_time@/@delivery_price@ могу бити @null@, намjerno
+* Листе *jesu* искључиве — наруџба напушта "Чека ресторан" чим restoran прихвати
+* "Чека ресторан" таб — *сад ИМА* API акциjу, види DIO 4 испод (ново)
+
+---
+
+h2. 3. Treba uraditi / dodati
+
+*3.1 Klizni prozor* — *Riješeno*. Dodat opcioni @?days_back=@/@?days_forward=@ (default 7/7). Lista pala sa 80+ na realan broj (test podaci iz 2024-2025 se vise ne prikazuju po default-u).
+
+*3.2 contact_phone/bank_account/note u couriers-status* — *Riješeno*, kroz istu @fullCourierRow()@ izmjenu kao 1.2.
+
+*3.3 hours_online* — *Potvrđeno da se NE prati trenutno* (samo trenutni status kroz @DriverLocation.status@, ne istorija online-vremena tokom dana). Ovo zahtijeva nov sistem (tabela "sesija", logika za otvaranje/zatvaranje) — *procjena: 1.5-2.5h posla*, planirano za narednu sesiju. Za sada, molimo *izbacite* "KM/sat" iz UI-ja dok se ne implementira.
+
+*3.4 Vremenski prozor /earnings* — *Riješeno*, opcioni @?from=@/@?to=@ (prosleđuju se internom pozivu, filtriraju direktno u SQL-u).
+
+*3.5 confirmed_by u listi* — *Riješeno*, dodato @confirmed_by@ + @confirmed_by_name@ u obje liste (kurirsku i dispečersku).
+
+*3.6 Dispečerski payouts agregat* — *Riješeno*. Nov @GET /dispatcher/delivery-companies/{companyId}/payouts@, opcioni @?courier_id=@/@?from=@/@?to=@.
+
+*3.7 Regresioni test vremena* — Djelimično potvrđeno kroz 2.2 test (@ordered_at@ tačan UTC). Molimo prijavite ako primijetite bilo šta čudno na produkciji poslije ovih ispravki.
+
+*3.8 Suspendovan kurir sa dugom* — I dalje čeka odgovor od app.ordera tima (logika je na njihovoj strani, van našeg dosega).
+
+*3.9 Currency na nivou firme* — Endpoint za valutu firme *već postoji* (@settings@ JSON, isti kao restoran) — samo treba frontend da počne slati @currency@ ključ. *Poslovno pravilo* (ne tehnički prisiljeno): firma i svi restorani s kojima radi trebalo bi da imaju istu valutu — molimo prikažite upozorenje na klijentskoj strani ako se razlikuju, prije uključivanja saradnje.
+
+*3.10 Push notifikacije* — Zadatak već poslat kolegi ranije (uključuje i "novi cash-handovers/report" i "Čeka restoran" scenarije koje pominjete).
+
+*3.11 Sitna poboljšanja* — Oba riješena: @POST .../couriers@ sad vraća pun red (kroz istu @fullCourierRow()@), @daily_handover_time@ formatiran na @HH:MM@ (bilo @HH:MM:SS@).
+
+---
+
+h2. 4. NOVO — nije bilo u izvještaju, dodato na vaš raniji zahtjev
+
+*Dispečer ručno rješava "Čeka restoran" narudžbu* — za slučaj da restoranska aplikacija ne radi, a restoran telefonski potvrdi da prihvata/odbija:
+
+<pre>
+POST /api/dispatcher/orders/{orderId}/resolve-restaurant-status
+Body: { "action": "accept" | "reject", "note": "опционо" }
+</pre>
+
+Ograničeno samo na @on-hold@ kao polaznu tačku, sa audit tragom (ko je i kada ručno promijenio status).
+
+---
+
+h2. Sledeći korak
+
+Molimo testirajte sve navedeno, posebno DIO 3.1 (klizni prozor) i DIO 4 (nova akcija). Javite ako nešto ne radi kako je opisano.

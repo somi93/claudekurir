@@ -1,0 +1,81 @@
+{{toc}}
+
+h1. Odgovor na "Диспечер: управљање рестoranima фирме" (27. avgust 2026)
+
+Kontekst: @26_08_2026_dispecer-restorani-firme.textile@ opisuje endpoint-e za listu restorana firme i suspenziju saradnje, uz napomenu da su oba endpoint-a *već postojala* i da je jedino novo opcioni @?filter=@ parametar (25.8.2026).
+
+---
+
+h2. (Hitno) @GET .../restaurants@ vraća 404 na produkciji
+
+Testirali smo tab "Saradnja sa restoranima" na pravom nalogu (firma id 24) i dobili:
+
+<pre>
+GET https://api.kurir.ordera.app/api/dispatcher/delivery-companies/24/restaurants
+Status: 404 Not Found
+</pre>
+
+Ovo je *tačno* ruta iz vašeg dokumenta, pozvana sa validnim dispečerskim tokenom (ostali pozivi u istoj sesiji - @finance-settings@, @couriers-status@, @couriers-balance@ - rade normalno, vidi se u istom network tabu). Dokument kaže da endpoint *već postoji* (nije danas napravljen), pa nas 404 dovodi u nedoumicu da li je:
+
+# Ruta zaista upisana u @api.php@ ali firma id 24 nema nijedan povezan restoran pa vraća 404 umjesto prazne liste (u tom slučaju bi ovo bio bug - lista bez rezultata treba @200@ sa @data: []@, ne @404@), ili
+# Ruta stvarno ne postoji na ovom (produkcionom/test) okruženju na koje mi trenutno gađamo, i dokument opisuje nešto što je spremno na drugom okruženju ili tek treba da se deploy-uje.
+
+*Molimo hitnu provjeru* - ovo blokira testiranje svega ostalog u ovom dokumentu (filter, suspenzija), pa dok se ne razriješi ne možemo potvrditi da išta od donjeg zaista radi end-to-end, samo da je kod na frontu ispravno napisan po specifikaciji.
+
+---
+
+h2. Potvrda na nivou koda: frontend već tačno koristi ova dva endpointa
+
+Provjerili smo postojeći kod prije bilo kakve izmjene (napomena: ovo je provjera koda naspram specifikacije, ne uživo test - vidi 404 iznad):
+
+* @app/services/restaurantCooperationService.ts@ - @GET /dispatcher/delivery-companies/{companyId}/restaurants@ i @PATCH /dispatcher/restaurant-delivery-company/{id}@ sa @{ active_restoran }@ telom, tačno kako piše u dokumentu.
+* @app/types/restaurant-cooperation.ts@ - polja @id@, @restaurant_id@, @restaurant_name@, @active_restoran@, @active_company@, @cooperation_active@, @internal@ se poklapaju 1:1 sa vašim primjerom odgovora.
+* @app/components/company/RestaurantCooperationPanel.vue@ (tab "Saradnja sa restoranima" na @/dispatcher/company@) već ispravno prikazuje sve tri kombinacije (isključili mi / isključio restoran / aktivna saradnja) na osnovu @active_restoran@ + @active_company@.
+
+Ništa od ovoga nije bilo pogrešno postavljeno - dokument nas je samo naveo da provjerimo, potvrđeno je da je već ispravno.
+
+---
+
+h2. Šta smo dodali danas
+
+Dodali smo filter "Svi / Aktivni / Suspendovani" iznad liste restorana u istom tabu, po istom obrascu koji već postoji za kurire (@CompanyCouriersPanel.vue@ - pretraga + status select). Semantika filtera prati vaš novi @?filter=@:
+
+* *Aktivni* = @active_restoran = true@
+* *Suspendovani* = @active_restoran = false@
+* *Svi* = bez filtriranja
+
+*Napomena:* ovo je implementirano isključivo na frontu (filtriramo listu koju smo već učitali), a *ne* slanjem @?filter=@ na server. Razlog: endpoint se poziva samo pri otvaranju taba (jedan poziv po izabranoj firmi), lista je po svemu sudeći mala (restorani jedne firme), pa dodatni network round-trip pri svakoj promjeni filtera ne bi donio ništa - isti pristup već koristimo za filter kurira. Ako se pokaže da liste restorana po firmi mogu biti velike, prelazimo na pravi @?filter=@ poziv - vidi pitanje 1 ispod.
+
+---
+
+h2. 1. Da li liste restorana po firmi mogu biti velike?
+
+Pretpostavili smo da je broj restorana povezanih sa jednom firmom za dostavu dovoljno mali da klijentsko filtriranje nema smisla zamjenjivati server-side pozivom. *Molimo potvrdu* - ako postoje firme sa stotinama+ restorana (ili se planira paginacija na ovom endpointu), javite, pa prelazimo na pravi @?filter=@ upit umjesto klijentskog filtriranja.
+
+---
+
+h2. 2. @internal@ restorani - da li dispečer uopšte treba da može da suspenduje saradnju?
+
+@internal: true@ znači da restoran koristi sopstvenu dostavu, ne firmu za dostavu. Trenutno UI i dalje prikazuje isti prekidač (@active_restoran@) i za takve restorane, kao da je saradnja koju firma kontroliše smislena i za njih.
+
+*Molimo potvrdu:* da li PATCH na @restaurant-delivery-company/{id}@ za @internal = true@ vezu uopšte ima efekat (npr. da li se veza sa sopstvenom dostavom restorana ikad prikazuje kuririma firme), ili je prekidač u tom slučaju besmislen i trebalo bi da ga sakrijemo/onemogućimo na frontu za redove gdje je @internal = true@?
+
+---
+
+h2. 3. Razlog suspenzije - tražimo da se doda (ako je moguće)
+
+Dokument pominje da trenutno ne postoji polje za razlog suspenzije i da javimo ako nam treba. Treba nam - imamo tačno isti obrazac već u produkciji za suspenziju kurira (@PATCH .../couriers/{id}/suspend@ prima opciono @reason@, prikazuje se kao "Suspendovan - {razlog}" u @CompanyCouriersPanel.vue@). Radi konzistentnosti UX-a, htjeli bismo isto i ovdje.
+
+*Molimo:* dodajte kolonu (npr. @suspension_reason@, nullable string) koja se postavlja kad @active_restoran@ ide na @false@ preko PATCH-a, i vraća se u GET listi. Ako treba, mi šaljemo predlog imena/oblika polja - javite šta vam više odgovara.
+
+---
+
+h2. 4. Autorizacija - koji status kod kad @id@ ne pripada dispečerovoj firmi?
+
+Ako dispečer pošalje PATCH na @restaurant-delivery-company/{id}@ gdje @id@ pripada vezi neke druge firme (ne one na koju je dispečer vezan) - vraća li se @403@, @404@, ili nešto treće? Trenutno frontend samo prikazuje generičku grešku ("Ne mogu da sačuvam status saradnje.") za bilo koji neuspjeh; ako je ovo poseban slučaj htjeli bismo poseban (jasniji) tekst.
+
+---
+
+h2. 5. PATCH sa dodatnim poljima - ignoriše se ili baca grešku?
+
+Dokument kaže da endpoint *namjerno* prihvata samo @active_restoran@. Ako bismo greškom poslali i @active_company@ (ili neko drugo polje) u istom tijelu - da li se to tiho ignoriše, ili PATCH baca @422@? Ovo je samo radi robusnosti u error handling-u, ne blokira ništa trenutno.

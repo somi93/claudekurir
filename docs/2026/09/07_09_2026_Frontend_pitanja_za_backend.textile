@@ -1,0 +1,166 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja, nejasnoće i zahtjevi (7. septembar 2026)
+
+Kontekst ovog kruga rada (issue pm.bitlab.rs, "upravljanje kuririma"):
+* *"Izmeni kurira"* — dispečer treba da vidi *korisničko ime (email)* kurira i da mu može
+  *postaviti novu lozinku* (read-only polja za ID/email + opciono polje za lozinku).
+* *"Kuriri uživo"* — dugme ka listi svih kurira; u listi/mapi/kartici uživo prikazati
+  *ime + telefon + vozilo* kurira (spojeno iz @couriers-status@ po @courier_id@); pretraga
+  po imenu/telefonu/ID; @#ID@ svuda.
+
+Ovaj dokument je *delta od 04.09* — @otvorene-stavke-frontend-31-08.textile@ ostaje master
+tracker. *DIO 1* je novo (7.09). *DIO 2–3* su prenešene otvorene stavke iz
+@04_09_2026_Frontend_pitanja_za_backend.textile@, sažeto, s pokazivačem — bez ponovnog
+prepisivanja detalja.
+
+Legenda: 🔴 blokira · 🟠 kvari / ograničava funkciju · 🟡 nejasno / treba potvrda ·
+⏳ veći posao / druga sesija · 👁 čeka produkcijsku potvrdu · 🟢 poboljšanje
+
+---
+
+h1. 1. NOVO (7.09)
+
+h2. 🔴 1.1 @couriers-status@ ne vraća @email@ (korisničko ime kurira)
+
+Dispečer u "Izmeni kurira" treba da vidi *korisničko ime kurira = email* da bi znao kome
+mijenja lozinku. Provjereno uživo 07.09 — @GET /dispatcher/delivery-companies/{companyId}/couriers-status@
+red *nema @email@*. Trenutni red (@fullCourierRow()@):
+
+bc. { courier_id, name, first_name, last_name, phone, suspended, suspended_at,
+  suspended_reason, vehicle, contact_phone, bank_account, note }
+
+*Treba:* dodati @email@ (string, korisničko ime za prijavu) u @couriers-status@ red —
+idealno i u odgovor @POST@ / @PATCH .../couriers@ (isti @fullCourierRow@). Dok ne stigne,
+polje "Korisničko ime (email)" u dijalogu je prazno (read-only input).
+
+h2. 🔴 1.2 Kako dispečer mijenja lozinku kuriru? (endpoint NIJE potvrđen)
+
+Zahtjev sa issue-a: dispečer u "Izmeni kurira" treba da može *postaviti novu lozinku*
+kuriru. *Ne znamo kojim putem* — treba nam potvrda/uputa od backenda:
+
+# *Prima li @PATCH /dispatcher/delivery-companies/{companyId}/couriers/{courierId}@ polje
+  @password@* u telu (uz postojeće @name@ / @lastname@ / @phone@ / @vehicle_type@ /
+  @contact_phone@ / @bank_account@ / @note@)? Ako da — vraća li 422 na lošu vrijednost?
+# Ako *ne* — postoji li (ili treba napraviti) *poseban endpoint*, npr.
+  @POST /dispatcher/delivery-companies/{companyId}/couriers/{courierId}/reset-password@
+  sa @{ password }@ (ili sa auto-generisanom lozinkom u odgovoru)? Javite tačan URL +
+  oblik tela/odgovora.
+# *Validacija* — koja pravila za novu lozinku? Front trenutno pretpostavlja @min:8@ (isto
+  kao @temporary_password@ na create-u). Potvrdite dužinu / obavezan broj / veliko slovo.
+# *@must_change_password@* — postavlja li dispečerski reset taj flag na kuriru (kao
+  create), da kurir mora da je promijeni pri sljedećoj prijavi? (Poželjno.)
+# *Aktivne sesije* — poništava li reset postojeće tokene/sesije kurira (odjava sa svih
+  uređaja)?
+# *Obavijest* — pretpostavljamo da sistem *ne* šalje email/SMS (kao create) i da dispečer
+  lozinku prosljeđuje van sistema. Potvrda.
+# *Autorizacija* — smije li svaki dispečer firme resetovati lozinku bilo kom kuriru te
+  firme, ili samo admin? (Front ne skriva dugme — oslanja se na 403.)
+
+*Stanje na frontu:* dijalog ima opciono polje "Postavi novu lozinku" (+ "Generiši");
+kad je popunjeno, @password@ se šalje uz @PATCH .../couriers/{courierId}@. Ako backend to
+polje *ignoriše ili odbija*, funkcija tiho ne radi — čim potvrdite put, prilagodimo
+(drugi endpoint / drugačiji naziv polja).
+
+h2. 🟢 1.3 "Kuriri uživo" na skali (Glovo BL ~500 kurira) — @couriers-status@ kao izvor imena/telefona/vozila
+
+@GET /courier/locations@ vraća *samo* @driver_id@. Da bismo u "Kuriri uživo" prikazali
+ime / telefon / vozilo, front sada povlači cijelu @couriers-status@ listu izabrane firme i
+spaja po @courier_id@ u mapu. Render liste je ograničen na prvih 100 (uz "suzi pretragu").
+
+Pitanja za dugoročno (nije blokada sad):
+# Je li @couriers-status@ OK kao izvor za ovo na 500+ kurira, ili je u planu *lightweight*
+  varijanta (@id, name, phone, vehicle@) / paginacija / server-side pretraga?
+# Idealno bi @/courier/locations@ sam nosio @name@ + @phone@ + @vehicle@ po redu — je li
+  izvodljivo? Time otpada drugi poziv i cross-ref na klijentu. Vezano za *A.2 (push
+  kanal)* — ako lokacije idu preko push-a, enrich bi trebao ići uz njih.
+
+h2. 🟢 1.4 "Obaveštenja" — zbirni pregled poslednje poruke po kuriru (@inbox-summary@)
+
+Na strani "Obaveštenja", sekcija *"Istorija poslatih poruka"* je sad *lista kurira*
+(kao na "Kuriri") — klik na kurira otvara dijalog s njegovom istorijom poslatog
+(@GET /couriers/{id}/inbox@). Želimo da *svaki red liste* nosi *pretpregled* — naslov
+i vrijeme *poslednje poslate poruke* + broj nepročitanih — ali za to nema zbirnog
+endpointa: jedini put je @GET /couriers/{id}/inbox@ *po jednom kuriru* (N poziva, ne
+valja na 100–500+ kurira firme).
+
+*Treba:* @GET /dispatcher/delivery-companies/{companyId}/inbox-summary@ (ili sličan)
+koji vraća red po kuriru:
+
+bc. { courier_id, last_message: { title, sent_at, category, sender } | null,
+  dispatcher_unread_count }
+
+Idealno uz istu paginaciju / server-side pretragu kao @couriers-status@ (vidi 1.3).
+Dok ne stigne — lista ostaje *samo @#ID@ + ime*, a sadržaj/vremena se vide tek u
+dijalogu.
+
+---
+
+h1. 2. I DALJE OTVORENO — čeka backend (nepromijenjeno od 04.09)
+
+h2. 🔴 2.1 Valuta firme — treba *lista ponuđenih valuta s API-ja* (04.09 §1.1 / tracker A.4a)
+
+@currency@ je dodat na @GET@/@PATCH .../finance-settings@ kao *slobodan string*. Za
+dispečerski UI treba *padajuća lista* ponuđenih valuta s API-ja (novo polje
+@available_currencies@ u @finance-settings@ odgovoru, ili @GET /dispatcher/currencies@, ili
+u @/me@ / config bloku). Uz to: je li lista globalna ili po firmi/gradu/državi? Treba li
+@PATCH@ da odbije (422) vrijednost van seta? Privremeno: fiksni set @KM / BAM / EUR / RSD@
+u @FinanceSettingsPanel@.
+
+h2. 🟡 2.2 @order_status@ u 409 — treba *enum mogućih vrijednosti* (04.09 §1.2)
+
+@POST /orders/{id}/accept@ vraća @order_status@ u 409 telu. Za 1:1 mapiranje na čitljivu
+poruku (umjesto heuristike po normalizovanom ključu) treba *tačan enum* (@on-hold@,
+@assigned@, @picked_up@, @in_delivery@, @delivered@, @cancelled@, @refused@ …) + značenje
+svake.
+
+h2. ⏳ 2.3 "Pošalji ponudu" — pun model ponude više kurira (04.09 §2.1 / tracker A.5)
+
+@order_status@ u 409 je isporučen. *Ostaje glavni dio:* accept/decline tok + timeout →
+prebacivanje na sljedećeg kandidata. Bez toga dispečer ima *jedan pokušaj* po narudžbi
+(svaki naredni @accept@ = 409).
+
+h2. ⏳ 2.4 Prošireni model dodjele — stvarna logika (04.09 §2.2 / tracker A.3)
+
+Polja (@assignment_mode@ @ALL@/@NEAREST@/@TOP_N@, @assignment_courier_count@,
+@assignment_timeout_action@, @assignment_courier_pool@, @offer_timeout_seconds@) se
+čuvaju kroz @PATCH@ ali *nemaju efekta* — nisu povezana s @NotifyCouriersOrderAccepted@
+Job-om. Panel prikazuje napomenu da nije aktivno. Zahtijeva SSH pristup @api.kurir.ordera@.
+
+h2. ⏳ 2.5 @/earnings@ — @hours_online@ / metrika "po satu" (04.09 §2.3 / tracker A.1)
+
+@GET /couriers/{id}/earnings@ i dalje ne vraća @hours_online@ / @avg_per_hour@. Čeka novi
+"sesije" sistem. Kad bude: dodati @hours_online@ u @daily[]@ redove (front agregira po
+sedmici).
+
+h2. ⏳ 2.6 Push kanal (04.09 §2.4 / tracker A.2)
+
+Bez promjene — pollujemo na interval (Dodela narudžbi 5 min, ostalo on-demand). Treba nam
+*push kanal* ili *preporučeni interval* za: nova ponuda kuriru, novi
+@cash-handovers/report@ dispečeru, narudžba dugo čeka kurira, restoran ne prihvata
+narudžbu.
+
+h2. 🟠 2.7 Valuta firme na @my-companies@ / @me@ (04.09 §2.5 / tracker A.4)
+
+Neblokirajuće dok je upozorenje o neslaganju valute na istom ekranu (@RestaurantCooperationPanel@
++ @finance-settings@ = "Firma"). Ako taj panel izađe van tog ekrana, treba @currency@ po
+redu u @GET /dispatcher/my-companies@ i/ili @GET /me@.
+
+h2. ⏳ 2.8 Uklonjen / suspendovan kurir s otvorenim dugom (tracker B.1 / 01.09 §1.2)
+
+Čeka tim @app.ordera@. Otvoreno:
+# Je li namjerno da @couriers-balance@ drži i kurire kojih nema u @couriers-status@?
+# Rade li @POST /dispatcher/couriers/{id}/cash-receipt@ i @.../payout@ za takvog kurira
+  (veza firma↔kurir prekinuta)? Ako mogu 4xx — treba flag na redu ili dokumentovana
+  poruka.
+# @couriers-balance@ red nosi *samo* @courier_id@ — može li da uključi @name@ (idealno i
+  @phone@)? Bitno za uklonjene kurire kojima se isplaćuje zaostala zarada.
+
+---
+
+h1. 3. 👁 Čeka produkcijsku potvrdu (04.09 DIO 3 / tracker D.1, D.3)
+
+@payouts.created_at@ prešao na ISO + @Z@ (usklađeno s @cash-handovers@). @formatDateTime@
+barata s oba oblika. *Molimo potvrdu s produkcije* da nema pomaka u prikazu datuma isplata
+i općenito poslije uklanjanja wall-clock workaround-a (@ordered_at@, @waiting_minutes@,
+@minutes_until_delivery@, trajanja).

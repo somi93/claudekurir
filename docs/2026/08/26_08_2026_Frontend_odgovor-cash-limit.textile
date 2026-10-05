@@ -1,0 +1,119 @@
+{{toc}}
+
+h1. Odrađeno na frontendu + nova pitanja za backend, cash limit (26. avgust 2026)
+
+Kontekst: @26_08_2026_odgovori-cash-limit.textile@ je vaš odgovor na naših 8 pitanja od 25. avgusta o limitu gotovine. Ispod je šta smo uradili na osnovu tog dokumenta danas, i pitanja koja su ostala otvorena - uključujući jedno novo, dosta bitno, otkriveno dok smo prolazili kroz kod prije izmjene.
+
+---
+
+h2. Šta smo odradili (frontend TODO iz tačke 5)
+
+* @FinanceSettingsPanel.vue@: dodat switch "Ograniči gotovinu" iznad polja za @cash_limit_amount@. Isključen → šaljemo @cash_limit_amount: null@ na PATCH, polje je disabled. Uključen → polje je aktivno, prazna vrijednost nije dozvoljena, @0@ je validna eksplicitna vrijednost.
+* @types/finance-settings.ts@: @cash_limit_amount@ je sad tipiziran kao @number | null@ (bilo je @number@) i u @FinanceSettings@ i u @FinanceSettingsUpdate@.
+* Forma sad validira lokalno prije slanja (@v-form@ + pravilo za ovo polje), umjesto da se oslanjamo samo na server.
+
+Nismo dirali ništa vezano za @accept()@ odgovor ili @wallet-balance@ (tačke 2 i 4) - to su vaše TODO stavke, čekamo da polja stvarno stignu prije nego što gradimo UI na njima.
+
+Tačke 1, 3, 6 i 8 iz vašeg odgovora - ponašanje je tačno ono na šta smo se već oslanjali, ništa se ne mijenja na frontendu.
+
+---
+
+h2. (Hitno, bezbjednosno) Neautentifikovani poziv na zaštićenu rutu vraća pun stack trace
+
+Dok smo probali @wallet-balance@ bez tokena da provjerimo da li ruta postoji, dobili smo:
+
+<pre><code class="json">HTTP 500
+{
+  "message": "Route [login] not defined.",
+  "exception": "Symfony\\Component\\Routing\\Exception\\RouteNotFoundException",
+  "file": "/var/www/kurir/htdocs/web-dostavljaci/vendor/laravel/framework/.../UrlGenerator.php",
+  "trace": [ "...pun stack trace sa apsolutnim putanjama na serveru..." ]
+}</code></pre>
+
+Za poređenje, poziv na potpuno nepostojeću rutu vraća čist @404@ ("could not be found") bez trace-a - znači ruta postoji i registrovana je, samo je autentifikacija loše podešena za API kontekst.
+
+Dva odvojena problema koja smo ovim otkrili:
+
+* *@APP_DEBUG@ izgleda uključen na produkciji* - svaka neuhvaćena greška (ne samo ova) vraća pun Laravel stack trace sa apsolutnim server putanjama, imenima middleware klasa i verzijom framework-a, bilo kom neautentifikovanom pozivaocu.
+* *@auth:api@ middleware pokušava redirect na named rutu @login@* kad request nije autentifikovan (ponašanje tipično za web sesije, ne za API guard) - ta ruta ne postoji za API, pa umjesto čistog @401 {"message":"Unauthenticated."}@ puca u 500.
+
+*Molimo:* provjerite/isključite @APP_DEBUG@ na produkciji i ispravite @auth:api@ da vraća čist 401 JSON umjesto redirect pokušaja. Ovo nije vezano za cash limit, ali smo naleteli na njega usput pa prijavljujemo odmah.
+
+---
+
+h2. 1. (Novo, prioritet) @/orders/{orderId}/accept@ naspram @/delivery/{deliveryId}/accept@ - da li su ovo dva različita endpointa?
+
+Vaš odgovor na tačku 1 kaže: *"Тачан endpoint за измјену: @DeliveryTrackingController@accept@ (@POST /delivery/{deliveryId}/accept@) — потврђено из @api.php@."*
+
+Mi trenutno (i uspješno, već u produkciji) zovemo @POST /orders/{orderId}/accept@ - i za kurira koji sam prihvata (@courierOrdersService.acceptOrder@), i za dispečera koji šalje ponudu u ime kurira (@candidateCouriersService@). Ovo je i dokumentovano u vašoj ranijoj analizi (@16_08_2026_Kompletna_analiza_projekta.md@: "@POST /orders/:id/accept|pickup|deliver@").
+
+*Molimo potvrdu* da li je @/delivery/{deliveryId}/accept@ iz vašeg odgovora:
+
+# ista ruta kao @/orders/{orderId}/accept@, samo opisana preko imena kontrolera (@DeliveryTrackingController@ je vezan na @orders/{orderId}/accept@ u @api.php@) - ili
+# stvarno druga, zasebna ruta sa drugačijim parametrom. Ako je ovo slučaj, treba nam da znamo da li je @deliveryId === orderId@ (isti broj, drugo ime) ili potpuno drugi identifikator, i da li strukturirana polja iz tačke 2 uopšte stižu na endpoint koji mi zovemo.
+
+Ovo nam je prioritet prije testiranja tačke 2 - ne želimo da čekamo nova polja na pogrešnom endpointu.
+
+---
+
+h2. 2. Kad @current_cash_amount@/@cash_limit_amount@ stvarno stignu na @accept()@ - stižu li i kad NEMA upozorenja?
+
+Primjer u vašem odgovoru pokazuje oba polja uz @message@ kad je kurir preko limita (i 409 i warning slučaj). Nije nam jasno da li ista polja stižu i na običan uspješan @accept()@ (kurir ispod limita, firma bez limita, ili narudžba plaćena karticom) - kao @null@, ili se uopšte ne dodaju van "preko limita" slučaja.
+
+*Molimo:* potvrdite oblik odgovora za sva tri slučaja (ispod limita / preko limita NOTIFY_ONLY / preko limita BLOCK), da polje tipiziramo ispravno kao opciono ili nullable, i javite kad je spremno za test na test okruženju.
+
+---
+
+h2. 3. @wallet-balance@ proširenje (tačka 4) - okvirni rok?
+
+Ovo direktno otvara naš prvobitni zahtjev (kurir da vidi svoj limit/stanje unaprijed, umjesto da prvi put sazna kroz 409/warning usred smjene). Čim @cash_limit_amount@/@cash_limit_enforcement@ stignu na @GET /couriers/{courierId}/wallet-balance@, gradimo trajni indikator na kurirskom ekranu (npr. "42/50 KM").
+
+*Potvrđeno uživo (26.08, network tab, pravi kurir nalog):* endpoint danas vraća tačno
+
+<pre><code>{
+  "success": true,
+  "cash_owed_to_company": 38.5,
+  "wage_owed_to_courier": 34
+}</code></pre>
+
+Ravan objekat, bez @data@ wrappera. @cash_limit_amount@/@cash_limit_enforcement@ zaista još nisu tu - potvrđuje da je tačka 4 još otvorena na vašoj strani, ne nešto što smo mi pogrešno zvali.
+
+*Molimo:* okvirni rok za dodavanje ta dva polja, i molimo da nas obavijestite kad je gotova autorizaciona provjera iz vašeg "Новооткривено" odjeljka (da li @CourierWalletBalanceController@ interno provjerava vlasništvo @courierId@-ja). Prije nego što svaki kurir počne da poziva ovaj endpoint sa svog ekrana, želimo potvrdu da jedan kurir ne može da vidi/pogodi balans drugog kurira mijenjajući @courierId@ u URL-u.
+
+---
+
+h2. 4. Da li PATCH @finance-settings@ prihvata eksplicitni @cash_limit_amount: null@ da ukloni limit?
+
+Naš novi switch (tačka 5) šalje @cash_limit_amount: null@ kad dispečer isključi limit. Vaš dokument potvrđuje ponašanje READ strane (@0@ nije isto što i @null@), ali ne i da li PATCH validacija dozvoljava @null@ kao vrijednost za ovo polje - nasuprot izostavljanju polja iz tijela zahtjeva, što bi po Laravel konvenciji značilo "ne diraj postojeću vrijednost".
+
+*Molimo potvrdu* da @{"cash_limit_amount": null, ...}@ na PATCH-u uspješno postavlja "bez limita", a ne da baca @422@ ili se tiho ignoriše.
+
+---
+
+h2. 5. Status provjere sa tačke 7 (migracija @cash_limit_enforcement@)?
+
+Pitamo samo da znamo da li već možemo da testiramo end-to-end na test okruženju, ili čekamo deploy/migraciju sa vaše strane.
+
+---
+
+h2. 6. Status DELETE upita i @UNIQUE@ ograničenja sa tačke 8?
+
+Prihvatamo odluku "kurir = tačno jedna firma". Da li je DELETE upit za test red (@user_id = 10568@, @delivery_company_id = 2@) već izvršen na produkciji, i da li je @UNIQUE@ ograničenje na @user_id@ već dodato u @delivery_company_user@? Ako još nije dodato, postoji li rizik da se u međuvremenu doda još jedan red sa dvije firme dok ograničenje ne stigne?
+
+---
+
+h2. (Novootkriveno) Stari @/couriers/{courierId}/wallet@ endpoint - da li je uopšte povezan sa ledger sistemom?
+
+Dok smo prolazili kroz kod prije izmjene tačke 5, primijetili smo da kurirski ekran "Novčanik" (@app/pages/courier/wallet.vue@) trenutno *uopšte ne koristi* @wallet-balance@ (ledger @cash_owed_to_company@). Umjesto toga:
+
+* Zove @GET/POST /couriers/{courierId}/wallet@ i @PUT/DELETE /wallet-transactions/{id}@ - listu transakcija koje kurir sam ručno unosi (iznos + naziv restorana + vrijeme), polja @id@, @amount@, @restaurant_name@, @received_at@.
+* Stanje na ekranu je klijentski zbir tih ručno unijetih transakcija, upoređen sa hardkodovanim @DAILY_CASH_LIMIT = 200@ u frontend kodu - potpuno nezavisno od firminog @cash_limit_amount@ i od pravog ledger salda.
+
+Ovo djeluje kao stariji sloj koji ne zna ništa o ledger sistemu iz vašeg odgovora na tačku 1 (@LedgerAccount@/@LedgerEntry@, saldo se računa uživo, nikad se ne čuva kao poseban broj).
+
+*Molimo razjašnjenje:*
+
+* Da li @/couriers/{courierId}/wallet@ (lista + POST/PUT/DELETE transakcija) uopšte postoji na pravom backendu danas, ili je ovo ostatak ranije mock faze?
+* Ako postoji - čemu služi paralelno sa @wallet-balance@/ledgerom? Treba li kurir ručno da prijavljuje svaku primljenu gotovinu (pa se to nešto upoređuje), ili je @wallet-balance@ jedini izvor istine i ovaj ekran treba zamijeniti njime?
+
+Ne diramo ovaj ekran dok ne potvrdite - trenutno prikazuje broj (200 KM) koji nema nikakve veze sa pravim limitom firme, što je zbunjujuće za kurira ako firma ima, na primjer, @cash_limit_amount = 20@.

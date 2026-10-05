@@ -1,0 +1,253 @@
+{{toc}}
+
+h1. Otvorene stavke ⏳ - detaljno objašnjenje za backend (9. septembar 2026)
+
+Backend je javio da im *⏳ stavke iz @09_09_2026_Frontend_pitanja_za_backend.textile@ nisu
+skroz jasne*. Ovdje je svaka razložena: šta front *sada* radi (konkretno - fajl / endpoint
+/ interval), šta tačno *nedostaje ili nije jasno*, *konkretan predlog ugovora*, i *zašto je
+bitno / šta ne radi bez toga*.
+
+Redoslijed prati questions doc: *2.3*, *2.4*, *2.5*, *2.6*, *2.8*.
+
+*AŽURIRANO 10.09:* backend je odgovorio na *2.3* (model ponude) i *2.4* (socket umjesto
+poll-a) - vidi @10_09_2026_odgovor-backend-ponuda-socket.textile@. Frontend infrastruktura
+je odrađena (@10_09_2026_Frontend_implementacija-ponuda-socket.textile@); preostala pitanja
+(oblici odgovora, auth kanala, cancel runde, @/courier/offers@ oblik) su u
+@10_09_2026_Frontend_pitanja_za_backend.textile@ DIO A. Sekcije 2.3 / 2.4 ispod su
+*istorijski kontekst* - ostaju dok se nova implementacija ne provjeri uživo.
+
+---
+
+h1. ⏳ 2.3 "Pošalji ponudu" - pun model ponude više kurira
+
+h2. Šta front sada radi
+
+Ekran *"Dodela narudžbi"* (@app/pages/dispatcher/assignment.vue@):
+* @DispatchBoardPanel@ - board sa listama: *Čeka kurira* / *Čeka restoran* / *Aktivne
+  dostave* / *Odbijene*. Poll na *5 min* (@useDispatchBoard.ts@, @REFRESH_MS@) - eksplicitno
+  zamišljen kao fallback ekran za izuzetke, ne primarni tok.
+* @CandidateCouriersPanel@ ("Predloženi kuriri") - dispečer unese/klikne ID narudžbe →
+  @GET /dispatcher/orders/{orderId}/candidate-couriers?delivery_company_id=X@ → *rangirana
+  lista* (@CandidateCourierDto@: @courier_id@, @name@, @vehicle@, @distance_km@, @zone@,
+  @vehicle_suitable@, @currently_available@, @on_delivery@). Backend rangira; front nudi
+  re-sort po udaljenosti + filtere (status, vozilo) *klijentski*. Auto-refresh liste *20 s*
+  (@useCandidateCouriers.ts@, @AUTO_REFRESH_MS@).
+* Dugme *"Pošalji ponudu"* po kuriru → @POST /orders/{id}/accept@ sa @{ driver_id }@ -
+  *isti endpoint koji kurir sam zove* kad prihvati narudžbu iz aplikacije
+  (@App\Modules\GpsTracking@, van dispatcher API-ja).
+* 409 handling: čita @order_status@ iz tela → mapira na čitljivu poruku
+  (@ORDER_STATUS_MESSAGES@ u @useCandidateCouriers.ts@). Board-lista se unakrsno provjerava
+  pa se dugme *unaprijed gasi* za @waiting_restaurant@ / @assigned@ / @refused@.
+
+h2. Šta tačno nedostaje / nije jasno
+
+@POST /orders/{id}/accept@ je *tvrda dodjela / prihvatanje u ime kurira*, ne "pošalji
+ponudu":
+* *Prvi klik na bilo kog kandidata odmah "potroši" narudžbu.* Svaki naredni klik (drugi
+  kurir) → *409*. Dispečer ima *jedan pokušaj po narudžbi*.
+* Cijeli UI ("rangirana lista", "niko nije isključen sa liste", "Pošalji ponudu") je
+  dizajniran oko *offer modela*: kurir dobije *push*, u aplikaciji *prihvati/odbije*; na
+  odbijanje ili *timeout* ponuda ide *sljedećem kandidatu*.
+* Nema endpointa za: (a) *slanje ponude* bez tvrde dodjele, (b) *stanje ponude*
+  (@pending@ / @accepted@ / @declined@ / @expired@), (c) *prelazak na sljedećeg* na
+  timeout.
+
+h2. Konkretan predlog ugovora
+
+# @POST /dispatcher/orders/{orderId}/offer@ - telo
+  @{ courier_ids: number[], mode: "sequential" | "parallel", offer_timeout_seconds?: number }@.
+  Kreira ponudu(e); kurir(i) dobiju push @type: "order_offer"@ (vidi 2.6). Ne mijenja
+  vlasništvo narudžbe dok neko ne prihvati.
+# *Stanje ponude* - ili novo polje na @candidate-couriers@ redu, ili
+  @GET /dispatcher/orders/{orderId}/offers@ → po kuriru:
+  @{ courier_id, offer_status: "none"|"pending"|"accepted"|"declined"|"expired",
+  offer_expires_at }@. Front time prikazuje na board-u/listi "ponuđeno kuriru X, ističe za
+  Ys" i disejbluje dupli klik.
+# *Kurirska strana* - kurir prihvata/odbija *ponudu* (odvojeno od današnjeg self-serve
+  @accept@). Komponente već postoje: @app/components/courier/DeliveryOffers.vue@,
+  @OrderOfferDetail.vue@ - trebaju im objekt ponude + @accept@/@decline@ rute.
+# *Timeout* - auto-prelazak na sljedećeg (@sequential@) ili prvi-koji-stigne
+  (@parallel@), vezano za @assignment_timeout_action@ iz 2.4.
+
+Dok ovo ne stigne, front ostaje na jednokratnom @accept@ + heuristici (board-cross-check).
+
+h2. Zašto je bitno
+
+Bez offer modela dispečer *ne može* ponuditi narudžbu drugom kuriru ako prvi ne odgovori -
+nema izlaza iz "zaključanog" stanja osim čekanja da narudžba istekne. Vezano za *2.4*
+(ista offer/timeout logika) i *2.6* (push "nova ponuda kuriru").
+
+---
+
+h1. ⏳ 2.4 Prošireni model dodjele - stvarna logika
+
+h2. Šta front sada radi
+
+@FinanceSettingsPanel.vue@ ("Firma → Finansijske postavke") čuva kroz
+@PATCH .../finance-settings@ pun skup polja (integrisan iz "Uputstvo 02.09"):
+* @assignment_mode@: @ALL@ / @NEAREST@ / @TOP_N@ (stara @BEST_MATCH@ se nudi samo firmama
+  koje je već imaju)
+* @assignment_courier_count@ (1-50, šalje se samo za @TOP_N@)
+* @assignment_timeout_action@: @NEXT_NEAREST@ / @OPEN_TO_ALL@ (vidljivo za
+  @NEAREST@/@TOP_N@)
+* @assignment_courier_pool@: @ALL_ACTIVE@ / @AVAILABLE_NOW@ / @SCHEDULED_SHIFT@
+* @offer_timeout_seconds@ (5-120)
+
+Sva polja se snimaju i čitaju nazad ispravno. Panel prikazuje napomenu: *"Podešavanje se
+čuva, ali još nema efekta na stvarnu dodelu - biće aktivirano u zasebnom koraku."*
+
+h2. Šta tačno nedostaje / nije jasno
+
+Ta polja *nemaju runtime efekat*. Nisu povezana s logikom/job-om koji obavještava kurire
+kad narudžba postane dostupna (@NotifyCouriersOrderAccepted@ iz ranijih odgovora).
+*Trenutno svaki aktivni kurir firme praktično vidi svaku narudžbu* (ponašanje @ALL@),
+bez obzira šta je snimljeno.
+
+"Stvarna logika" znači: kad narudžba postane dostupna, backend treba da
+# napravi skup kandidata po @assignment_courier_pool@
+# poreda po udaljenosti
+# po @assignment_mode@: obavijesti sve (@ALL@) / najbližeg 1 (@NEAREST@) / najbližih N
+  (@TOP_N@)
+# sačeka @offer_timeout_seconds@; na "niko nije odgovorio" primijeni
+  @assignment_timeout_action@ (@NEXT_NEAREST@ / @OPEN_TO_ALL@)
+
+Ovo je *automatski tok dodjele* (kuriri sami prihvataju), paralelan s ručnim "Pošalji
+ponudu" iz 2.3 - *oba trebaju iste offer/timeout primitive*.
+
+h2. Šta nam treba od backenda
+
+# *Kada je planirano* (ranije rečeno da traži SSH pristup @api.kurir.ordera@).
+# Da li @NEAREST@/@TOP_N@ koriste *iste objekte ponude* kao 2.3 - da front na board-u može
+  prikazati "narudžba trenutno ponuđena kuriru X, ističe za Ys".
+# Bilo kakva preimenovanja/dopune polja kad se implementira, da uskladimo panel.
+
+Do tada napomena u panelu ostaje.
+
+h2. Zašto je bitno
+
+Firma koja podesi "samo najbliži" ili "top 3" očekuje da to *radi*. Sad se snimi i
+ignoriše - dispečer misli da je konfigurisao dodjelu, a ona je i dalje "svi vide sve".
+
+---
+
+h1. ⏳ 2.5 @/earnings@ - @hours_online@ / metrika "po satu"
+
+h2. Šta front sada radi
+
+@GET /couriers/{id}/earnings?from=@ → @{ success, total, daily: [{date, amount,
+deliveries}], data: [{order_id, wage, ...}] }@ (@app/types/earnings.ts@). Model
+@DailyEarnings@ = @{ date, deliveries, earnings }@ - @hoursOnline@ je *izbačen* iz modela
+jer ga endpoint ne vraća.
+
+@app/pages/courier/earnings.vue@ + "Ova sedmica" kartica prikazuju *broj dostava*, ne sate
+online / KM po satu. Kartice *"Sati online"* i *"Prosek po satu"* su *uklonjene 29.08* jer
+nije bilo podatka (stranica je rušila na @undefined.toFixed@).
+
+h2. Šta tačno nedostaje / nije jasno
+
+*Online-vrijeme se nigdje ne prati* (potvrđeno ranije). Čeka se novi *"sesije"* sistem
+(vaša procjena 1.5-2.5 h posla).
+
+h2. Šta nam treba kad sesije budu gotove
+
+# @hours_online@ (broj) *po redu u @daily[]@* - navedite jedinicu (sati kao decimala? ili
+  @minutes_online@ kao integer?). Front agregira po sedmici/mjesecu i vraća "Sati online" +
+  "KM/sat" (prosjek) kartice.
+# Opciono @avg_per_hour@ pre-računat - ali @hours_online@ po danu je dovoljno.
+# Sitno: je li @total@ / @daily@ već vremenski ograničen *samo* @?from=@ parametrom, ili
+  ima i gornju granicu?
+
+h2. Zašto je bitno
+
+Čisto *dodatna* funkcija - ništa se ne kvari, samo "Zarada" ekran ostaje bez metrike po
+satu koju je mockup tražio. Nije hitno; navedeno da se ne izgubi.
+
+---
+
+h1. ⏳ 2.6 Push kanal
+
+h2. Šta front sada radi (VAŽNO: cijev već postoji)
+
+* FCM web push je *povezan*: @app/plugins/push.client.ts@ + @app/composables/usePushNotifications.ts@
+  registruju device token preko @POST /push-tokens@
+  (@{ token, name: "web", kind: "ordera-e6eb8" }@) za *svakog ulogovanog korisnika*
+  (kurir ili dispečer), odmah po prijavi i svakih sat vremena. Service worker
+  @public/firebase-messaging-sw.js@.
+* Foreground handler (@onMessage@) prikaže alert iz @payload.notification.title/body@ i
+  *već grana po @payload.data.type@* - jedino @cash_limit_reached@ je posebno obrađen
+  (→ warning toast umjesto info).
+
+*Dakle prijem radi.* Nedostaje: (a) da backend *šalje* poruke za događaje ispod, (b)
+*dokumentovan katalog* @data.type@ vrijednosti + oblik payload-a, da front može da
+*odreaguje* (odvede na narudžbu, osvježi listu, pravi toast) a ne samo da ispiše tekst.
+
+h2. Trenutni polling intervali (fallback jer nema event push-a)
+
+|_. Gdje |_. Fajl |_. Interval |
+| Dispečer "Kuriri uživo" (lokacije) | @pages/dispatcher/index.vue@ | *15 s* |
+| Dispečer "Dodela narudžbi" board | @useDispatchBoard.ts@ | *5 min* |
+| "Predloženi kuriri" lista | @useCandidateCouriers.ts@ | *20 s* dok je otvoren |
+| Kurir - narudžbe (dostupne + moje) | @useCourierOrders.ts@ | *15 s* |
+| Kase kurira / "Čeka restoran" / zarada | - | samo on-demand |
+
+h2. Događaji za koje nam treba push (svaki s @data.type@ + minimalnim payload-om)
+
+# *Nova ponuda kuriru* - @type: "order_offer"@, @order_id@, @expires_at@. Kurirska app
+  otvara ponudu. Vezano za 2.3/2.4. *Otvoreno od 14.08.*
+# *Novi @cash-handovers/report@ dispečeru* - @type: "cash_handover_reported"@,
+  @courier_id@, @handover_id@, @amount@. Dispečerski wallet / "Kase kurira" refresh + toast.
+# *Narudžba predugo čeka kurira* - @type: "order_unassigned_timeout"@, @order_id@,
+  @waiting_minutes@. Board highlight.
+# *Restoran ne prihvata narudžbu* - @type: "order_pending_restaurant"@, @order_id@,
+  @waiting_minutes@. Tab "Čeka restoran".
+
+h2. Šta nam treba od backenda (jedno od)
+
+* *Implementirati slanje* za 4 događaja gore + *dokumentovan @data.type@ enum* i payload
+  po tipu; ili
+* *Preporučeni polling interval po događaju* ako push neće skoro (da prestanemo da
+  nagađamo - je li 15 s za lokacije preagresivno na 500 kurira? je li 5 min za board
+  prespor?).
+* Potvrda da *dispečerske web sesije dobijaju upotrebljiv device token* (plugin ih
+  registruje; cilja li backend @kind@ / ulogu = dispečer pri slanju?).
+
+h2. Zašto je bitno
+
+Sve "na vrijeme" ponašanje aplikacije (nova ponuda, pazar prijavljen, narudžba visi)
+trenutno zavisi od intervala koje smo *mi proizvoljno* postavili. Na skali (Glovo BL ~500
+kurira) 15 s poll lokacija je ~2000 poziva/min samo za taj ekran.
+
+---
+
+h1. ⏳ 2.8 Uklonjen / suspendovan kurir s otvorenim dugom
+
+h2. Šta front sada radi
+
+* @GET /dispatcher/delivery-companies/{companyId}/couriers-balance@ → redovi
+  @{ courier_id, name?, phone?, cash_owed_to_company, wage_owed_to_courier }@. Od 01.09
+  redovi nose @name@/@phone@ (JOIN na @users@) - dodano baš za *"orphan"* kurire koji su u
+  balansu ali ih *NEMA u @couriers-status@* (otpušten / prebačen kurir s otvorenim
+  stavkama). *Ovaj dio je gotov, hvala.*
+* @CompanyWalletPanel@ "Detalji kurira" modal → "Primio sam gotovinu"
+  (@POST /dispatcher/couriers/{id}/cash-receipt@) + "Isplati zaradu"
+  (@POST /dispatcher/couriers/{id}/payout@). Na 404
+  (@"Kurir nije nikad bio povezan sa ovom firmom za dostavu."@) front prikaže serversku
+  poruku.
+
+h2. Šta tačno nije jasno (čeka tim @app.ordera@)
+
+# *Namjerno?* - da @couriers-balance@ drži kurire kojih više nema u @couriers-status@ (da
+  dug ne nestane iz vida)? Ranije potvrđeno "da" - tražimo *potvrdu baš za
+  uklonjen/suspendovan* slučaj.
+# *Rade li @cash-receipt@ i @payout@* za takvog kurira kad je veza firma↔kurir *raskinuta*?
+  Vidjeli smo 404 *samo* kad veza *nikad* nije postojala. Za vezu koja je *postojala pa
+  uklonjena* - prolazi li poravnanje? Ako može 4xx, treba nam *ili* @link_active: boolean@
+  na balans redu (front disejbluje dugmad + objasni) *ili* dokumentovana poruka greške.
+# Može li kurir i dalje slati @cash-handovers/report@ s mobilne *nakon* uklanjanja iz
+  firme? (Utiče na to da li se dug uopšte može smanjiti s kurirske strane.)
+
+h2. Zašto je bitno
+
+Dispečer koji poravnava zaostali dug s bivšim kurirom mora da zna hoće li akcija proći ili
+pasti s jasnim razlogom. Sad su dugmad *uvijek aktivna* a ponašanje *netestirano* za taj
+slučaj.

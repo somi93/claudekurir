@@ -1,0 +1,37 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "sender": "dispatcher",
+      "title": "Pojačana potražnja večeras u Centru",
+      "body": "Očekujemo veliki broj porudžbina od 18h do 21h u zoni Centar. Ako imaš slobodnog vremena, razmisli o rezervaciji večernje sesije - trenutno nosi oznaku visoke potražnje.",
+      "sent_at": "2026-07-31T11:00:00.000Z",
+      "read": false
+    },
+    {
+      "id": 2,
+      "sender": "platform",
+      "title": "Novi kvest: 15 dostava ove nedelje",
+      "body": "Odradi 15 dostava do nedelje i osvoji bonus od 20 KM. Progres možeš pratiti na stranici Kvestovi.",
+      "sent_at": "2026-07-31T07:00:00.000Z",
+      "read": false
+    },
+    {
+      "id": 3,
+      "sender": "dispatcher",
+      "title": "Izmena zone za sutrašnju jutarnju sesiju",
+      "body": "Zbog radova na putu, jutarnja sesija (09:00-13:00) premešta početnu zonu iz Ilidže u Novo Sarajevo. Sesija ostaje ista, menja se samo mesto starta.",
+      "sent_at": "2026-07-30T16:00:00.000Z",
+      "read": true
+    },
+    {
+      "id": 4,
+      "sender": "platform",
+      "title": "Nova verzija aplikacije",
+      "body": "Dodali smo prikaz cene dostave pre prihvatanja porudžbine i poboljšali tačnost mape. Ažuriraj aplikaciju za najbolje iskustvo.",
+      "sent_at": "2026-07-28T12:00:00.000Z",
+      "read": true
+    }
+  ]
+}

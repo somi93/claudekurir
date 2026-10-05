@@ -1,0 +1,153 @@
+{{toc}}
+
+h1. Frontend → backend: integracija odgovora od 30.08 (31. avgust 2026)
+
+Kontekst: primili smo *kompletan odgovor* (@odgovor-frontend-30-08-KOMPLETAN.textile@) na
+izvještaj od 30.08. Ispod je *šta je integrisano na frontendu*, šta je samo provjereno i
+šta *i dalje čeka backend*. Sve testirano lokalno; produkcijski test tek slijedi.
+
+Legenda: ✅ integrisano · 👁 provjereno (bez izmjene) · ⛔ blokira nas, čeka backend
+
+---
+
+h1. 1. Bugovi
+
+h2. ✅ 1.1 Edit kurira — ime se gomilalo
+
+Edit forma sad ima *dva odvojena polja* (Ime, Prezime) i šalje @name@ + @lastname@
+*nezavisno* na svaki @PATCH@. Popunjavanje: koristi @lastname@ iz odgovora ako postoji,
+inače rasparsira @name@ (prva riječ = ime, ostatak = prezime). Ako je zapis već "pokvaren"
+(nagomilano prezime), dispečer ga jednom ispravi u polju Ime i dalje je čisto.
+
+*Molba:* potvrdite da @couriers-status@ (i @fullCourierRow()@) sad vraća i @lastname@ kao
+zasebno polje — ako da, izbacićemo parsing fallback.
+
+h2. ✅ 1.2 / 3.2 / 3.11 Ujednačen oblik courier write odgovora
+
+Skinuli smo svu "merge gimnastiku": @updateCourier@ sad *zamjenjuje* red odgovorom,
+@addCourier@ *optimistički ubaci* vraćeni red (nema više re-fetch-a @couriers-status@).
+Uklonjen tip @CompanyCourierWriteResult@. @contact_phone@ / @bank_account@ / @note@ su sad
+obavezna polja — edit forma se popuni već pri *prvom* otvaranju.
+
+h2. 👁 1.3 Ruta za payout
+
+Front je već koristio @POST /dispatcher/couriers/{courierId}/payout@ (ispravljeno 30.08).
+Nema izmjene — čekamo samo da tiket #223636 §5 bude ispravljen na vašoj strani.
+
+---
+
+h1. 2. Potvrde
+
+h2. ✅ 2.1 @delivery_type@ mapping
+
+Pun rječnik unesen (@0@ = dostava na adresu / @1@ = preuzimanje u restoranu / @2@ = ručak u
+restoranu (rezervacija) / @3@ = pošta / @4@ = napušteno). Ranije smo *pogrešno* mapirali i
+@2@ i @3@ na "Pošta" — sad @2@ = "Ručak u restoranu", @3@ = "Pošta". @4@ ne bi trebalo da
+se pojavi na listi, ali ima labelu za svaki slučaj.
+
+h2. ✅ 2.2 Serijalizacija datuma — wall-clock workaround UKLONJEN
+
+Pošto je @ordered_at@ pravi UTC (vaš ground-truth test), obrisali smo *cijeli* wall-clock
+sloj (@parseWallClock@, @formatWallDateTime@, regex). Sve na "Dodela narudžbi" (@ordered_at@,
+@delivery_time@ na "Kupac odbio" i "Čeka restoran") sad ide kroz standardni @new Date()@.
+*Napomena:* isto smo prebacili i @inbox.sent_at@ ("Ranije poslato" u poruci kuriru) na
+standardni parsing — pretpostavljamo da je i taj put zahvaćen globalnom @Europe/Belgrade@
+ispravkom; javićemo ako se na produkciji vidi pomak.
+
+h2. ✅ 2.3 @warning@ na cash-receipt / payout
+
+Servisi sad čitaju odgovor; ako stigne @warning@ (iznos > dug), prikazujemo ga kao žuti
+toast — akcija svejedno prolazi.
+
+h2. 👁 2.4 / 2.5 Sitne potvrde
+
+Sve primljeno k znanju, bez izmjene koda (efekat na balans, @method@ slobodan tekst,
+autorizacija, null polja, isključivost lista).
+
+---
+
+h1. 3. Urađeno / dodato
+
+h2. ✅ 3.1 Klizni prozor "Čeka restoran"
+
+@fetchPendingRestaurantOrders@ sad eksplicitno šalje @?days_back=7&days_forward=7@
+(konstanta na jednom mjestu). Skinut komentar o "starim test narudžbama koje isplivaju".
+
+h2. 👁 3.3 @hours_online@ / "KM/sat"
+
+"KM/sat" i "sati online" su *već izbačeni* iz UI-ja (29.08) — kurirska "Zarada" prikazuje
+Ukupna zarada / Broj dostava / Prosek po dostavi; "Ova sedmica" na Novčaniku prikazuje broj
+dostava. Nema šta da se skida. Čekamo vaš "sesije" sistem za povratak metrike. ⛔
+
+h2. ✅ 3.4 Vremenski prozor @/earnings@
+
+@fetchCourierEarnings@ šalje @?from=@ (~31 dan unazad) — pokriva sve tri opcije filtera
+(danas / sedmica / 30 dana), payload ostaje mali i za kurire sa dugim stažom.
+
+h2. ✅ 3.5 @confirmed_by@ / @confirmed_by_name@ u listama
+
+Dispečerska "Istorija predaja" ima novu kolonu *"Potvrdio"*; kurirska "Transakcije" lista
+prikazuje "Potvrdio: <ime>" na potvrđenim predajama.
+
+h2. ✅ 3.6 Dispečerski payouts agregat
+
+Nova kartica *"Isplate kuririma"* na "Kase kurira" tabu — @GET
+/dispatcher/delivery-companies/{companyId}/payouts@ sa filterima kurir / Od / Do. Nova
+isplata iz "Detalji kurira → Isplati zaradu" se odmah pojavi u listi.
+
+h2. ✅ 3.11 Sitna poboljšanja
+
+@daily_handover_time@ — @.slice(0,5)@ ostaje kao defanziva za stare @HH:MM:SS@ zapise
+(no-op na @HH:MM@). @POST .../couriers@ pun red — vidi 1.2.
+
+---
+
+h1. 4. ✅ NOVO — ručno rješavanje "Čeka restoran"
+(@dispecer-resolve-restaurant-status-30-08.textile@)
+
+Integrisano tačno po spec-u: na svakom redu "Čeka restoran" taba, pored dugmeta za poziv
+restorana, su dugmad *Prihvati* / *Odbij* → potvrdni dijalog ("Potvrdi da je restoran …
+telefonom prihvatio/odbio narudžbu #X") sa opcionom napomenom → @POST
+/api/dispatcher/orders/{orderId}/resolve-restaurant-status@ (@{ action, note? }@,
+@Authorization: Bearer@). Red nestaje sa liste na uspjeh, cijeli bord se osvježi (@accept@
+→ narudžba se pojavi u "Čeka kurira" / @orders/waiting@). @409@ (narudžba više nije
+@on-hold@) i ostale serverske greške prikazujemo čitljivo u info traci borda.
+
+---
+
+h1. 5. ✅ NOVO — @assignment_mode@ na finance-settings
+(@assignment-mode-firma-30-08.textile@)
+
+Dodato u "Finansijske postavke" (isti ekran, ispod "Vreme dnevne predaje"): birač *"Način
+dodele narudžbi kuririma"* —
+
+* @ALL@ (default) — "Svi kuriri vide narudžbu istovremeno"
+* @BEST_MATCH@ — "Samo najbliži kurir dobija prvu ponudu *(uskoro)*" + napomena da još
+  nije aktivno
+
+Šalje se kroz @PATCH .../finance-settings@ uz ostala polja. Tip @FinanceSettings@ /
+@FinanceSettingsUpdate@ prošireni; ako polje izostane u odgovoru, front pada na @ALL@.
+Razumijemo da @BEST_MATCH@ trenutno nema stvarnog efekta — čekamo fazu sa stvarnom
+logikom.
+
+---
+
+h1. 6. ⛔ Ostaje otvoreno
+
+Puna lista otvorenih stavki je u @otvorene-stavke-frontend-31-08.textile@. Ukratko:
+
+* *3.9 / Currency* — unos valute firme za dostavu se rješava zasebno. Za *dispečersko
+  upozorenje* pri uključivanju saradnje s restoranom druge valute treba nam @currency@ po
+  redu u @GET /dispatcher/{companyId}/restaurants@ i na firmi (@GET /dispatcher/my-companies@
+  / @GET /me@) — ni jedno ni drugo se sad ne vraća.
+* *3.3 hours_online* — čeka "sesije" sistem (vaša procjena 1.5–2.5h).
+* *3.8 Suspendovan kurir sa dugom* — tim @app.ordera@.
+* *3.10 Push* — kanal ili preporučeni polling interval.
+* *DIO 5 @BEST_MATCH@* — čuvamo ga, ali čeka stvarnu logiku dodjele.
+
+---
+
+h1. Sledeći korak
+
+Testiramo na produkciji, posebno 2.2 (vremena bez pomaka), 3.1 (prozor), DIO 4 (ručno
+rješavanje) i DIO 5 (@assignment_mode@). Javićemo ako nešto odstupa od opisanog.

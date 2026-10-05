@@ -1,0 +1,79 @@
+{{toc}}
+
+h1. Одговор на консолидовани извjeштaj — DIO 1-3 (28.8.2026)
+
+Хвала на изузетно темељитом документу. Испод су одговори редом, по вашој нумерацији. DIO 4-9 стижу у наредном одговору.
+
+---
+
+h2. DIO 1 — Блокери и безбjednost
+
+*1.1 APP_DEBUG* — @APP_DEBUG=false@ постављено на продукцији. Додата explicit обрада за @AuthenticationException@ (@bootstrap/app.php@) — @auth:api@ сад враћа чист
+
+<pre><code class="json">
+{"message": "Unauthenticated."}
+</code></pre>
+
+са HTTP статусом *401*, без стек трага. Тестирано и потврђено.
+
+*1.2 Тачан accept() endpoint* — потврђено: @POST /orders/{orderId}/accept@ (@OrderController::accept()@, @App\Modules\GpsTracking@) је *јединi, стваран* ток, за курира *и* за диспечера који шаље понуду. @/delivery/{deliveryId}/accept@ (@DeliveryTrackingController@) је *одвојен, самосталан* систем, *није* повезан са главним током — @deliveryId@ *није* формално везан за @orderId@. Наставите да користите искључиво @/orders/{orderId}/accept@.
+
+*Strukturirana polja iz 2.1* стижу на *исти* @/orders/{orderId}/accept@ ендпоинт (види DIO 2 испод).
+
+*1.3 vehicles.type ENUM* — потврђено и исправљено. Колона је сад @enum('bicycle','scooter','car','motorbike')@ — @motorbike@ *сад ради*. Живи тест креирања курира са @vehicle_type: "motorbike"@ би требало да прође без грешке.
+
+*Orphan user_id 30459* — тај конкретан ID вишe није актуелан (вероватно стар/обрисан тест податак), али смо *пронашли* 15 сличних "осиротjelih" записа (корисник постоји, нема возило) кроз историју, укључујући 2 креирана *дан пре* наше исправке (28.8.2026). *Не бришемо* их — они имају валидан @users@ и @delivery_company_user@ запис, само им *недостаje* возило. Молимо: на листи курира, означите/филтрирајте оне са @vehicle: null@, да dispečer може кроз *постојећи edit екран* да им дода возило (сад укључујући @motorbike@) и допуни запис.
+
+---
+
+h2. DIO 2 — Cash / wallet / ledger
+
+*2.1 current_cash_amount / cash_limit_amount на accept()* — *имплементирано и deployano*. Поља стижу на *сваки* @accept()@ одговор — @null@ ако нема cash limit проблема, бројеви (и за NOTIFY_ONLY и за BLOCK случај) ако има.
+
+*2.2 wallet-balance проширење* — *имплементирано и deployano*. @GET /couriers/{courierId}/wallet-balance@ сад враћа:
+
+<pre><code class="json">
+{
+    "success": true,
+    "cash_owed_to_company": 38.5,
+    "wage_owed_to_courier": 34,
+    "cash_limit_amount": 20.00,
+    "cash_limit_enforcement": "BLOCK"
+}
+</code></pre>
+
+*2.3 CourierWalletBalanceController провjera власништва* — *исправљено* (било је 🔴 безбjednosni пропуст, потврђено да *ниje* провjeravao ништа). Сад: курир види *само свој* баланс, dispečer *само* курира *своје* фирме (исти критеријум као @assertCanActOnBehalfOf()@).
+
+*2.4 PATCH finance-settings са null* — потврђено, @{"cash_limit_amount": null}@ *успешно* поставља "без лимита" (нема 422, нема тихог игнорисања). Тестирано уживо.
+
+*2.5 Migracija cash_limit_enforcement* — колона *постоји и ради* на продукцији (потврђено емпиријски кроз 2.4 тест). Напомена: додата *директно кроз SQL*, не кроз формалну Laravel миграцију, па @php artisan migrate:status@ неће показати ништа — то је очекивано, не грешка.
+
+*2.6 UNIQUE(user_id) на delivery_company_user* — *додато*. Потврђено да *нема* дуплираних @user_id@ редова тренутно, constraint успешно постављен — нови покушај додавања истог курира у *другу* фирму ће сад бацити грешку на нивоу базе.
+
+*2.7 Стари /couriers/{courierId}/wallet* — потврђено *живи*, али је *потпуно одвојен, ручно уношен* систем (@courier_wallet_transactions@ табела), *без* везе са правим ledger-ом. Препорука: *не користити* овај ekran/endpoint за приказ стварног стања — @wallet-balance@ (2.2) је *прави* извор истине. Напомена: @update()@/@destroy()@ на овом старом контролеру *такође* немају провjeru власништва — ако одлучите да га *ипак* задржите привремено, јавите, поправићемо и то.
+
+---
+
+h2. DIO 3 — Диспечерски ток предаје готовине
+
+*3.1 Тело confirm() захтjeva* — потврђено, *постоји и ради*. @confirm()@ *захтjeva* @confirmed_amount@ (без њега → 422, *не* аутоматски @= reported_amount@). Ако се износи разликују, *не одбацује* се — књижи се *стваран* (потврђени) износ, уз *аутоматски генерисану* напомену ("Kurir prijavio 50.00, potvrđeno 45.00, razlika -5.00") ако dispečer сам не пошаље своју @note@. "disputed" статус *није* потребан — разлика је транспарентно забиљежена у @note@ пољу.
+
+*3.2 Диспечерска историја предаја* — *ново, имплементирано*. @GET /dispatcher/delivery-companies/{companyId}/cash-handovers@ — *све* предаје (сви статуси, сви курири), са опционим filterima: @?courier_id=@, @?status=pending|confirmed@, @?from=@, @?to=@ (датуми филтрирају по @reported_at@).
+
+*3.3 Ауторизација confirm() (flat рута)* — *исправљено* (било је 🔴 безбjednosni пропуст). @confirm()@ сад провjerava да @handover.delivery_company_id@ припада dispečerovoj фирми — dispečer *друге* фирме добија *403*.
+
+*3.4 Пагинација* — намjerno без ње за сада (мали скуп података, слично одлуци за листу ресторана). Јавите ако се покаже да неке фирме имају много курира/предаја.
+
+*3.5 Тип новца* — потврђено *намjerno*. @cash-handovers@ користи Laravel @decimal:2@ cast, који *увиjek* враћа string (штити од float грешака заокруживања за финансијске износе). Ово *остаje* тако — за будуће endpoint-e (исплате, бонуси) *претпоставите* string док се експлицитно не потврди другачиje по сваком новом endpoint-у.
+
+*3.6 courier_id конзистентност* — потврђено, *исти* @user_id@ свуда (@couriers-status@, @couriers-balance@, @cash-handovers@) — сви endpoint-и читају из исте @users@/@delivery_company_user@ основе, нема паралелних ID система.
+
+*3.7 Suspendovan/uklonjen kurir sa dugom* — @couriers-balance@ *не филтрира ништа локално* (само прослeђuje одговор са @app.ordera@ интерног endpoint-a) — *и ту смо успут открили* исти 🔴 безбjednosni пропуст (dispečer *друге* фирме је могао видjeti *туђе* финансијске податке мijenjajuci @companyId@) — *исправљено* данас. Само питање "да ли suspendovan kurir ostaje na listi" зависи од *интерне* логике на @app.ordera@ страни — то jе ван нашег данашњег обима, prosleđujemo тај део тима.
+
+*3.8 Нотификација dispečeru* — забиlježено, повезано са DIO 6 (push нотификације) — задатак за колегу је *већ* послат raniji, обухвата и овај случај.
+
+---
+
+h2. Следећи корак
+
+DIO 4-9 (возила, kuriri firme, "Dodela narudžbi" екран, ситни confirm-и) стижу у наредном одговору. Молимо тестирајте DIO 1-3 паралелно.

@@ -1,0 +1,96 @@
+{{toc}}
+
+h1. Frontend implementacija: odgovori backenda od 09.09 (email / lozinka / courier-locations / available_currencies)
+
+Kontekst: backend odgovor @09_09_2026_odgovor-backend-kuriri-valuta.textile@ (stavke
+1.1–2.1). Ispod je *šta je odrađeno na frontu*. Preostala i novopostala pitanja su u
+@09_09_2026_Frontend_pitanja_za_backend.textile@.
+
+*Stanje 09.09 (deploy je išao djelomično kroz dan, na kraju SVE):* rade sve četiri -
+§1.1 (@email@ u @couriers-status@), §1.2 (lozinka), §1.3 (@courier-locations@ ruta +
+oblik), §2.1 (@available_currencies@). Provjereno uživo. Ostaju samo *sitna pitanja* po
+stavkama (vidi questions doc) i *prebacivanje "Kuriri uživo" stranice* na novi endpoint.
+
+Dodirnute datoteke:
+* @app/types/finance-settings.ts@ - @FinanceSettings.available_currencies: string[]@ (ne-opciono)
+* @app/components/company/FinanceSettingsPanel.vue@ - padajuća lista valuta se puni sa API-ja
+* @app/types/company-courier.ts@ - komentari uz @email@ (nije deployano) i @CourierUpdatePayload.password@ (potvrđeno)
+* @app/components/company/couriers/CourierEditDialog.vue@ - napomena da kurir mijenja lozinku pri sljedećoj prijavi
+* @app/types/courier.ts@ - @DispatcherCourierLocations{Query,Meta,Response}@ + @DispatcherCourierLocation@ / @DispatcherCourierLocationPoint@ (stvarni oblik, potvrđen uživo)
+* @app/services/courierLocationService.ts@ - @fetchDispatcherCourierLocations()@
+
+---
+
+h2. 1.1 @email@ u @couriers-status@ - ZATVORENO (deployano 09.09)
+
+*Provjereno uživo 09.09: svih 8 redova firme 24 ima @email@* (string, nijedan @null@).
+@CourierEditDialog@ read-only polje "Korisničko ime (email)" se sad puni.
+@CompanyCourier.email@ ostaje @?: string | null@ (opciono) - radi konzistentnosti s
+@first_name@/@last_name@ (isti "dodano naknadno" obrazac) i jer nije potvrđeno stiže li
+@email@ i u POST/PATCH @.../couriers@ odgovor niti može li biti @null@ (questions doc
+§1.1). Bez izmjene ponašanja - samo osvježen komentar u tipu.
+
+h2. 1.2 Promjena lozinke kroz @PATCH .../couriers/{courierId}@ - ZATVORENO
+
+Front je *već* slao @password@ na @PATCH@ tačno kako je backend potvrdio (opciono,
+@min:8@, samo kad je popunjeno). Bez izmjene logike:
+* @CourierUpdatePayload.password@ komentar: "NIJE POTVRĐENO" → "POTVRĐENO 09.09" +
+  @must_change_password: true@ + 422 @errors.password@.
+* @CourierEditDialog@ napomena ispod polja dopunjena: "Kurir će morati da je promeni pri
+  sledećoj prijavi." (backend to sad radi kao kod create-a).
+* 422 na lošu lozinku ide kroz isti put kao ostale greške polja (@toFriendlyErrorMessage@
+  u @useCompanyCouriers.updateCourier@) - ništa novo.
+
+h2. 1.3 Nova ruta @GET .../courier-locations@ - RUTA RADI, oblik potvrđen, STRANICA PREBAČENA
+
+Ruta je proradila 09.09. Oblik reda potvrđen uživo:
+@{ courier_id, name, phone, suspended, vehicle: {id,type}|null,
+location: { latitude, longitude, heading, speed, status, updated_at } | null }@.
+@status@ dolazi gotov od backenda; @updated_at@ je ISO *sa offsetom* (@+02:00@, ne @Z@).
+Firma 24: 8 kurira u @couriers-status@, 1 ovdje → vraćaju se samo oni s poznatom pozicijom.
+@search@ hvata *samo ime/telefon* (ne @courier_id@).
+
+*Prebačeno "Kuriri uživo" na novi endpoint* (build prolazi):
+* @app/types/courier.ts@ - @DispatcherCourierLocation@ + @DispatcherCourierLocationPoint@
+  suženi na stvarni oblik.
+* @app/utils/courierStatus.ts@ - @EnrichedCourierLocation@ je sad @{ courier:
+  DispatcherCourierLocation, state }@ (bio @{ location: CourierLocation, state }@).
+  @courierState@ / @isLongOffline@ primaju red i guarduju @location: null@ (kurir bez
+  poznate pozicije = offline). Novi @speedLabel@ / @lastSeenLabel@ helperi (null-guard na
+  jednom mjestu).
+* @app/pages/dispatcher/index.vue@ - *jedan poziv* @fetchDispatcherCourierLocations(companyId)@
+  umjesto @fetchCourierLocations@ + @useCompanyCouriers@ direktorij spoj. Nova ruta je
+  firm-scoped (stari @/courier/locations@ nije bio), pa: @onMounted@ prvo
+  @await companiesStore.ensureLoaded()@ (na hard-refresh @selectedCompanyId@ polazi od
+  @null@ - bez čekanja bi prvi fetch pukao na guard i sidebar ostao prazan);
+  @watch(companyId)@ hvata naknadnu promjenu firme (preskače prvo null->id da nema
+  duplog poziva). @fetchLocations@ na @!companyId@ sad gasi @loading@ (nema zaglavljenog
+  skeletona). @mapCenter@ preskače redove bez @location@. Test dugme obrisano.
+* @CourierMap@ - @markers@ computed (filtrira redove bez @location@, sortira, mapira);
+  popup + @flyTo@ čitaju iz reda.
+* @CourierSidebar@ - nema više @directory@ prop-a; pretraga klijentski po
+  @courier_id@ / @name@ / @phone@ (server @search@ ne hvata ID). Render cap 100 ostaje.
+* @CourierListItem@ - čita @entry.courier.*@; dodat "suspendovan" chip (novo polje).
+* @SelectedCourierCard@ - prop @courier@ → @entry@; *uklonjene "baterija" i "preciznost"
+  kartice* (@battery@ / @accuracy@ nisu u @courier-locations@ payload-u).
+
+Preostale sitnice (ne blokiraju): server-side @search@ + paginacija u sidebar-u
+(trenutno klijentski + cap 100); @battery@/@accuracy@/@altitude@ u payload-u ako backend
+može (questions §1.3).
+
+h2. 2.1 @available_currencies@ na @finance-settings@ - ZATVORENO (deployano 09.09)
+
+* @FinanceSettings.available_currencies: string[]@ - *ne-opciono* (dio ugovora, GET/PATCH
+  ga vraćaju; provjereno uživo: @["KM","BAM","EUR","RSD"]@). @FinanceSettings@ se nikad ne
+  konstruiše ručno (samo iz @ApiItemResponse@), pa strožiji tip ništa ne lomi.
+* @FinanceSettingsPanel@: @currencyOptions@ *isključivo* iz @settings.available_currencies@
+  - *nema hardkodovanog seta na frontu*. @?? []@ je jedini crash-guard za @.map@; prazna
+  lista → prazan select (vidljiv znak da nešto ne valja), ne maskira se. Snimljena
+  vrijednost van seta se zadržava u listi (dispečer vidi šta je snimljeno; PATCH bi je
+  odbio 422).
+* PATCH šalje @currency: settings.currency?.trim() || DEFAULT_CURRENCY@ ("KM"). Prazna
+  valuta → "KM" (ne @null@) - poklapa se s backend fallback-om ("" → briše → "KM").
+
+*Napomena o toku:* tokom sesije se @available_currencies@ pojavilo/nestajalo (deploy je
+išao djelomično) pa je fallback dodavan/uklanjan. Konačno: polje je deployano, fallback
+uklonjen. Standard: *deployan ugovor - vjeruj mu.*

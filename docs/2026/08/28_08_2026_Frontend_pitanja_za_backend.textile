@@ -1,0 +1,406 @@
+{{toc}}
+
+h1. Konsolidovana pitanja i otvorene stavke za backend tim (28. avgust 2026)
+
+Ovaj dokument je *presek svega što je do sada traženo a još nije zatvoreno* — pročitani su svi dosadašnji dokumenti prepiske (@14.08@–@27.08@) plus pun sken trenutnog koda (@app/@). Cilj: jedna lista po kojoj backend može da radi redom, bez vraćanja kroz 15 fajlova.
+
+*Obim aplikacije danas* (bitno za kontekst — promijenjen od 16.08 analize): frontend pokriva *dispečera* (@/dispatcher/*@, 5 ekrana) i *kurira* (@/courier/*@, PWA). *Restoranska rola i njen finansijski sloj više nisu u ovom frontendu* — cijeli blok "B1: restoranski finansijski GET sloj (11 ekrana)" iz @16_08_2026_Kompletna_analiza_projekta.md@ je time *bespredmetan* i ispada sa liste.
+
+Legenda statusa: 🔴 blokira testiranje / bezbjednost · 🟠 blokira funkciju · 🟡 pretpostavka radi ali nije potvrđena · 🟢 podsjetnik / budućnost
+
+---
+
+h1. STATUS — odgovor backenda 28.08 (DIO 1-3)
+
+Backend je 28.08 odgovorio na *DIO 1-3* (@28_08_2026_odgovor-frontend-DIO-1-3-28-08.textile@). DIO 4-9 stižu u sljedećem odgovoru. Frontend je odmah odradio sve što se moglo — pregled:
+
+|_. Stavka |_. Backend |_. Frontend odrađeno |
+| 1.1 @APP_DEBUG@ + čist @401@ | ✅ deployano | — |
+| 1.2 tačan @accept()@ = @/orders/{id}/accept@ | ✅ potvrđeno (jedini tok, i kurir i dispečer) | — (već tako zovemo) |
+| 1.3 @vehicles.type@ ENUM = @bicycle,scooter,car,motorbike@ | ✅ @motorbike@ radi | filter "Bez vozila" na listi kurira (15 "osirotjelih" zapisa) |
+| 2.1 @current_cash_amount@/@cash_limit_amount@ na @accept()@ | ✅ deployano (na svaki odgovor, @null@ ako nema problema) | dispečerski "Pošalji ponudu" + "Dodeli odmah" sad prikazuju @warning@ / serversku 409 poruku |
+| 2.2 @wallet-balance@ + @cash_limit_amount@/@cash_limit_enforcement@ | ✅ deployano | kurirski "Novčanik" prepravljen na ledger (limit + progres + BLOCK/NOTIFY upozorenje) |
+| 2.3 @CourierWalletBalanceController@ vlasništvo | ✅ ispravljeno | — |
+| 2.4 PATCH @finance-settings@ @null@ | ✅ radi | — |
+| 2.5 @cash_limit_enforcement@ migracija | ✅ na prod (dodato SQL-om, @migrate:status@ prazan je očekivano) | — |
+| 2.6 @UNIQUE(user_id)@ na @delivery_company_user@ | ✅ dodato | — |
+| 2.7 stari @/couriers/{id}/wallet@ | ✅ potvrđeno: odvojen ručni sistem, *ne koristiti* | frontend uklonio taj sloj (@CashTransaction@ model/servis/dijalog obrisani), "Novčanik" je sad READ-only ledger |
+| 3.1 telo @confirm()@ = @{confirmed_amount, note?}@ | ✅ potvrđeno (bez @confirmed_amount@ → 422; razlika → auto-napomena) | dijalog "Potvrdi predaju" sad ima polje za iznos + napomenu o razlici |
+| 3.2 dispečerska istorija predaja | ✅ @GET .../cash-handovers@ + filteri @courier_id/status/from/to@ | kartica "Istorija predaja" sa filterima na @Kase kurira@ tabu |
+| 3.3 autorizacija @confirm()@ (403 za tuđu firmu) | ✅ ispravljeno | — |
+| 3.4 paginacija | namjerno bez nje | — (gradimo "sve odjednom") |
+| 3.5 tip novca = string | namjerno, ostaje | — (držimo @Number(...)@ pri prikazu) |
+| 3.6 @courier_id@ isti svuda | ✅ potvrđeno | — |
+| 3.7 suspendovan kurir sa dugom | bezbjednosni dio ✅; "ostaje li na listi" → tim @app.ordera@ | — |
+| 3.8 notifikacija dispečeru | → DIO 6, zadatak već poslat kolegi | — |
+
+*Ostaje otvoreno iz DIO 1-3:*
+
+# *1.3 živi re-test* — kreirati kurira sa @vehicle_type: "motorbike"@ na produkciji i potvrditi da 500 više ne pada (stub je dva puta ranije dao pogrešnu info). Usput i @"scooter"@.
+# *3.2 oblik odgovora* — backend je dao endpoint i filtere, ali *ne i tačan oblik stavke*. Frontend pretpostavlja @{id, courier_id, reported_amount, confirmed_amount, reported_at, confirmed_at, status, note}@ (mapiranje defanzivno). *Molimo živ primjer* sa bar jednom @pending@ i jednom @confirmed@ stavkom da potvrdimo imena polja.
+# *3.7* — "da li suspendovan/uklonjen kurir sa dugom ostaje na @couriers-balance@ listi" čeka tim @app.ordera@.
+
+Detalji po tačkama ispod ostaju radi istorije; ✅ označava zatvoreno ovim odgovorom.
+
+---
+
+h1. STATUS — odgovor backenda 28.08 (DIO 4-7 + dopune)
+
+Backend je 28.08 odgovorio i na *DIO 4-7* (@28_08_2026_odgovor-frontend-DIO-4-7-28-08.textile@) + dva dodatna nalaza. DIO 6 (push) ide kao zaseban zadatak, DIO 8-9 bez akcije. Pregled + šta je frontend odradio:
+
+|_. Stavka |_. Backend |_. Frontend odrađeno |
+| 4.1 @vehicle_rules.vehicle@ = @car/motorbike/bicycle/walk@ | ✅ potvrđeno; ZASEBAN vokabular od @vehicles.type@ ENUM-a (namerno) | @RULE_VEHICLE_META@ + @VehicleRuleVehicle@ prepravljeni: @scooter@ izbačen, @walk@ ("Pešice") dodat u birač pravila |
+| 4.2 @candidate-couriers@ = @car/bicycle/foot/motorcycle@ | ✅ potvrđeno, @foot@ = bez vozila | — (već tako) |
+| 4.3 kurir bez vozila | ✅ @vehicle: null@ realno, tretira se kao @foot@; @PUT /couriers/:id@ bez @vehicle_type@ ne dira vozilo | — (već podnosi @null@) |
+| 5.1 edit kurira endpoint | ✅ POTVRĐEN: @PATCH /dispatcher/delivery-companies/{companyId}/couriers/{courierId}@; @vehicle_type: null@ BRIŠE vozilo | — (već gađamo baš taj endpoint; komentari "pretpostavljeno" ažurirani) |
+| 5.2 @contact_phone@ / @bank_account@ / @note@ | ✅ kolone na @delivery_company_user@ (firma-specifično); @note@ već postojao; *NE* vraća ih @couriers-status@ | polja već u edit formi; **otvoreno**: kako ih front ČITA za popunu forme (nema GET detalja) |
+| 5.3 lozinka @min:6@ | ✅ dosledno na oba mjesta; plan @min:8@ pred produkciju | front već traži @min:8@ (buduće pravilo) — ostaje |
+| 7.1 @ordered_at@ | ✅ uvijek validan ISO, nikad NULL | — |
+| 7.2 zona + udaljenost na @orders/waiting@ | ✅ @delivery_zone@ (string\|null) + @distance_km@ (number\|null), isti rječnik kao candidate-couriers | @WaitingOrderDto@/@WaitingOrder@ + prikaz na @DispatchBoardPanel@ (chip zone u naslovu, "X km do kupca" u podnaslovu, oboje u expand-u) |
+| Dopuna: kontakt podaci restorana | ✅ @GET .../restaurants@ sad vraća @restaurant_address/phone/email/contact_person/latitude/longitude@ | modal na klik na naziv restorana (ili ⓘ dugme) na @RestaurantCooperationPanel@ — naziv/adresa/kontakt osoba/tel/email/"Otvori na mapi"; dopuna 28.08 ne traži ništa dodatno |
+
+*Dva kritična backend bug-a (ispravljena 28.08):*
+
+# *TIME vs DATETIME poređenje* — @delivery_time@ je TIME kolona, @date@ nosi dan; stari kod je poredio @delivery_time@ direktno sa punim datetime vrijednostima → netačni @waitingOrders@/@activeDeliveries@/@refusedOrders@. Sad @TIMESTAMP(date, delivery_time)@.
+# *Pogrešna server tz* — @config/app.php@ @timezone => 'UTC'@ dok je server u @Europe/Belgrade@ (razlika 2h) → netačni @waiting_minutes@ i svugdje gdje se @now()@ poredi sa DB vremenom. Ispravljeno na @Europe/Belgrade@.
+
+*Ostaje otvoreno iz DIO 4-7:*
+
+# 🔴 *7.3 / serijalizacija datuma* — @config/app.php@ ispravka rješava *server računanja* (@waiting_minutes@ itd. — odlično), ali *NE nužno i format prikaznih timestamp-a*. Sa Laravel default @serializeDate@, @ordered_at@ i dalje izlazi kao @...Z@ nad *lokalnom* vrijednošću (bez konverzije u UTC), pa frontend i dalje mora "wall-clock" parsiranje (@datetime.ts@) da ne prikaže +2h. *Molimo jedan živ @ordered_at@ iz trenutnog API-ja* (npr. @"2026-08-27T15:17:13.000000Z"@ vs @"...T13:17:13Z"@ vs @...+02:00@) da znamo da li da vratimo standardni parsing ili zadržimo workaround. Tačka 7.3 (serijalizovati kao pravi UTC ili @+02:00@) i dalje stoji ako se ovo nije promijenilo.
+# 🟠 *5.2 čitanje polja* — @contact_phone@/@bank_account@ nisu u @couriers-status@. Kako ih front dobija da *popuni* edit formu? Treba ili dodati u @couriers-status@, ili @GET .../couriers/{courierId}@, ili potvrditi da ih @PATCH@ vraća u odgovoru (pokriva stanje poslije snimanja, ne prvo otvaranje). Dok se ne riješi, ta dva polja se otvaraju prazna.
+
+---
+
+h1. DIO 1 — 🔴 Blokeri i bezbjednost (prvo ovo) — ✅ odgovoreno 28.08 
+
+h2. ✅ 1.1 @APP_DEBUG@ uključen na produkciji + @auth:api@ vraća 500 umjesto 401 — *zatvoreno 28.08* (deployano)
+
+Prijavljeno @26.08@ (@26_08_2026_Frontend_odgovor-cash-limit.textile@), ponavljamo jer blokira bezbjedno testiranje svega ostalog.
+
+* Neautentifikovan poziv na zaštićenu rutu vraća *pun Laravel stack trace* (apsolutne putanje na serveru, imena middleware klasa, verzija framework-a) bilo kom pozivaocu — @APP_DEBUG@ je očigledno @true@ na produkciji.
+* @auth:api@ na neautentifikovan zahtjev pokušava redirect na named rutu @login@ (web-sesijsko ponašanje), ruta ne postoji za API → @500 RouteNotFoundException@ umjesto čistog @401 {"message":"Unauthenticated."}@.
+
+*Molimo:* isključiti @APP_DEBUG@ na produkciji; @auth:api@ (ili exception handler) da za API kontekst vraća @401@ JSON.
+
+h2. ✅ 1.2 Koji je tačan @accept()@ endpoint — @/orders/{orderId}/accept@ ili @/delivery/{deliveryId}/accept@? — *zatvoreno 28.08*
+
+*Odgovor:* @/orders/{orderId}/accept@ je *jedini* stvaran tok (i za kurira i za dispečera koji šalje ponudu). @/delivery/{deliveryId}/accept@ je zaseban, nepovezan sistem — *ne koristiti*. Strukturirana polja iz 2.1 stižu na *isti* @/orders/{orderId}/accept@.
+
+Otvoreno @26.08@ (@26_08_2026_Frontend_odgovor-cash-limit.textile@ §1), bez odgovora. *Ovo blokira testiranje cijelog cash-limit paketa (DIO 2).*
+
+Frontend *u produkciji, uspješno* zove @POST /orders/{orderId}/accept@ — i za kurira (@courierOrdersService.acceptOrder@) i za dispečera koji šalje ponudu (@candidateCouriersService@). Vaš odgovor na cash-limit pitanje 1 pominje @DeliveryTrackingController@accept@ na @POST /delivery/{deliveryId}/accept@.
+
+*Molimo potvrdu:*
+# Da li je to *ista ruta* (isti kontroler, samo opisana drugim imenom), ili *zasebna ruta*?
+# Ako je zasebna — da li je @deliveryId === orderId@ (isti broj) ili drugi identifikator?
+# Na *koji* od ta dva endpointa stižu nova strukturirana polja iz 2.1 ispod?
+
+h2. 🟡 1.3 @vehicles.type@ / @"motorbike"@ — ENUM proširen 28.08, ostaje živi re-test
+
+*Odgovor 28.08:* kolona je sad @enum('bicycle','scooter','car','motorbike')@ — @motorbike@ radi. Backend je našao *15 "osirotjelih"* zapisa (korisnik postoji, nema vozilo), 2 od njih napravljena dan prije ispravke. *Ne briše ih* — traži da ih dispečer kroz *postojeći edit ekran* dopuni vozilom. *Frontend odradio:* filter "Bez vozila" u @statusFilter@ na listi kurira (@CompanyCouriersPanel.vue@) izdvaja te kurire; chip "Vozilo nije dodato" već postoji.
+
+Otvoreno od @16.08@ (@16_08_2026_Kompletna_analiza_projekta.md@ B3). *Ažurirano @28.08@:* backend javlja da bi kod *novih* dostavljača sada trebalo da može da se doda motocikl — tj. @vehicles.type@ je proširen da prihvata @"motorbike"@.
+
+Podsjetnik na raniji kvar — živi test @16.08@: @POST /api/dispatcher/delivery-companies/24/couriers@ sa @vehicle_type: "motorbike"@ →
+
+bc. SQLSTATE[01000]: 1265 Data truncated for column 'type' at row 1
+(SQL: insert into `vehicles` (`user_id`, `type`, ...) values (30459, motorbike, ...))
+
+*Front:* opcija "Motor" nikad nije uklonjena iz "Dodaj kurira" dijaloga (@utils/vehicle.ts@, @VEHICLE_META.motorbike@), pa nema izmjene koda — čim je backend spreman, radi.
+
+*Ostaje da se zatvori (živi test na produkciji):*
+* @POST .../couriers@ sa @vehicle_type: "motorbike"@ — potvrditi da 500 više ne pada (ovaj isti stub je dva puta ranije dao pogrešnu informaciju, zato re-test a ne samo riječ).
+* Usput i @"scooter"@ (@in:...,bicycle,walk@ nedoumica iz 4.1 je zasebna, ali @scooter@ prolazi kroz isti @vehicles.type@ upis).
+* Provjeriti da li je ostao *orphan* @user_id 30459@ u @users@ bez reda u @vehicles@ iz ranijeg neuspjelog pokušaja.
+
+---
+
+h1. DIO 2 — 🟠 Cash / wallet / ledger (najveći klaster otvorenih stavki) — ✅ odgovoreno 28.08
+
+Kontekst: cash-limit 8 pitanja (@25.08@) su odgovorena @26.08@; frontend je odradio toggle "Ograniči gotovinu". Ostaju *backend TODO stavke iz tog odgovora* + follow-up pitanja od @26.08@.
+
+h2. ✅ 2.1 @current_cash_amount@ / @cash_limit_amount@ na @accept()@ odgovoru — *deployano 28.08*
+
+*Odgovor:* polja stižu na *svaki* @accept()@ odgovor — @null@ kad nema cash-limit problema, brojevi (i za NOTIFY_ONLY i za BLOCK) kad ima. *Frontend odradio:* @OrderActionResponse@ dopunjen tim poljima; dispečerski "Pošalji ponudu" (@useCandidateCouriers@) i "Dodeli odmah" (@useDispatchBoard@) sad prikazuju @warning@ iz odgovora umjesto generičke potvrde, a na 409 prikazuju serversku poruku (BLOCK limit) umjesto "Ne mogu da pošaljem ponudu".
+
+Vaš @26.08@ odgovor (§2) obećava:
+
+bc. {
+  "message": "Dostigli ste limit gotovine (38.50 od 20.00). ...",
+  "current_cash_amount": 38.50,
+  "cash_limit_amount": 20.00
+}
+
+Još nije deployano. *Molimo:* rok + potvrda oblika za *sva tri slučaja* (ispod limita / preko limita NOTIFY_ONLY / preko limita BLOCK) — stižu li polja i na običan uspješan @accept()@ (kao @null@?) ili samo u "preko limita" slučaju. Bez toga ne znamo da li ih tipiziramo kao opciona ili nullable.
+
+h2. ✅ 2.2 @wallet-balance@ proširenje sa @cash_limit_amount@ + @cash_limit_enforcement@ — *deployano 28.08*
+
+*Odgovor:* @GET /couriers/{courierId}/wallet-balance@ sad vraća i @cash_limit_amount@ (@null@ = bez limita) i @cash_limit_enforcement@ (@BLOCK@/@NOTIFY_ONLY@). *Frontend odradio:* kurirski "Novčanik" (@app/pages/courier/wallet.vue@) prepravljen — prikazuje pravi ledger saldo (@cash_owed_to_company@), progres prema limitu, i BLOCK/NOTIFY upozorenje; @wage_owed_to_courier@ kao "Zarada". Hardkodovani @DAILY_CASH_LIMIT = 200@ uklonjen.
+
+Vaš @26.08@ odgovor (§4). Potvrđeno uživo @26.08@ da endpoint danas vraća samo:
+
+bc. { "success": true, "cash_owed_to_company": 38.5, "wage_owed_to_courier": 34 }
+
+Čim stignu ta dva polja, gradimo trajni indikator "42/50 KM" na kurirskom ekranu (rješava prvobitni zahtjev: kurir da vidi limit prije nego što ga 409 iznenadi usred smjene). *Molimo:* okvirni rok.
+
+h2. ✅ 2.3 @CourierWalletBalanceController@ — provjera vlasništva — *ispravljeno 28.08* (kurir vidi samo svoj balans, dispečer samo kurire svoje firme)
+
+Iz vašeg @26.08@ "Новооткривено" odjeljka. Ruta @/couriers/{courierId}/wallet-balance@ je u @api.php@ samo pod @auth:api@, bez @EnsureUserIsCourier@ + provjere da @courierId@ = prijavljeni kurir.
+
+*Molimo:* potvrdite da kontroler *interno* provjerava vlasništvo. Prije nego što svaki kurir počne da poziva ovaj endpoint sa svog ekrana (2.2), treba nam sigurnost da jedan kurir ne može pročitati tuđi balans mijenjajući @courierId@ u URL-u. Isto važi za @earnings@, @wallet@, @cash-handovers@ ako dijele isti obrazac.
+
+h2. ✅ 2.4 PATCH @finance-settings@ — prihvata li eksplicitni @cash_limit_amount: null@? — *da* (testirano uživo 28.08, nema 422)
+
+Novi toggle šalje @{"cash_limit_amount": null}@ kad dispečer isključi limit. Vaš odgovor pokriva READ stranu (@0@ ≠ @null@), ne PATCH validaciju. *Molimo potvrdu* da @null@ uspješno postavlja "bez limita" (ne @422@, ne tiho ignorisanje).
+
+h2. ✅ 2.5 Migracija @cash_limit_enforcement@ na test/prod okruženju — *kolona na prod-u* (dodata SQL-om, @migrate:status@ je zato prazan — očekivano)
+
+Vaš @26.08@ odgovor (§7): "провера потребна" (@php artisan migrate:status | grep cash_limit@). *Molimo:* da li je kolona već na @GET .../finance-settings@ (default @NOTIFY_ONLY@) na okruženju na koje gađamo, da možemo end-to-end test?
+
+h2. ✅ 2.6 "Kurir = jedna firma" — DELETE test reda + @UNIQUE@ ograničenje — *@UNIQUE(user_id)@ dodat 28.08*, nema dupliranih redova
+
+Odluka @26.08@ (§8) prihvaćena. *Molimo:* da li je @DELETE FROM delivery_company_user WHERE user_id = 10568 AND delivery_company_id = 2@ izvršen na produkciji, i da li je @UNIQUE(user_id)@ dodat u @delivery_company_user@? Dok ograničenje ne stigne, postoji prozor da se opet ubaci red sa dvije firme.
+
+h2. ✅ 2.7 Stari @/couriers/{courierId}/wallet@ endpoint — da li je uopšte živ i čemu služi? — *razjašnjeno 28.08*
+
+*Odgovor:* endpoint živi, ali je *potpuno odvojen, ručno unošen* sistem (@courier_wallet_transactions@), *bez veze* sa pravim ledgerom. @wallet-balance@ (2.2) je jedini izvor istine — *stari ekran/endpoint ne koristiti*. (@update()@/@destroy()@ na starom kontroleru takođe nemaju provjeru vlasništva — backend će popraviti ako ostane u upotrebi.) *Frontend odradio:* cijeli @CashTransaction@ sloj obrisan (@models/CashTransaction.ts@, @components/wallet/WalletTransactionFormDialog.vue@, @config/wallet.ts@, transakcioni pozivi iz @courierWalletService@/@useCourierWallet@). "Novčanik" je sad READ-only prikaz ledgera.
+
+Otvoreno @26.08@ (@26_08_2026_Frontend_odgovor-cash-limit.textile@, "Novootkriveno"). Kurirski ekran "Novčanik" (@app/pages/courier/wallet.vue@) *ne koristi* ledger @wallet-balance@. Umjesto toga zove @GET/POST /couriers/{courierId}/wallet@ + @PUT/DELETE /wallet-transactions/{id}@ — ručno unijete transakcije (@amount@, @restaurant_name@, @received_at@), a stanje na ekranu je klijentski zbir upoređen sa *hardkodovanim* @DAILY_CASH_LIMIT = 200@ u frontu. Nema veze sa firminim @cash_limit_amount@ ni sa pravim saldom.
+
+*Molimo:*
+* Postoji li @/couriers/{courierId}/wallet@ (+ @wallet-transactions@) na backendu danas, ili je ostatak mock faze?
+* Ako postoji — čemu služi paralelno sa ledgerom? Treba li kurir ručno da prijavljuje svaku primljenu gotovinu, ili je @wallet-balance@ jedini izvor istine i ovaj ekran ga treba zamijeniti?
+
+Frontend ne dira ovaj ekran dok se ne razjasni (trenutno prikazuje @200 KM@ koje zbunjuje kurira firme sa npr. @cash_limit_amount = 20@).
+
+---
+
+h1. DIO 3 — 🟠 Dispečerski tok predaje gotovine (recap @22.08@) — ✅ odgovoreno 28.08
+
+@22_08_2026_Frontend_pitanja_za_backend.md@ ima 10 pitanja. Samo dio je posredno pokriven @26.08@ cash-limit odgovorom (potvrda: potvrda predaje odmah smanjuje @cash_owed_to_company@, nema batch-a — §2 iz @22.08@ *zatvoreno*). Ostalo je i dalje otvoreno:
+
+h2. ✅ 3.1 Telo zahtjeva za @POST /dispatcher/cash-handovers/{id}/confirm@ — *razjašnjeno 28.08*
+
+*Odgovor:* @confirm()@ *zahtijeva* @confirmed_amount@ (bez njega → *422*, *ne* postavlja automatski @= reported_amount@). Ako se iznosi razlikuju — ne odbacuje se, knjiži se potvrđeni iznos uz *auto-generisanu* napomenu ("Kurir prijavio 50.00, potvrđeno 45.00, razlika -5.00"), osim ako dispečer pošalje svoj @note@. "disputed" status nije potreban. *Frontend odradio:* @confirmCashHandover(id, confirmedAmount, note?)@ sad šalje telo; @CompanyWalletPanel@ ima dijalog "Potvrdi predaju gotovine" sa poljem za iznos (default = prijavljeno) i napomenom o razlici. *Ovo je bio pokvaren poziv* — stari kod je slao @POST@ bez tela i sad bi vraćao 422.
+
+@dispatcher.md@ kaže "već implementirano i testirano" ali *ne opisuje telo*. Istorija predaja ima odvojena @reported_amount@ i @confirmed_amount@ → mogu se razlikovati. Frontend danas šalje @POST@ *bez tela*.
+
+*Molimo:*
+* Da li @confirm@ bez tela automatski postavlja @confirmed_amount = reported_amount@, ili očekuje @{confirmed_amount, note}@?
+* Ako kurir fizički preda *drugačiju* sumu od prijavljene (prijavio 50, dao 45) — kako dispečer to danas evidentira? @disputed@ je "za budućnost" — znači li to da danas nema API-ja za razliku?
+
+h2. 🟡 3.2 Dispečerska istorija predaja (ne samo pending) — *endpoint isporučen 28.08, oblik odgovora nepotvrđen*
+
+*Odgovor:* @GET /dispatcher/delivery-companies/{companyId}/cash-handovers@ — sve predaje, opcioni filteri @?courier_id=@, @?status=pending|confirmed@, @?from=@, @?to=@ (datumi po @reported_at@). *Frontend odradio:* kartica "Istorija predaja" sa ta 4 filtera + tabela na @Kase kurira@ tabu (@fetchCashHandoverHistory@, @CompanyWalletPanel@). *Ostaje:* backend nije dao *oblik stavke* — pretpostavljamo @{id, courier_id, reported_amount, confirmed_amount, reported_at, confirmed_at, status, note}@, mapiranje defanzivno. Molimo živ primjer (po jedna @pending@ i @confirmed@ stavka) da potvrdimo imena polja.
+
+Dispečer vidi samo @couriers-balance@ (trenutni zbir) i @cash-handovers/pending@. Kad potvrdi predaju, ona nestane i nema je više nigdje (iznos, kad, koji kurir). Kurirski @GET /couriers/{courierId}/cash-handovers@ je vezan za token kurira.
+
+*Molimo:* postoji li / planira se @GET /dispatcher/delivery-companies/{companyId}/cash-handovers@ (sve, sa filterom po kuriru / periodu / statusu)? Bez toga dispečer ne može da razriješi spor ("predao sam" / "nisi") ni da vidi ko konzistentno kasni.
+
+h2. ✅ 3.3 Autorizacija @confirm@ (flat ruta, bez @companyId@) — *ispravljeno 28.08* (dispečer druge firme dobija *403*)
+
+Ako dispečerski nalog vodi više firmi — da li @confirm@ interno provjerava da @{id}@ pripada kuriru iz firme koju taj dispečer smije da vidi? @403@ ili @404@ za tuđu firmu?
+
+h2. ✅ 3.4 Paginacija na @couriers-balance@ i @cash-handovers/pending@ — *namjerno bez nje* (mali skup); front gradi "sve odjednom"
+
+Namjerno bez @page@/@per_page@ (očekivano malo redova), ili očekivati @data@/@meta@ oblik kasnije? Utiče na to da li sad gradimo "sve odjednom" ili scroll.
+
+h2. ✅ 3.5 Tip novca nije dosledan — *string je namjeran* (Laravel @decimal:2@, štiti od float greške); ostaje tako, za buduće endpointe pretpostaviti string. Front drži @Number(...)@ pri prikazu.
+
+@earnings@ / @wallet-balance@ / @couriers-balance@ → brojevi (@45.60@). @cash-handovers@ (report + history) → *stringovi* (@"50.00"@). Frontend radi @Number(...)@ pri prikazu. *Molimo:* je li string namjerno (izbjegavanje float greške), i ostaje li tako za buduće endpointe (isplate, bonusi)? Uskladićemo tip da svuda očekuje string pa parsira.
+
+h2. ✅ 3.6 @courier_id@ isti identifikator svuda — *potvrđeno* (isti @user_id@ u @couriers-status@/@couriers-balance@/@cash-handovers@)
+
+Potvrdite da je @courier_id@ isti u @couriers-status@, @couriers-balance@, @cash-handovers/pending@ (isti kurir = isti broj), uključujući suspendovane/uklonjene.
+
+h2. 🟡 3.7 Suspendovan/uklonjen kurir sa dugom — *djelimično 28.08*
+
+Bezbjednosni propust (dispečer druge firme je mogao vidjeti tuđe finansijske podatke mijenjajući @companyId@) — *ispravljen 28.08*. @couriers-balance@ ništa lokalno ne filtrira. Pitanje "da li suspendovan/uklonjen kurir sa dugom *ostaje na listi*" zavisi od interne logike na @app.ordera@ strani — *proslijeđeno tom timu*, van obima ovog odgovora.
+
+* Ostaje li na @couriers-balance@ listi (da dispečer ne izgubi dug iz vida)?
+* Može li i dalje da pošalje @cash-handovers/report@ sa mobilne (predaja stare gotovine)?
+
+h2. 🟢 3.8 Notifikacija dispečeru o novom zahtjevu za predaju — *povezano sa DIO 6*; backend javlja da je zadatak za kolegu već poslat (obuhvata i ovaj slučaj)
+
+Frontend osvježava pending listu samo pri promjeni firme (nema polling ni push). *Molimo:* push kanal za dispečera, ili preporučeni interval za polling? (Povezano sa DIO 6.)
+
+---
+
+h1. DIO 4 — 🟠 Vokabular vozila i "kurir bez vozila" — ✅ odgovoreno 28.08
+
+h2. ✅ 4.1 @vehicle_rules.vehicle@ — @walk@ vs @scooter@ — *razjašnjeno 28.08*
+
+*Odgovor:* @delivery_vehicle_rules.vehicle@ prima @car, motorbike, bicycle, walk@ — *zaseban* vokabular od @vehicles.type@ ENUM-a (@bicycle/scooter/car/motorbike@), namerno odvojeno. *Frontend odradio:* @RULE_VEHICLE_META@ više nije alias @VEHICLE_META@ — sopstvena mapa @{car, motorbike, bicycle, walk}@ ("walk" = "Pešice", @mdi-walk@); @VehicleRuleVehicle@ tip suzen na te 4 vrijednosti. Stara @scooter@ pravila i dalje se prikazuju kroz fallback u @ruleVehicleMeta@.
+
+Otvoreno od @15.08@ (3.3), pa @16.08@ (B2). @16.08@ backend navodi validaciju @in:car,motorbike,bicycle,walk@ — u sukobu sa @14.08@ potvrdom da @vehicle-rules@ čita @Vehicle::type@ direktno (@car/motorbike/bicycle/scooter@, *bez* @walk@). @"walk"@ ne postoji ni u jednom od tri utvrđena vokabulara (registracija; routing koristi @"foot"@; vehicle-rules = registracija po @14.08@).
+
+Frontend *nije mijenjao* dropdown (@car/motorbike/bicycle/scooter@) jer @POST/PUT .../vehicle-rules@ *piše* @vehicle@ polje — rizik od upisa neispravne vrijednosti. *Molimo:*
+* Konačna, provjerena validacija za @delivery_vehicle_rules.vehicle@.
+* Živi @GET .../vehicle-rules@ odgovor sa bar dva pravila, uključujući jedno sa @motorbike@ ili @scooter@.
+
+h2. ✅ 4.2 @candidate-couriers@ vokabular — *potvrđeno 28.08*: @car/bicycle/foot/motorcycle@, @foot@ = bez registrovanog vozila, nema drugih vrijednosti.
+
+@15.08@ ispravljeno na routing skup (@car/bicycle/foot/motorcycle@, @foot@ = bez registrovanog vozila). Viđeni samo @car@ i @foot@ uživo. *Molimo:* potvrda da nema drugih vrijednosti (npr. @bicycle@/@motorcycle@ za stvarno registrovane).
+
+h2. ✅ 4.3 Kurir bez registrovanog vozila (profil) — *potvrđeno 28.08*: @vehicle: null@ je realno stanje (tretira se kao @foot@ u matching logici); @PUT /couriers/:id@ bez @vehicle_type@ polja NE dira postojeće vozilo. Front već podnosi @null@.
+
+Otvoreno od @15.08@ (3.1), @16.08@ (B4). @couriers-status@ potvrđuje da je @vehicle: null@ realno stanje za dispečersku listu, ali kurirski profil nije usaglašen:
+* Može li kurir uopšte nemati vozilo (dostava peške)?
+* Kako @GET /couriers/:id@ to predstavlja — @vehicle: null@ ili posebna vrijednost?
+* Šta radi @PUT /couriers/:id@ bez @vehicle_type@ polja?
+
+Frontend prikazuje "Automobil" kao čisti vizuelni placeholder dok kurir ne sačuva izbor — pretpostavka (@app/models/CourierProfile.ts@).
+
+---
+
+h1. DIO 5 — 🟡 Upravljanje kuririma firme (tab "Kuriri") — ✅ odgovoreno 28.08
+
+Iz @26_08_2026_Frontend_pitanja_za_backend.md@ / @.textile@.
+
+h2. ✅ 5.1 Edit postojećeg kurira — *endpoint POTVRĐEN 28.08*
+
+@PATCH /dispatcher/delivery-companies/{companyId}/couriers/{courierId}@ (tačno kako je front pretpostavio). Dodato: @motorbike@ u validaciju (nedostajao), provjera vlasništva (kurir sam, ili dispečer *bilo koje* firme tog kurira). @vehicle_type: null@ *briše* postojeće vozilo (nije posebna akcija). Postoji i generički @PUT /couriers/{courierId}@ (isti fix), ali front koristi PATCH gore. *Frontend:* stari "pretpostavljeno" komentari u @dispatcherCouriersService@ / @types/company-courier@ ažurirani.
+
+Tiket traži izmjenu postojećeg kurira firme (do sada samo Dodaj/Suspenduj/Ukloni). Frontend *pretpostavlja*:
+
+bc. PATCH /dispatcher/delivery-companies/{companyId}/couriers/{courierId}
+Body: { name?, phone?, vehicle_type?, contact_phone?, bank_account?, note? }
+
+po analogiji sa @PATCH .../couriers/{id}/suspend@ i @POST .../couriers@ — *nigdje potvrđeno*. *Molimo:*
+* Postoji li? Ako ne, koja putanja/metoda za edit kurira firme?
+* @vehicle_type: null@ = "ukloni vozilo", ili posebna akcija?
+* Da li umjesto toga treba zvati generički @PUT /couriers/:id@ (koristi ga @courierProfileService.ts@ za sopstveni profil) sa dispečerskim tokenom?
+
+h2. 🟡 5.2 Tri nova polja kurira — @contact_phone@, @bank_account@, @note@ — *djelimično 28.08*
+
+*Odgovor:* kolone @contact_phone@ + @bank_account@ dodate na @delivery_company_user@ (firma-specifično, ne globalno); @note@ je već postojao. Dostupne kroz novi @PATCH .../couriers/{courierId}@, *NE* kroz @couriers-status@ listu (ostaje nepromijenjena). *Ostaje otvoreno:* front nema odakle da PROČITA ta polja da popuni edit formu — treba ih dodati u @couriers-status@, ili napraviti @GET .../couriers/{courierId}@, ili potvrditi da ih @PATCH@ vraća u odgovoru. Dok se ne riješi, @contact_phone@/@bank_account@ se u formi otvaraju prazni.
+
+Tiket traži: *telefon kontakt osobe*, *žiro račun*, *napomena*. Nijedno ne postoji u potvrđenoj @CompanyCourier@ šemi ni u @CourierProfileDto@. Imena su izmišljena po smislu. *Molimo:*
+* Postoje li u modelu kurira? Tačna imena/tipovi?
+* Vraća li ih @GET .../couriers-status@, ili treba poseban detalj poziv (@GET .../couriers/{courierId}@)? Ako ne dolaze u listi, edit forma se uvijek otvara prazna za njih.
+* Treba li žiro račun format validaciju (IBAN / dužina / samo cifre)?
+
+h2. ✅ 5.3 Pravila za lozinku — *potvrđeno 28.08*: @min:6@ dosledno na oba mjesta (@PUT /me/password@ i @POST .../couriers@ temporary_password), bez dodatnih pravila. Backend planira @min:8@ pred produkciju. Frontend već traži @min:8@ (buduće pravilo, ostavljeno — "jača lozinka" nikad nije pogrešna).
+
+Otvoreno od @16.08@ (B5). Frontend pretpostavlja *min 8 znakova* za @new_password@ (@PUT /me/password@) i @temporary_password@ (@POST .../couriers@). *Molimo:* stварна backend validacija (dužina, obavezan broj/veliko slovo?), da se korisnik ne odbija na jednoj strani a prolazi na drugoj.
+
+---
+
+h1. DIO 6 — 🟢 Notifikacije / push (otvoreno od 14.08)
+
+h2. 6.1 Notifikacija kuriru poslije "Pošalji ponudu"
+
+@FcmService@ / @PendingOrderNotifier@ postoje ali nisu povezani. Otvoreno od @14.08@ (2.4), ponovljeno @15.08@, @16.08@ (B9) — bez pomaka. *Molimo:* da li @app.ordera.app@ (mobilni tim) već šalje nešto slično kad stigne nova ponuda? Ako ne, ko preuzima povezivanje?
+
+h2. 6.2 Inbox → nema push-a — *dispečerska strana slanja: ✅ implementirano*
+
+@27_08_2026_dispecer-inbox-poruke.textile@ je *inbox* sistem (kurir mora da otvori app i povuče @GET .../inbox@). @PushTokenController@ postoji, ali nije potvrđeno da je povezan sa inbox-om. Prava push notifikacija (nova naruџba → auto inbox poruka + push) je otvorena stavka za sledeću sesiju.
+
+*Frontend odradio:* dispečer sad može da pošalje poruku kuriru — dugme @mdi-message-text-outline@ na redu kurira u "Kuriri" tabu → dijalog naslov + tekst (@POST /couriers/{courierId}/inbox@ sa @sender: "dispatcher"@), plus pregled istorije ranije poslatih poruka tom kuriru (@GET .../inbox@). 403 (kurir nije u firmi dispečera) se hvata čitljivom porukom. @useCourierMessaging@ + @sendCourierInboxMessage@.
+
+h2. 6.3 Push kanal za dispečera
+
+Isti sistem kao 6.1 — treba li dispečeru push/notifikacioni kanal (novi zahtjev za predaju gotovine, nova naruџba koja dugo čeka kurira), ili polling na frontu (i na koji interval)?
+
+---
+
+h1. DIO 7 — 🟡 Ekran "Dodela narudžbi" (tiket "Додела наруџбе куриру") — ✅ odgovoreno 28.08 (7.3 djelimično)
+
+h2. ✅ 7.1 @ordered_at@ — uvijek popunjeno? — *da* (Laravel automatski timestamp, nikad NULL).
+
+Frontend sada prikazuje "Naručeno u HH:MM" u listi "Čeka kurira" iz postojećeg @ordered_at@ (@GET /api/dispatcher/orders/waiting@). Ima guard za prazno/nevalidno. *Molimo:* potvrdu da je @ordered_at@ uvijek validan ISO string za svaki red.
+
+h2. ✅ 7.2 Zona dostave i udaljenost restoran → kupac u listi narudžbi — *implementirano 28.08*
+
+@GET /dispatcher/orders/waiting@ sad vraća @"delivery_zone": "Centar"@ (null ako adresa van svih zona — nije greška) i @"distance_km": 2.38@ — isti rječnik/logika kao @candidate-couriers@. *Frontend odradio:* dodato u @WaitingOrderDto@/@WaitingOrder@ + prikaz na @DispatchBoardPanel@ (chip zone u naslovu reda, "X km do kupca" u podnaslovu, oboje i u expand detalju).
+
+Tiket traži da dispečer *prije* otvaranja liste kandidata vidi, po naruџbi: u kojoj je *zoni* adresa dostave i koliku *rutnu udaljenost* kurir prelazi od restorana do kupca. Trenutni @WaitingOrderDto@ ima adresu i koordinate cilja, ali *nema* zonu ni udaljenost.
+
+*Molimo:* može li @GET /api/dispatcher/orders/waiting@ (i @.../booked@, @.../picked-up@ ako je jeftino) po redu da vrati:
+
+bc. "delivery_zone": "Centar",   // naziv zone koja pokriva adresu dostave;
+                                 // isti rječnik kao candidate-couriers "zone";
+                                 // null ako nije ni u jednoj zoni
+"distance_km": 3.4               // rutna udaljenost restoran -> adresa dostave;
+                                 // iste jedinice/semantika kao
+                                 // candidate-couriers "distance_km"; null ako
+                                 // se ne može izračunati
+
+Ako je neko od dva polja skupo za svaki red, recite koje — pa ga vučemo tek na širenje reda (jedan poziv po naruџbi) umjesto u glavnoj listi.
+
+h2. 🟡 7.3 Vremenske zone — @ordered_at@ / @delivery_time@ nose @Z@ ali vrijednost je lokalno vrijeme — *djelimično 28.08*
+
+*Odgovor 28.08:* backend je našao i ispravio dva povezana bug-a — (a) @config/app.php@ @timezone@ bio @UTC@ dok je server @Europe/Belgrade@ (→ netačni @waiting_minutes@ i sve @now()@ vs DB poređenje; sad @Europe/Belgrade@), (b) @delivery_time@ (TIME) se poredio sa punim datetime-om umjesto @TIMESTAMP(date, delivery_time)@. *Ovo popravlja serverska računanja* — @waiting_minutes@ / @minutes_until_delivery@ bi sad trebalo da su tačni (molimo testirati sve "prije/za X min" i trajanja).
+
+*Ostaje otvoreno:* backend odgovor ne kaže da se promijenio *format serijalizacije* @ordered_at@/@delivery_time@/@reported_at@. Sa Laravel default @serializeDate@ (koji samo zalijepi @Z@ bez konverzije), @config/app.php@ ispravka *ne mijenja izlazni string* — @ordered_at@ i dalje izlazi kao @"...T15:17:13.000000Z"@ nad lokalnom vrijednošću, pa frontend i dalje mora "wall-clock" workaround (@datetime.ts@). *Molimo jedan živ @ordered_at@ iz trenutnog API-ja* da potvrdimo koji je format sad:
+* @"2026-08-27T15:17:13.000000Z"@ (lokalno + lažni Z) → zadržavamo workaround
+* @"2026-08-27T13:17:13Z"@ (pravi UTC) → vraćamo standardni @new Date()@ parsing
+* @"2026-08-27T15:17:13+02:00"@ (eksplicitni offset) → standardni parsing radi
+
+Primjer iz produkcije (prije 28.08): narudžba napravljena u *15:17* (bosansko vrijeme) stiže kao
+
+bc. "ordered_at": "2026-08-27T15:17:13.000000Z"
+
+Sufiks @Z@ znači UTC. Frontend to po standardu parsira kao 15:17 UTC i prikaže u lokalnoj zoni (CEST, +2) → *17:17* — pomjereno za dva sata.
+
+*Dijagnoza:* vrijednost je zapravo *lokalno* vrijeme, samo pogrešno označeno kao @Z@. Ovo potvrđuje i to što su @minutes_until_delivery@ i @waiting_minutes@ (koje backend sam računa, poredeći iste timestamp-e sa serverskim "now") *tačni* — dakle serverski sat i ovi timestamp-i su u istoj (lokalnoj) zoni, a @Z@ je višak.
+
+*Privremeno na frontu (već urađeno):* za timestamp-e koje samo prikazujemo (@ordered_at@, @delivery_time@ na "Kupac odbio") čitamo cifre iz stringa doslovno, bez tz konverzije — jer je operacija jednozonska (BiH). @minutes_until_delivery@ i sl. koristimo kako stižu.
+
+*Molimo ispravku na backendu* (da front može da se vrati na standardni parsing i da ovo ne pukne kad se doda druga zona / ljetnje-zimsko vrijeme): serijalizovati datetime ili kao *pravi UTC* (npr. @2026-08-27T13:17:13Z@ za 15:17 lokalno), ili sa *eksplicitnim offsetom* (@2026-08-27T15:17:13+02:00@). Trenutni @...Z@ nad lokalnom vrijednošću je jedino što je pogrešno. Vjerovatno je @config/app.php@ @timezone@ = @UTC@ dok se @now()@ negdje piše kao lokalno, ili se @Z@ ručno lijepi na sirovi DB @DATETIME@.
+
+*Napomena:* isti problem pogađa i @reported_at@ na "Kase kurira" (relativno "prijavljeno prije X") — ista ispravka to rješava.
+
+---
+
+h1. DIO 8 — 🟡 Sitni confirm-i (ne blokiraju)
+
+h2. 8.1 @GET /dispatcher/{companyId}/restaurants@ — podrazumevano ponašanje
+
+@27_08_2026_Frontend_implementacija-dispecer-restorani.textile@ (§record_status) kaže da bez parametra vraća samo @status = 1@. Kasniji changelog (27.08, "Ажурирање — листа ресторана фирме") kaže da *sada bez ikakvih parametara vraća SVE* (uklj. ranije @status = 0@). Kod je usklađen sa "vraća sve". *Molimo:* jednu rečenicu potvrde koje ponašanje je tačno na produkciji.
+
+h2. 8.2 Naziv parametra firme — @{delivery_company}@ vs @{companyId}@
+
+Kozmetika (iz @26.08@ odgovora): ista stvar se zove @{delivery_company}@ na nekim rutama, @{companyId}@ na drugim. Ne blokira ništa, ali smeta ako se ikad generiše API klijent automatski.
+
+h2. 8.3 @PATCH restaurant-delivery-company/{id}@ sa dodatnim poljima
+
+Potvrđeno @27.08@ da se dodatna polja tiho ignorišu (Laravel @validate@ izvlači samo @active_restoran@ + @suspension_reason@). Bez akcije — ovdje samo radi kompletnosti liste.
+
+h2. ✅ 8.4 Kontakt podaci restorana (dopuna 28.08)
+
+@GET /dispatcher/{companyId}/restaurants@ sad po redu vraća @restaurant_address@, @restaurant_phone@, @restaurant_email@, @restaurant_contact_person@, @restaurant_latitude@, @restaurant_longitude@ (sve nullable). *Frontend odradio:* dodato u @RestaurantCooperation@ tip (servis je passthrough, polja idu direktno) + modal na @RestaurantCooperationPanel@ — naziv / adresa / kontakt osoba / @tel:@ / @mailto:@ / "Otvori na mapi" (Google Maps iz lat/lng), prazna polja prikazana kao "-". Otvara se klikom na naziv restorana u redu (naziv+status su @<button>@, keyboard-accessible) *ili* na ⓘ dugme.
+
+Dopuna backenda @28.08@ ("modal sa kontakt podacima restorana") ne traži ništa dodatno — svi podaci već stižu u istom @GET@-u, front to renderuje. Bez akcije za backend.
+
+---
+
+h1. DIO 9 — Zatvoreno / bez akcije (za kontekst)
+
+* *Restoranski finansijski sloj (stari B1, 11+ ekrana)* — restoranska rola izbačena iz ovog frontenda. Bespredmetno.
+* *Saradnja sa restoranima (27.08, 5 pitanja)* — odgovoreno + implementirano (@27_08_2026_Frontend_implementacija-dispecer-restorani.textile@).
+* *Cash-limit 8 pitanja (25.08)* — odgovoreno @26.08@; frontend odradio toggle "Ograniči gotovinu". Preostali TODO su u DIO 2.
+* *Potvrda predaje smanjuje @cash_owed_to_company@ odmah, bez batch-a* — potvrđeno @26.08@ (bilo je @22.08@ §2).
+* *@GET /cities@ za dispečera* — zatvoreno @16.08@ (Ordera super-admin nivo).
+* *@condition-tags@ katalog* — provjeren, radi; dodat @console.warn@ na tihi fail.
+* *@delivery_company_id@ na @active-deliveries@/@refused@* — potvrđeno @16.08@.
+* *@vehicle-rules@ flat @PUT/DELETE@ 404* — ispravljeno @16.08@.
+* *Promjena lozinke + podsjetnik, upravljanje kuririma (lista/suspend/create/remove)* — implementirano @16.08@.
+* *Standardizacija tri vokabulara vozila u jedan* — odbijeno @14.08@ (rizik sa OSRM/GpsTracking).
+* *Sistem popusta za preporučene korisnike* — budućnost, bez akcije.
+
+---
+
+h1. Sažetak — redosled za backend
+
+*DIO 1-7 su odgovoreni 28.08* (dvije STATUS sekcije na vrhu). Frontend je odradio sve što se moglo. *Preostalo, po prioritetu:*
+
+|_. # |_. Stavka |_. Prioritet |
+| 1 | *7.3 / serijalizacija datuma* — jedan živ @ordered_at@ iz trenutnog API-ja da znamo da li @config/app.php@ ispravka mijenja i format prikaznih timestamp-a (pa vraćamo standardni parsing) ili ne (zadržavamo wall-clock workaround) | 🔴 pomjera SVA prikazana vremena |
+| 2 | *5.2 čitanje polja* — kako front dobija @contact_phone@/@bank_account@ da popuni edit formu (nema GET detalja kurira, nisu u @couriers-status@) | 🟠 edit forma se za njih otvara prazna |
+| 3 | *Testiranje "prije/za X min" i trajanja* — poslije @Europe/Belgrade@ + @TIMESTAMP()@ ispravki (7.3 nalazi) | 🟠 provjera regresije |
+| 4 | *1.3 živi re-test @motorbike@* — kreirati kurira sa @vehicle_type: "motorbike"@ na produkciji | 🟡 potvrda re-testom |
+| 5 | *3.2 oblik odgovora* — živ primjer @cash-handovers@ istorije (@pending@ + @confirmed@) da potvrdimo imena polja | 🟡 mapiranje defanzivno, radi |
+| 6 | *3.7* — ostaje li suspendovan/uklonjen kurir sa dugom na @couriers-balance@ (tim @app.ordera@) | 🟡 |
+| 7 | Push/notifikacije — kurir i dispečer (DIO 6) | 🟢 zaseban zadatak kolege |
+| 8 | Sitni confirm-i (DIO 8) — 8.1 podrazumevano ponašanje @restaurants@ liste | 🟡 kod usklađen sa "vraća sve" |

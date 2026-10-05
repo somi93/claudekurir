@@ -1,0 +1,699 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja (3. oktobar 2026)
+
+Legenda: 🔴 blokira/kvari podatak · 🟠 kvari/ograničava funkciju · 🟡 nejasno/treba potvrda ·
+🟢 niži prioritet
+
+Dokument ima tri dijela istog dana: *Dio 1: ekran "Poruke"* (stavke 1-9, odmah ispod), *Dio 2: ekran "Dostave"*
+(stavke 10-21) i *Dio 3: ekran "Istorija dostava"* (stavke 22-29, na kraju).
+
+Tema dijela 1: kurirski ekran *"Poruke"* (@/courier/inbox@, ranije "Obaveštenja"). Frontend je danas preradio taj ekran
+(lista po danima, ponude skupljene u jedan red po danu, otvorena poruka kao posebna adresa, bedž nepročitanih na
+početnoj i u donjoj navigaciji, klik na push vodi na pravo mjesto). Sve što može bez backenda je urađeno i provjereno
+u pravom browseru nad mock API-jem. Ispod je ono što front sam ne može da završi, po prioritetu.
+
+---
+
+h2. ✅ Šta front od danas šalje: Poruke (informativno, nema pitanja)
+
+Ovo je bitno za opterećenje i za stavku 1, pa navodimo tačno:
+
+* @GET /couriers/{id}/inbox?page=1&per_page=50@ pri prijavi kurira (bez @category@). Dok u učitanim stranicama ima
+  manje od 15 "pravih" poruka (ne-ponuda), front povlači sljedeće: @page=2@, @3@, @4@ (najviše 4 stranice, jednom po
+  sesiji). Isto radi i kad kurir otvori ekran Poruke.
+* Poslije toga, dok je aplikacija otvorena i vidljiva: @GET ...?page=1&per_page=50@ *jednom u 60 s*, pri povratku
+  u aplikaciju (najviše jednom u 15 s) i pri foreground push-u (najviše jednom u 5 s). Ništa drugo se ne osvježava.
+* "Prikaži starije" povlači sljedeću stranicu (@page=N@, isti @per_page=50@).
+* Otvaranje poruke: @PUT /inbox/{id}@ sa @{"read": true}@ (kao i do sada). *Novo:* "Označi kao nepročitano" šalje
+  @{"read": false}@ - nije potvrđeno, vidi stavku 5.
+* "Označi sve": @PUT /couriers/{id}/inbox/mark-all-read@ (kao i do sada).
+* Ponude (@category: "offer"@) front *ne broji* kao nepročitane i prikazuje ih skupljene po danu ("5 ponuda za
+  dostavu"), jer se ponuda prihvata na ekranu Dostave, a u sandučetu je samo trag.
+
+---
+
+h2. 🔴 1. Broj nepročitanih poruka za bedž - nema endpointa ni filtera
+
+*Šta vidimo (uživo 03.10, kurirski ekran):* od 16 poruka u sandučetu, *15 su ponude* (@category: "offer"@, "Nova
+ponuda za dostavu"), stare 18-21 dan, a samo jedna je pravo obaveštenje. Ponude prvu stranicu odgovora potpuno
+popune, pa se prava poruka zatrpa iza njih.
+
+Front sada prikazuje broj nepročitanih na ikoni "Poruke" (početna + donja navigacija), ali ga može izračunati samo
+iz stranica koje je povukao. Zato:
+
+* ako kurir ima više od ~200 poruka, nepročitana prava poruka iza tog prozora se *ne računa* u bedžu,
+* broj se računa u pregledaču, pa smo dodali opterećenje iz uvodne napomene (do 4 stranice po sesiji + stranica 1
+  svakog minuta) samo da bismo dobili jedan broj.
+
+*Prijedlog (a):* poseban jeftin endpoint:
+
+bc.. GET /couriers/{id}/inbox/unread-count
+
+{
+  "success": true,
+  "data": {
+    "total": 3,
+    "by_category": { "announcement": 1, "todo": 2, "promotion": 0, "offer": 159 }
+  }
+}
+
+p. Front tada ne povlači stranice radi brojanja, a poll od 60 s postaje jedan lak poziv.
+
+*Prijedlog (b), ako je lakše:* dva nova query parametra na postojeći @GET /couriers/{id}/inbox@:
+@unread=1@ (samo nepročitane) i @exclude_category=offer@. Sa @page=1&per_page=1@ bi @meta.total@ bio traženi broj.
+
+*Pitanja:*
+
+# Može li (a) ili (b)? Koji je jeftiniji za vas?
+# Da li @total@ treba da uključi i ponude? (Front ih ne broji; može se računati iz @by_category@.)
+# Može li @meta@ u svakom paginiranom odgovoru dobiti i @unread_count@ (nepročitane u cijelom sandučetu, ne samo
+  na stranici)?
+
+---
+
+h2. 🔴 2. Poruke kategorije @offer@ nastaju kao nepročitane, ostaju zauvijek i ne znaju ništa o ponudi
+
+*Šta vidimo (uživo 03.10):* za svaku ponudu koju kurir dobije nastaje inbox poruka sa @read: false@. Ponuda se
+prihvata/odbija na ekranu Dostave (@GET /courier/offers@ + socket), pa je ta poruka samo trag - kurir na nju ne može
+ništa da uradi, a ostaje "nepročitana" danima. Lista raste za onoliko ponuda koliko kurir dobije dnevno. Front
+je sad izbacio ponude iz brojača i skupio ih, ali *stanje na serveru ostaje nepročitano*.
+
+Uz to DTO poruke ne nosi ništa o ponudi: @{id, sender, category, title, body, sent_at, read}@. Tekst je oblika
+@Restoran — ...@ (na ekranu vidimo samo početak: "Роштиљница Лагуна —..."), pa front ne može da zna da li je ponuda
+još aktivna, da li ju je kurir prihvatio, niti da je poveže sa dostavom.
+
+*Prijedlog:*
+
+# Poruke @offer@ neka nastaju sa @read: true@ (ili neka se označe pročitanim čim se runda za tog kurira riješi:
+  prihvaćena/odbijena/istekla/zamijenjena/otkazana).
+# Retencija: brisati (ili ne vraćati u @GET .../inbox@) @offer@ poruke starije od N dana (npr. 7).
+# Dodati u DTO poruke @offer@ kategorije polja za vezu sa ponudom:
+
+bc.. {
+  "id": 1042,
+  "category": "offer",
+  "title": "Nova ponuda za dostavu",
+  "body": "Roštiljnica Laguna — Vuka Karadžića 12 · 4.50 KM",
+  "sent_at": "2026-10-03T08:14:00.000000Z",
+  "read": true,
+  "order_id": 4257,
+  "offer_id": 991,
+  "offer_status": "expired",
+  "expires_at": "2026-10-03T08:14:25.000000Z"
+}
+
+p. * @offer_status@: @pending@ | @accepted@ | @declined@ | @expired@ | @superseded@ | @canceled@ (isti rječnik kao
+  @offer_status@ u @GET /dispatcher/orders/{id}/offers@).
+* Front tada za @pending@ može da pokaže živu karticu ("Čeka tvoj odgovor", odbrojavanje, dugme "Otvori ponudu"),
+  a za ostale stvarni ishod ("Prihvaćeno", "Isteklo") umjesto današnjeg opšteg "Ponuda je zatvorena".
+
+*Pitanja:*
+
+# Da li ove poruke uopšte treba da žive u kurirskom sandučetu? Ako su potrebne samo dispečeru (npr. u
+  @inbox-summary@), može li @GET /couriers/{id}/inbox@ za kurira da ih izostavi ili da ima
+  @exclude_category=offer@ (vidi stavku 1)?
+# Potvrda oblika @body@: @Restoran — adresa · cijena@? Da li je naziv restorana ponekad ćirilicom (na ekranu
+  jeste; front ga prebacuje u latinicu)? Da li se oblik može smatrati stabilnim, ili da front ne razdvaja tekst
+  nego koristi posebna polja (@restaurant_name@, @address@, @delivery_price@)?
+# Da li je @expires_at@ iz stavke 2.3 (@GET /courier/offers@) isti rok koji bi ovdje stajao?
+
+---
+
+h2. 🟠 3. Push za inbox poruku - da li postoji i koji je @data.type@
+
+*Šta znamo:* dokument od 27.08 kaže da je inbox "bez push-a". Poslije toga je backend uveo push za ponude
+(@order_offer@), ali ne znamo da li dispečerova poruka (pojedinačna ili grupna, @POST .../broadcast@) šalje FCM.
+Katalog @data.type@ vrijednosti je i dalje otvoren (@13_09_2026_Frontend_pitanja_za_backend.textile@).
+
+*Šta front od danas radi s push-om:* klik na notifikaciju (@public/firebase-messaging-sw.js@) više ne otvara
+samo @/@, nego čita @data@:
+
+|_. data |_. odredište u aplikaciji |
+| @url@ (putanja koja počinje sa @/@) | ta putanja (ima prednost) |
+| @type: "order_offer"@ | @/courier/deliveries@ |
+| @type: "inbox_message"@ + @inbox_id@ | @/courier/inbox?m={inbox_id}@ (otvara baš tu poruku) |
+| sve ostalo | @/@ (kao do sada) |
+
+Uz to, svaki foreground push osvježava broj nepročitanih, bez obzira na tip.
+
+*Pitanja:*
+
+# Šalje li backend push kad dispečer pošalje poruku kuriru (pojedinačno i grupno)? Ako ne - može li?
+# Ako šalje, koji je @data.type@? Prijedlog @inbox_message@ sa poljima @inbox_id@ i @category@. Ako već postoji
+  drugi naziv, javite ga i prilagodićemo front (jedna linija).
+# Može li @order_offer@ push nositi i @order_id@ i @expires_at@ (traženo već u @10_09_2026@, A.13)? Front bi tada
+  mogao da vodi direktno na ponudu.
+
+---
+
+h2. 🟡 4. Socket događaj za novu inbox poruku (opciono)
+
+Kurirski kanal @private-App.Models.User.{courierId}@ već radi pouzdano (@.courier.offers.changed@). Dok je aplikacija
+otvorena, nova poruka danas stiže do bedža tek kroz poll (do 60 s) ili foreground push.
+
+*Prijedlog:* događaj na istom kanalu, npr. @.courier.inbox.changed@, sa payload-om koji nosi bar
+@{ "unread_count": 3 }@ (ili samo "nešto se promijenilo, povuci stanje", kao što radi @.courier.offers.changed@).
+Front bi tada osvježio bedž odmah i mogao da smanji poll.
+
+*Pitanja:*
+
+# Je li izvodljivo, i ako jeste, koji naziv događaja?
+# Ako se uvede stavka 1 (@unread-count@), može li događaj nositi isti objekat kao taj endpoint?
+
+---
+
+h2. 🟡 5. Šta kurir smije nad sopstvenim porukama + provjera vlasništva (IDOR)
+
+*Šta front radi, a nije potvrđeno:* u meniju otvorene poruke postoji "Označi kao nepročitano", koje šalje
+@PUT /inbox/{id}@ sa @{"read": false}@. Odgovor front ne koristi (čita ga kao goli DTO, kao i do sada za
+@read: true@), a pri grešci vraća stanje i prikazuje poruku. Potvrđeno je samo @read: true@.
+
+*Šta front NE radi dok ne odgovorite:* kurir ne može da briše poruke. @DELETE /inbox/{id}@ danas koristi samo
+dispečerska istorija. Kuriru bi brisanje trebalo za čišćenje starih tragova ponuda (stavka 2), ali nećemo ga
+nuditi dok nije jasno ko smije da ga pozove.
+
+*Provjera vlasništva:* @/inbox/{id}@ nije ispod @/couriers/{id}@, pa zaštita koju smo potvrdili za
+@/couriers/{id}/...@ (28.09, @403@ na tuđi @courier_id@) ne mora da važi. Ruta @GET/PUT /couriers/{id}/inbox/...@ je
+i dalje među netestiranim stavkama iz @otvorene-stavke-tracker.md@ (IDOR).
+
+*Pitanja:*
+
+# Prihvata li @PUT /inbox/{id}@ vrijednost @read: false@ kad poziva vlasnik poruke (kurir)? Šta vraća
+  (goli DTO ili @{ success, data }@)?
+# Smije li kurir da pozove @DELETE /inbox/{id}@ nad sopstvenom porukom? Ako da, hoćete li dozvoliti
+  brisanje samo poruka kategorije @offer@ ili svih?
+# Provjerava li @PUT/DELETE /inbox/{id}@ da poruka pripada pozivaocu (ili da je pozivalac dispečer iste firme)?
+  Isto pitanje za @PUT /couriers/{id}/inbox/mark-all-read@ i @GET /couriers/{id}/inbox@ sa tuđim @courier_id@.
+
+---
+
+h2. 🟡 6. @?category=@ i poruke bez kategorije, redoslijed i veličina stranice
+
+*Šta vidimo:* DTO ima @category: InboxCategory | null@ (front @null@ tretira kao "announcement"). Front sada
+filtrira u pregledaču, ali bi mogao da pređe na serverski @?category=@ čim stavka 1 stigne, pa nam treba:
+
+# Da li @?category=announcement@ vraća i redove sa @category = NULL@ (stare poruke od prije polja)? Ako ne, brojevi
+  po kategoriji se razlikuju od onoga što front prikazuje.
+# Koji je najveći dozvoljeni @per_page@? Front šalje @50@. Ako ste ograničili (npr. na 15 ili 20), recite - front
+  ne pretpostavlja da stranica nikad ne dobije manje redova od traženog, nego se oslanja na @meta.last_page@.
+# Da li je redoslijed stabilan (najnovije prvo, pa po @id@ opadajuće kod iste sekunde)? Nova poruka pri paginaciji
+  gura ostale za jedno mjesto - front sklanja duplikate po @id@, ali zbog toga bi nam bilo bitno da se redoslijed
+  ne mijenja među zahtjevima.
+# Da li je @meta.total@ ukupno za izabrani filter (kategoriju), a ne za cijelo sanduče?
+
+---
+
+h2. 🟢 7. Jedna poruka po ID-u
+
+Push (i link) otvara @/courier/inbox?m={id}@. Ako te poruke nema među već učitanim stranicama (npr. kurir je dugo
+bio van aplikacije), front povlači stranice unazad dok je ne nađe, do 12 stranica (600 poruka), pa odustaje.
+
+*Prijedlog:* @GET /inbox/{id}@ (ili @?id=@ na listi) koji vraća tu jednu poruku (isti DTO) ili @404@. Jedan poziv
+umjesto do 12, i jasan odgovor kad je poruka obrisana. Niži prioritet - redak slučaj.
+
+---
+
+h2. 🟢 8. Pošiljalac: ime i telefon (za "Pozovi dispečera")
+
+Otvorena poruka danas piše samo "Dispečer · Danas, 14:05". Za poruke koje traže akciju (@todo@, npr. "Predaj pazar do
+18h", "Ako ne stižeš, javi se na 066...") kurir nema kuda da odgovori osim da prepiše broj iz teksta (front ga
+već čini dodirljivim ako je u tekstu, ali to zavisi od toga šta je dispečer ukucao).
+
+*Prijedlog:* u DTO dodati @sender_name@ i @sender_phone@ (pošiljalac je dispečer koji je poslao poruku, ili
+firma kod grupnih/sistemskih). Front bi pokazao pravo ime i dugme "Pozovi".
+
+*Pitanja:*
+
+# Smijemo li kuriru da otkrijemo dispečerov telefon? Ako ne, može li firma imati jedan "dispečerski broj" u
+  podešavanjima koji bi ovdje išao?
+
+---
+
+h2. 🟢 9. "Urađeno" za poruke tipa @todo@ (opciono, za dogovor)
+
+Poruka kategorije @todo@ ("Za uraditi") danas je samo tekst - kad je kurir pročita, nema šta da označi. Ako je ideja da
+bude stvarni zadatak, treba nam stanje završenosti, npr. @done_at@ ili @PUT /inbox/{id}@ sa @{"done": true}@, i da
+dispečer u istoriji poslatih poruka vidi ko je završio. Front bi tada prikazao "Označi kao urađeno" i držao
+nezavršene zadatke na vrhu. Do odluke ne radimo ništa.
+
+*Pitanje:* Da li @todo@ treba da bude pravi zadatak sa ishodom, ili ostaje obična poruka sa drugom bojom?
+
+---
+
+h2. Prijedlog cijelog DTO-a poruke (sve gore na jednom mjestu)
+
+Samo radi pregleda - ne tražimo sve odjednom, redoslijed je po prioritetu iznad (1 i 2 prvo).
+
+bc.. {
+  "id": 1042,
+  "sender": "dispatcher",
+  "sender_name": "Marko M.",
+  "sender_phone": "+38766123456",
+  "category": "todo",
+  "title": "Predaj pazar do 18h",
+  "body": "Zdravo! Molim te da pazar iz jutarnje smene predaš dispečeru do 18h.",
+  "sent_at": "2026-10-03T08:04:00.000000Z",
+  "read": false,
+  "done_at": null,
+  "order_id": null,
+  "offer_id": null,
+  "offer_status": null,
+  "expires_at": null
+}
+
+p. Kraj dijela 1.
+
+---
+
+h1. Dio 2: ekran "Dostave" (@/courier/deliveries@)
+
+Tema: kurirski ekran *"Dostave"*. Frontend ga je danas preradio u "mapa preko cijelog ekrana + radni panel koji se
+mijenja po koraku" (čekanje, ponuda, preuzimanje, dostava, dostavljeno). Sve što može bez backenda je urađeno i
+provjereno u pravom Chrome-u nad probnim API-jem koji vraća ono što dokumenti od 25.09 do 30.09 opisuju;
+*ništa ispod nije provjereno nad pravim backendom* osim tamo gdje piše "uživo" i datum. Ispod je ono što front sam
+ne može da završi, po prioritetu.
+
+---
+
+h2. ✅ Šta front od danas šalje: Dostave (informativno, nema pitanja)
+
+Bitno za opterećenje, pa navodimo tačno:
+
+* @GET /orders/driver/{id}@ i @GET /courier/offers@: *bez promjene* (15 s, odnosno 15 s dok socket nije potvrđen pa
+  60 s; plus odmah poslije prihvatanja ponude, preuzimanja i dostave).
+* @POST /courier/location@: bez promjene (svaki GPS fix). Novo je samo to što ekran drži upaljenim (Wake Lock) dok
+  traje ponuda ili dostava, pa se lokacija ne prekida kad telefon ugasi ekran.
+* @POST /routing/route@: *rjeđe nego što je trebalo, ali češće nego danas.* Danas se ruta traži jednom (pa ETA i
+  udaljenost ostanu zamrznuti i poslije 650 m vožnje). Od danas: prvi zahtjev kad stignu GPS i cilj (plus još
+  jedan ako se vozilo kurira učita tek poslije njega), a poslije najviše jednom u 30 s, i to samo ako se kurir
+  pomjerio više od 100 m od mjesta posljednjeg zahtjeva ili je skrenuo više od 60 m sa rute. To je najviše 2 poziva u minuti po kuriru koji vozi.
+* *Novo:* @GET /couriers/{id}/earnings?from=<današnji datum>@ i @GET /couriers/{id}/wallet-balance@ (po jednom pri
+  otvaranju ekrana i po jednom poslije svake dostave) za red "Danas" (dostave, zarada, gotovina naspram limita).
+* *Novo:* odgovor na @POST /orders/{id}/offer-response@ (prihvatanje) front čita: nalog iz @data@ odmah postaje
+  dostava na ekranu, bez čekanja na sljedeći @GET /orders/driver@. Vidi stavku 19.
+
+h3. Polja koja front već čita (kad stignu, prikaz se pojavi sam, bez izmjene fronta)
+
+Sva polja su opciona; dok ih nema, taj dio ekrana se ne prikazuje (nema praznih mjesta ni izmišljenih vrijednosti).
+
+|_. polje |_. gdje (nalog u @GET /orders/driver@ i @order@ unutar ponude) |_. šta se pojavi na ekranu |
+| @amount_to_collect@, @payment_method@ | nalog | žuti blok *"Naplati 23.36 KM · Gotovinom"* prije klizača "Dostavljeno" + blok "Naplata" u proširenom panelu |
+| @restaurant_phone@, @customer_phone@ | nalog | dugme *"Pozovi"* (restoran dok ide po paket, kupac dok dostavlja) |
+| @customer_name@ | nalog | red "Kupac" u detaljima |
+| @customer_note@ | nalog | odjeljak *"Napomena kupca"* u detaljima |
+| @courier_earning@ | nalog i ponuda | veliki iznos postaje *"tvoja zarada"* umjesto "cijena dostave"; red "Tvoja zarada" u detaljima |
+| @distance_km@ (restoran → kupac) ili @trip_distance_m@, @pickup_distance_m@ (kurir → restoran) | ponuda | udaljenosti u ponudi bez "≈" (danas se računaju zračnom linijom iz koordinata, i samo ako ih ponuda ima; vidi stavku 12) |
+| @ready_at@ | nalog | (front ga čita u modelu; ekran ga još ne prikazuje, vidi stavku 15) |
+| @server_now@ / @expires_in@ | ponuda | (još se ne koristi, vidi stavku 18) |
+
+---
+
+h2. 🔴 10. Iznos za naplatu, način plaćanja i šta kurir plaća restoranu
+
+*Šta vidimo:* ovo je stavka 3 iz @30_09_2026_Frontend_pitanja_za_backend.textile@ (@total_price@, @amount_to_collect@,
+@currency@), *koja je još otvorena*. Na ekranu aktivne dostave jedini iznos je @delivery_price@ (npr. 1.36 KM), a
+kuriru je na vratima najbitnije koliko treba da naplati. Front je spreman: čim @amount_to_collect@ stigne, prije
+klizača se pojavi *"Naplati 23.36 KM"*; kad je @0@ (plaćeno online), piše *"Ne naplaćuj ništa"*.
+
+*Novo uz to (zaključak iz 30.09, stavka 4):* za način plaćanja *"Kurir plaća restoranu pri preuzimanju"* kurir pri
+preuzimanju mora znati *koliko da plati restoranu* (iznos hrane). Danas to ne piše nigdje u nalogu, a to je baš
+trenutak kad kurir stoji na šanku.
+
+*Prijedlog:* u nalog (i u @order@ unutar ponude) dodati:
+
+bc.. "amount_to_collect": 23.36,
+"payment_method": "cash",
+"total_price": 23.36,
+"currency": "BAM",
+"amount_to_pay_restaurant": 21.50
+
+p. * @payment_method@: stabilan ključ (npr. @cash@ / @card@ / @prepaid@) uz lokalizovani @payment_type_label@ koji već
+  postoji u @/earnings@.
+* @amount_to_pay_restaurant@: samo kad kurir avansira hranu (inače @0@ ili izostavljeno).
+
+*Pitanja:*
+
+# Može li se sve ovo dodati u @GET /orders/driver/{id}@ i u @order@ unutar @GET /courier/offers@? Ako su polja već
+  negdje, u kom endpointu?
+# Koje vrijednosti ima @payment_method@ i kako se one slažu sa @payment_type_label@ iz @/earnings@?
+# Kako front treba da pročita "plaćeno unaprijed": @amount_to_collect: 0@ ili @payment_method: "prepaid"@?
+# Može li se @currency@ popuniti (danas stiže prazan string)? Front uvijek piše "KM", pa je ovo samo radi
+  doslijednosti.
+
+---
+
+h2. 🟠 11. Telefon restorana, ime i telefon kupca
+
+*Šta vidimo:* dispečerske liste već imaju @restaurant_phone@, a kurirski nalog (@GET /orders/driver@) i ponuda nemaju
+nijedan telefon ni ime kupca. Kurir koji stoji ispred zatvorenih vrata ili zvoni kupcu mora da zove dispečera da
+bi dobio broj. Front čita @restaurant_phone@, @customer_name@ i @customer_phone@ i pokazuje dugme *"Pozovi"* čim
+stignu.
+
+*Prijedlog:* ta tri polja u nalogu (i u @order@ unutar ponude, ili tek poslije prihvatanja).
+
+*Pitanja:*
+
+# Smije li kurir da dobije telefon kupca? Ako ne prije prihvatanja, hoće li ga nalog nositi tek poslije prihvatanja
+  ponude (front prikazuje nalog iz odgovora na prihvatanje, pa bi to radilo bez izmjene)?
+# Je li moguće da se umjesto stvarnog broja kupca da broj za maskirani poziv (proxy)? Front samo otvara @tel:@ link.
+
+---
+
+h2. 🔴 12. Udaljenosti (i koordinate) u ponudi: kurir odlučuje naslijepo
+
+*Šta vidimo (uživo 03.10, ponuda za nalog #4269, "Urban Food Bordo Plus"):* panel ponude pokazuje restoran, adresu
+kupca i cijenu 1.37 KM, ali *nema nijedne udaljenosti, a na mapi nema pina restorana*. Front prikazuje udaljenost čim ponuda
+ima bilo šta od: @distance_km@ ili @trip_distance_m@ (restoran → kupac), @pickup_distance_m@ (kurir → restoran), ili
+koordinate restorana i kupca (tada računa zračnom linijom, sa "≈"). Ova ponuda nosi samo koordinate kupca, pa kurir ne zna
+koliko vozi za 1.37 KM, ni koliko je restoran daleko. To je prvo što kurir traži prije nego što pritisne "Prihvati".
+
+Ranije: komentar u kodu (@OfferCard.vue@, 25.09) kaže da restoran u ponudi *nema koordinate*; dokument od 12.09 kaže da
+ponuda nosi @order.location.coordination@ kupca. Potvrđeno uživo 03.10 (socket @courier.offers.changed@, ponuda 1157): kupac IMA koordinate (44.7757, 17.1908), a @order.restaurant@ ima samo @id@, @name@ i @address@, bez @location@ i bez grada; nema ni @distance_km@.
+
+*Backend tu brojku već ima:* @GET /dispatcher/orders/waiting@ vraća @distance_km@ (rutna udaljenost restoran → adresa
+dostave, 28.08, stavka 7.2), a @pricing/calculate@ vraća @distance_km@ i @duration_seconds@ za par restoran/kupac.
+
+*Prijedlog (po prioritetu):*
+
+# Isto polje @distance_km@ na ponudi (@GET /courier/offers@ i socket događaj @.courier.offers.changed@), restoran → kupac.
+  Front ga čita od danas (pored @trip_distance_m@), pa se prikaz pojavi čim stigne, bez izmjene fronta.
+# @pickup_distance_m@ (kurir → restoran), ako je izvodljivo: backend zna posljednju lokaciju kurira. Zračna linija je
+  dovoljna, samo recite da li je po putu ili zračna.
+# Koordinate (@order.restaurant.location.coordination@ i @order.location.coordination@, {lat, lng}) u svakoj ponudi, da
+  mapa pokaže oba pina prije prihvatanja. Ako ne želite koordinate prije prihvatanja, (1) i (2) su dovoljni za odluku.
+
+*Pitanja:*
+
+# Može li (1)? Je li to ista rutna udaljenost kao @distance_km@ na @orders/waiting@?
+# Restoran u ponudi nema @location@ (samo @id@, @name@, @address@, bez grada). Može li @restaurant.location.coordination@ i @city@ u ponudi?
+  Bez toga front ne može da pokaže pin restorana ni udaljenost do njega; (1) i (2) rješavaju odluku i bez koordinata.
+# Da li ponuda nosi adresu restorana i grad? (Adresa stiže, "Vase Pelagića 24", grad ne vidimo; front ih prikazuje ako ih ima.)
+
+---
+
+h2. 🟠 13. Zarada kurira za dostavu (a ne cijena dostave)
+
+*Šta vidimo (uživo 30.09, @/earnings@):* @wage: 2.00@ po dostavi uz @delivery_collected: 177.98@ za dostavu @4261@.
+Veliki iznos na kartici dostave i ponude je @delivery_price@ (ili cijena iz @/pricing/calculate@), to jest ono
+što kupac plaća za dostavu, *ne ono što kurir zarađuje*. Dok backend ne pošalje zaradu, front taj broj piše kao
+*"cijena dostave"*, da kurir ne misli da je to njegov dio.
+
+*Prijedlog:* @courier_earning@ (koliko kurir zarađuje za ovu dostavu) na nalogu i na ponudi; front tad piše
+*"tvoja zarada"*.
+
+*Pitanja:*
+
+# Može li se @courier_earning@ izračunati unaprijed (prije dostave), po modelu obračuna kurira (@paying_type@: po
+  dostavi / procenat / mjesečno)? Za mjesečni model bi vrijednost bila @null@ i front ne bi prikazao ništa.
+# Šta je tačno @delivery_price@ na nalogu: ono što plaća kupac, ili ono što plaća restoran? (30.09 je za
+  @4259@ bio @1.36@.)
+
+---
+
+h2. 🟡 14. Napomena kupca
+
+*Šta vidimo:* kupac pri naručivanju može da napiše napomenu ("zvonite na interfon 12"), a kurir je ne dobija. Front
+čita @customer_note@ i pokazuje je u proširenom panelu, odmah ispod rute.
+
+*Pitanja:*
+
+# Postoji li napomena kupca u podacima narudžbe, i pod kojim imenom? Ako je ne želite slati kuriru, recite i front
+  neće ni čekati na nju.
+
+---
+
+h2. 🟡 15. Spremnost hrane (opciono)
+
+*Šta vidimo:* kurir stigne u restoran a hrana nije gotova, pa čeka bez informacije koliko. Front bi mogao da
+pokaže *"Hrana je spremna"* / *"Spremna za ~6 min"* dok kurir ide ka restoranu.
+
+*Prijedlog:* @ready_at@ (ISO vrijeme kad se hrana očekuje spremna) ili @prep_status@ (@preparing@ / @ready@) na nalogu.
+
+*Pitanje:* postoji li takav podatak iz restorana (restoran potvrđuje "spremno" iz svoje aplikacije)? Ako ne, ne
+radimo ništa.
+
+---
+
+h2. 🟡 16. Prijava problema na dostavi (opciono, za dogovor)
+
+*Šta vidimo:* kupac se ne javlja, adresa je pogrešna, restoran je zatvoren. Danas kurir nema kako to da prijavi
+kroz aplikaciju, a dispečer saznaje telefonom. U listi stanja iz odgovora backenda od 15.09 već postoji
+@delivery_failed@, ali kurirska strana ne zna kako da ga postigne.
+
+*Prijedlog:* @POST /orders/{id}/problem@ sa @{ "reason": "customer_unreachable" | "wrong_address" | "restaurant_closed" | "other", "note": "..." }@
+koji dispečeru javlja problem i (kad treba) prebacuje nalog u @delivery_failed@.
+
+*Pitanja:*
+
+# Želite li ovaj tok u aplikaciji? Ako da, koji su razlozi i šta backend radi sa nalogom poslije prijave?
+# Do odgovora front ne radi ništa (nema dugmeta).
+
+---
+
+h2. 🟡 17. Geofence stanja @COURIER_AT_RESTAURANT@ i @COURIER_ARRIVED@
+
+*Šta vidimo:* komentar u @utils/orderDisplay.ts@ kaže da se ova dva stanja upisuju automatski kad je kurir u krugu
+od 100 m, ali "taj automatski upis preko lokacije još nije izgrađen". Front je danas prilagođen: nalog u ta dva
+stanja je i dalje *aktivna dostava* (ranije bi nestao sa ekrana i mape čim backend počne da ih šalje).
+
+*Pitanja:*
+
+# Da li i kada backend počinje da upisuje ova stanja?
+# Radi li @POST /orders/{id}/pickup@ iz stanja @COURIER_AT_RESTAURANT@ i @POST /orders/{id}/deliver@ iz stanja
+  @COURIER_ARRIVED@ (front pretpostavlja da da)?
+# Je li radijus uvijek 100 m, ili zavisi od firme/restorana?
+
+---
+
+h2. 🟢 18. @server_now@ ili @expires_in@ uz ponudu
+
+*Šta vidimo:* odbrojavanje ponude front računa iz @expires_at@ i sata telefona. Ako je sat kurirovog telefona
+pogrešan za minut, odbrojavanje je pogrešno za minut (ponuda koja je istekla izgleda živa, ili obrnuto). Vidi i
+@10_09_2026_Frontend_pitanja_za_backend.textile@ (A.13).
+
+*Prijedlog:* @server_now@ (ISO) ili @expires_in@ (sekunde) na svakoj ponudi, u @GET /courier/offers@ i u socket
+događaju @.courier.offers.changed@. Front tad računa razliku između serverskog i telefonskog sata i primjenjuje
+je na odbrojavanje.
+
+---
+
+h2. 🟠 19. Odgovor na prihvatanje ponude i @exceeded@ na @GET /courier/offers@
+
+*Šta vidimo (uživo 28.09):* @POST /orders/{id}/offer-response@ vraća @{ success, message, data: <narudžba> }@.
+Front od danas to koristi: prihvaćena ponuda se *odmah* prikaže kao dostava (restoran, adresa, mapa), a ne tek kad
+stigne sljedeći @GET /orders/driver@. Ako @data@ izostane, front sastavlja dostavu iz naloga koji je bio unutar ponude.
+
+*Pitanja:*
+
+# Je li @data@ u odgovoru na prihvatanje *uvijek* prisutan i je li to isti oblik kao red iz @GET /orders/driver/{id}@
+  (sa @restaurant@, @location@ i koordinatama), sa @state: STATE_BOOKED_DELIVERY@?
+# Nosi li i @GET /courier/offers@ (ne samo socket događaj) polje @exceeded@? Ono je viđeno uživo 30.09 samo u
+  socket događaju, a ekran ponude na osnovu njega upozorava *"Premašio si limit gotovine"* prije nego što kurir
+  prihvati.
+# Povezano sa otvorenom stavkom o @NOTIFY_ONLY@ iz 28.09 (odgovor na prihvatanje nema @warning@ /
+  @current_cash_amount@ / @cash_limit_amount@): front sad pokazuje upozorenje u ponudi i mjerač gotovine u čekanju,
+  ali tek kad @exceeded@ stigne.
+
+---
+
+h2. 🟡 20. "Danas": granica dana i trenutak upisa zarade
+
+*Šta vidimo:* red "Danas" u čekanju i ekran "Dostavljeno" koriste @GET /couriers/{id}/earnings?from=YYYY-MM-DD@
+(@daily[]@ za današnji dan i @data[]@ za zaradu po nalogu) i @GET /couriers/{id}/wallet-balance@. Front ih
+povlači odmah poslije @POST /orders/{id}/deliver@ da bi pokazao *"+2.00 KM zarada"* i novu gotovinu.
+
+*Pitanja:*
+
+# Kojom vremenskom zonom se računa @daily[].date@ (lokalno vrijeme Sarajeva ili UTC)? Razlika bi se vidjela između
+  ponoći i 02:00, kad bi "Danas" pokazivao jučerašnji dan.
+# Postoji li red za nalog u @data[]@ (sa @wage@) *odmah* poslije @deliver@, ili se zarada upisuje kasnije (npr.
+  noćnim obračunom)? Ako kasnije, front ekran "Dostavljeno" prikazuje samo potvrdu bez iznosa.
+# Mijenja li se @cash_owed_to_company@ u istom trenutku?
+
+---
+
+h2. 🟢 21. Stan, sprat, firma i poštanski broj: format
+
+*Šta vidimo:* @location.apartment@, @floor@, @firm@ i @zip@ već stižu u nalogu, ali ih ekran nije prikazivao. Od
+danas se prikazuju kao čipovi na kartici dostave ("Stan 12", "Sprat 3", "Studio Mak d.o.o.") jer ih kurir traži
+očima na vratima.
+
+*Pitanje:* kako izgledaju stvarne vrijednosti? Front dodaje riječ "Stan" / "Sprat" samo kad je vrijednost goli broj
+(@"12"@, @"3"@, @"3A"@); ako je već tekst ("Prizemlje", "Stan 12") ostavlja ga kakav jest. Ako backend nekad šalje
+nešto drugo (npr. cijelu adresu u @apartment@), recite.
+
+---
+
+h1. Dio 3: ekran "Istorija dostava" (@/courier/history@)
+
+Tema: kurirski ekran *"Istorija dostava"*. Frontend ga je danas preradio: umjesto liste velikih kartica sada ima
+sažetak zarade sa trendom i grafikonom, listu po danima (red od 68 px: sat, restoran, ulica, #broj, zarada), pretragu
+(restoran, ulica, #broj, bez dijakritika) i detalj dostave kao donji list. Isti detalj sada koristi i Novčanik, a oba
+ekrana dijele jedan sloj podataka. Sve što može bez backenda je urađeno i provjereno u pravom Chrome-u nad probnim
+API-jem oblikovanim po odgovorima iz dokumenata (tri stvarna naloga #4258, #4260, #4261 iz 30.09, stavka 4);
+*ništa ispod nije provjereno nad pravim @/history@ odgovorom* - njegov oblik pretpostavljamo po tipu u kodu. Ispod
+je ono što front sam ne može da završi, po prioritetu.
+
+---
+
+h2. ✅ Šta front od danas šalje: Istorija (informativno, nema pitanja)
+
+Bitno za opterećenje, pa navodimo tačno:
+
+* @GET /couriers/{id}/history@ *bez parametara* (kao i do sada) i @GET /couriers/{id}/earnings?from=<danas - 31
+  dan>@: *zajedno, jednom* pri otvaranju ekrana Istorija ili Novčanik. Do sada je Istorija → Novčanik → Istorija
+  zvala @/history@ tri puta (Novčanik ga je zvao samo radi naziva restorana); od danas jednom.
+* Podaci mlađi od 60 s se ne učitavaju ponovo. Stariji se osvježavaju u pozadini pri otvaranju ekrana i pri povratku u
+  aplikaciju. Završena dostava (@POST /orders/{id}/deliver@) poništava svježinu, pa sljedeće otvaranje ekrana uvijek
+  učitava ponovo; isto radi dugme "Osvježi". Periodičnog poziva nema.
+* *Novo:* @GET /couriers/{id}/earnings@ *bez* @from@ - samo kad kurir izabere period "Sve", jednom po otvaranju ekrana.
+* Period, grafikon, pretraga i sortiranje rade na frontu nad učitanim podacima; ništa ne šalju.
+* Istorija namjerno *ne prikazuje* ime, telefon ni napomenu kupca (stavke 11 i 14 su za aktivnu dostavu): samo restoran,
+  ulicu i grad.
+
+h3. Kako front spaja dva odgovora
+
+Po @order_id@: istorija daje restoran, adresu i rutu, a @/earnings@ obračun (@wage@, naplata). Ako jedan ne stigne,
+ekran radi sa drugim: bez zarade piše "bez obračuna" i nudi ponovni pokušaj; bez istorije se lista gradi iz
+@/earnings@ ("Dostava #4258", bez rute). Vrijeme dostave je @delivered_at@, a kad njega nema, @date@ iz @/earnings@.
+Zarada je @wage@ kad je @pay_rate_label@ popunjen; kad je @null@, front smatra da kurir ima mjesečnu platu i ne
+prikazuje iznos u KM (stavka 27).
+
+h3. Polja koja front već čita (kad stignu, prikaz se pojavi sam, bez izmjene fronta)
+
+Sva polja su opciona; dok ih nema, taj dio ekrana se ne prikazuje (nema praznih mjesta ni izmišljenih vrijednosti).
+
+|_. polje |_. gdje |_. šta se pojavi na ekranu |
+| @courier_earning@ | red istorije | zarada dostave kad za nju nema reda u @/earnings@ |
+| @distance_km@ | red istorije | "3.4 km" u detalju dostave; "Pređeno oko 120 km" u sažetku, ali samo ako je polje popunjeno za *svaku* dostavu u periodu |
+| @picked_up_at@ | red istorije | "Preuzeto 15:02 → dostavljeno 15:18 · 16 min" u detalju dostave |
+| @accepted_at@ | red istorije | (front ga čita u modelu; ekran ga još ne prikazuje, vidi stavku 25) |
+
+---
+
+h2. 🟠 22. @GET /couriers/{id}/history@: nema straničenja ni filtera po datumu
+
+*Šta vidimo:* endpoint nema nijedan parametar - jedan poziv, cijeli skup. Na probnim podacima od 3 036 dostava odgovor je
+oko 2.5 MB, a @/earnings@ za isti skup oko 0.8 MB (probni podaci oblikovani po stvarnim odgovorima; stvarnu veličinu
+ne znamo). Front to podnosi (iscrtava 24 reda, ostalo na "Prikaži starije"), ali period "Sve" mora da povuče cijelu
+istoriju, pa kurir sa dvije godine staža plaća svako otvaranje ekrana tim prenosom, na mobilnom internetu.
+
+*Prijedlog:* isti obrazac kao @?from=@ na @/earnings@:
+
+* @?from=YYYY-MM-DD&to=YYYY-MM-DD@ (lokalni dan, SQL filtrirano): front bi za "Danas", "Sedmica" i "30 dana" tražio samo taj
+  prozor, a cijelu istoriju samo na izbor "Sve".
+* @?page=&per_page=@ i @meta: { total, last_page }@ za "Sve".
+* Opciono @summary: { count, wage }@ za traženi raspon (sažetak bi bio tačan i prije nego što stignu sve stranice).
+
+*Pitanja:*
+
+# Može li se dodati @from@ / @to@ (i kojim danom se računa, vidi stavku 20) i @page@ / @per_page@ sa @meta.total@?
+# Postoji li danas gornja granica broja redova u jednom odgovoru?
+# Je li redoslijed stabilan, najnovije prvo? Front sortira sam, ali straničenje bi se oslonilo na to.
+
+---
+
+h2. 🟡 23. Zarada i način plaćanja uz svaki red istorije
+
+*Šta vidimo:* red istorije je običan nalog + @delivered_at@: ima @delivery_price@, ali ne i zaradu ni naplatu. Front zato
+zove i @/earnings@ i spaja po @order_id@. Stari ekran je sabirao @delivery_price@ i nazivao to "Cijena dostava": za tri
+stvarna naloga od 30.09 (@4258@, @4260@, @4261@) to bi bilo *180.70 KM* (@1.36 + 1.36 + 177.98@, ako @/history@ nosi
+iste cijene kao @delivery_collected@ iz @/earnings@ - to nismo provjerili), a zarada je *6.00 KM*. Novi ekran prikazuje
+zaradu; cijena dostave nije na listi.
+
+*Prijedlog:* uz svaki red istorije @courier_earning@ (kao stavka 13), @collected_from_customer@ i @payment_type@
+(stabilan ključ, uz lokalizovani @payment_type_label@ koji već postoji u @/earnings@). Front @courier_earning@ čita od
+danas: koristi ga kad za dostavu nema reda u @/earnings@. Ključ načina plaćanja bi omogućio filter ("samo kartica") bez
+izvođenja iz teksta.
+
+*Pitanja:*
+
+# Je li @delivery_price@ u @/history@ isto što i @delivery_collected@ u @/earnings@ (ono što plaća kupac)? Vidi stavku 13.
+# Mogu li uz red istorije stići @courier_earning@, @collected_from_customer@ i @payment_type@, da front ne mora da zove
+  dva endpointa?
+# Koje vrijednosti ima @payment_type@ (vidi stavku 10 i 30.09, pitanje 2)?
+
+---
+
+h2. 🟡 24. Kilometri po dostavi
+
+*Šta vidimo:* nijedan red istorije ne nosi udaljenost, pa ekran ne može da pokaže ni "3.4 km" uz dostavu ni koliko je
+kurir prešao u sedmici. Backend brojku već ima (@distance_km@ na @orders/waiting@ i u @pricing/calculate@; stavka 12).
+
+*Prijedlog:* @distance_km@ (restoran → kupac) na svakom redu istorije. Front ga čita od danas: u detalju dostave piše
+"3.4 km", a u sažetku "Pređeno oko 120 km", ali *samo kad polje imaju sve dostave u izabranom periodu* (zbir za dio
+dostava bi bio pogrešan broj).
+
+*Pitanja:*
+
+# Može li se dodati @distance_km@ na istoriju? Je li to rutna udaljenost ili zračna?
+# Je li to isti broj koji se računa za ponudu (stavka 12)?
+
+---
+
+h2. 🟢 25. Vrijeme prihvatanja i preuzimanja uz @delivered_at@
+
+*Šta vidimo:* istorija piše samo trenutak isporuke. Kurir ne vidi koliko je trajala vožnja ni koliko je čekao u restoranu.
+
+*Prijedlog:* @accepted_at@ i @picked_up_at@ uz @delivered_at@ (isti oblik, UTC sa "Z"). Front @picked_up_at@ čita od
+danas: u detalju dostave piše "Preuzeto 15:02 → dostavljeno 15:18 · 16 min". @accepted_at@ za sada samo u modelu.
+
+*Pitanje:* postoje li ta dva trenutka u bazi (npr. kad se upišu akcije @accept@ i @pickup@)? Ako ne, ne treba ih
+izvoditi iz drugih polja.
+
+---
+
+h2. 🟡 26. Oblik polja: @delivered_at@ i iznosi
+
+*Šta vidimo:* stvaran odgovor @/history@ poslije promjene ekrana nismo vidjeli. Tip u kodu kaže da je @delivered_at@
+tekst, a @/earnings@ šalje @date@ kao @"YYYY-MM-DD HH:MM:SS"@ bez zone. Na probnom odgovoru je prije današnje izmjene
+jedan red bez @delivered_at@ rušio cijelu stranicu Istorije (vječito "učitava se", bez poruke), a iznos koji stigne kao
+tekst ("2.68") ostavljao je zbir na 0.00 KM. Od danas front podnosi: @delivered_at@ u obliku "...Z" i
+@"YYYY-MM-DD HH:MM:SS"@ (lokalno), prazan i nečitljiv; iznose kao broj ili kao tekst. Dostava bez vremena dobija
+vrijeme iz @/earnings@, a ako ni tamo nema, ide u grupu "Bez datuma" na kraju liste.
+
+*Pitanja:*
+
+# Je li @delivered_at@ uvijek popunjen, i uvijek ISO sa "Z"?
+# Je li @delivered_at@ isti trenutak kao @date@ iz @/earnings@ za isti nalog? U kojoj zoni je @date@ (vidi stavku 20)?
+  Istorija period računa po @delivered_at@, a Novčanik po @date@; razlika bi se vidjela kao dostava koja je u "Danas"
+  na jednom ekranu, a u "Juče" na drugom.
+# Novčana polja (@delivery_price@, @wage@, @collected_from_customer@): uvijek broj ili uvijek tekst?
+
+---
+
+h2. 🟡 27. Kurir sa mjesečnom platom: šta stiže u @wage@
+
+*Šta vidimo:* @pay_rate_label@ je @null@ samo za @paying_type=1@ (mjesečno, vidi @types/earnings.ts@). Front tada ne
+prikazuje zaradu po dostavi: glavni broj sažetka je broj dostava, uz objašnjenje "Zaradu za ove dostave firma
+obračunava mjesečno", a redovi pokazuju šta je kurir naplatio. Tako @wage: 0@ ne izgleda kao zarada od 0.00 KM.
+
+*Prijedlog:* uz @pay_rate_label@ dodati stabilan @pay_model@ (@per_delivery@ / @percent@ / @monthly@) u red @/earnings@.
+
+*Pitanja:*
+
+# Šta stiže u @wage@ za takve dostave: @0@, @null@, ili se polje ne šalje?
+# Je li @pay_rate_label: null@ pouzdan znak mjesečne plate? Front se oslanja samo na to; ako nije, treba drugi znak
+  (@pay_model@ ili @paying_type@).
+
+---
+
+h2. 🟢 28. Prijava problema iz detalja dostave (opciono)
+
+*Šta vidimo:* uz stavku 16 (prijava problema na dostavi): kurir bi pri pregledu završene dostave htio da prijavi problem
+(pogrešna naplata, kupac se žalio) za konkretan nalog. Front nema dugme dok backend ne odgovori na stavku 16; kad
+stigne, isto dugme bi stajalo i u detalju dostave u Istoriji.
+
+*Pitanje:* hoće li @POST /orders/{id}/problem@ (stavka 16) raditi i za već dostavljen nalog, sa kategorijom i napomenom?
+
+---
+
+h2. 🟢 29. @?to=@ na @/earnings@
+
+*Šta vidimo:* @/earnings@ ima samo @?from=@ (donju granicu). Gornju granicu front filtrira sam.
+
+*Prijedlog:* @?to=YYYY-MM-DD@, simetrično sa @?from=@, kad se uvede straničenje iz stavke 22 (ili da @from@ + @to@ daju
+tačan prozor, npr. samo prošla sedmica).
+
+*Pitanje:* može li?

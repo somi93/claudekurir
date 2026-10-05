@@ -1,0 +1,274 @@
+{{toc}}
+
+h1. Frontend → backend: otvorene stavke, konsolidovano (13. septembar 2026)
+
+Spojeno iz @09_09_2026_Frontend_pitanja_za_backend.textile@ i
+@12_09_2026_Frontend_pitanja_za_backend.textile@ - **samo ono što još treba backend da
+riješi/odgovori**. Sve što je u ta dva dokumenta bilo potvrđeno/zatvoreno (👍 stavke,
+odgovoreni CORS fix, D1-D4/K1-K4/V1-V7 koji su prošli, itd.) je izbačeno - taj kontekst
+ostaje u originalnim dokumentima ako zatreba istorija.
+
+Van obuhvata ovog spajanja: @10_09_2026_Frontend_pitanja_za_backend.textile@ (DIO
+A.2-A.4, A.7, A.9-A.13) - stariji, nedirano danas, nije uključeno ovdje.
+
+Legenda: 🔴 blokira/sigurnost · 🟠 kvari/ograničava funkciju · 🟡 nejasno/treba potvrda ·
+⏳ veći posao · 👁 čeka produkcijsku potvrdu
+
+---
+
+h1. I. 🔴 Kritično - blokira ili sigurnosni propust
+
+h2. 🔴 SIGURNOSNI NALAZ - @GET /orders/driver/{id}@ nema proveru vlasništva (IDOR)
+
+Ulogovan kao kurir *30577* (nepovezan), poziv @GET /orders/driver/30189@ (tuđi
+@courier_id@) vratio *200* sa punim podacima narudžbe 3914 (restoran, lokacija,
+koordinate, adresa korisnika) - identično kao da je pozvao vlastiti ID. Bilo koji
+ulogovan kurir može čitati tuđe aktivne narudžbe samo znajući/pogađajući @courier_id@
+(mali sekvencijalni broj).
+
+# Treba autorizacija - vezati @{id}@ na @auth()->id()@ (ignorisati path parametar), ili
+  provjeriti da pozvalac SMIJE vidjeti tog kurira prije vraćanja podataka.
+# Da li isti problem postoji i na drugim @/orders/driver/*@ ili sličnim courier-scoped
+  rutama koje uzimaju tuđi ID iz putanje?
+
+h2. 🔴 Nema rute za prekid aktivne runde ponude
+
+Probana oba kandidata iz test plana, oba ne postoje:
+* @DELETE /dispatcher/orders/{id}/offer@ → @405@ (ruta postoji, ali je POST-only)
+* @POST /dispatcher/orders/{id}/offer/cancel@ → @404@ (ruta ne postoji)
+
+Frontovo "Zatvori rundu" dugme trenutno samo gasi klijentsku WS pretplatu/poll - backend
+job i dalje šalje ponude dalje, runda ostaje @active@ na serveru.
+
+# Postoji li prava ruta za prekid runde pod drugim imenom, ili je namjerno
+  neimplementirano (runda se može samo pustiti da istekne/@exhausted@)?
+# Ako namjerno neimplementirano - planira li se? Bez toga dispečer nema način da povuče
+  pogrešno poslatu ponudu prije nego sama istekne.
+
+h2. 🔴 @offer.round.changed@ WS broadcast se nikad ne emituje
+
+Auth/subscribe na @private-orders.{id}@ je čist (@subscription_succeeded@ potvrđen), ali
+dok se stanje runde vidljivo mijenjalo (kandidati @pending→expired@, runda
+@exhausted@), na socketu su stizali isključivo @pusher:ping@/@pusher:pong@ - nijedan
+application event. Front sluša @.offer.round.changed@ na kanalu @orders.{orderId}@
+(@useOrderOfferRound.ts@). UI se trenutno oslanja isključivo na 10s poll fallback.
+
+# Da li backend uopšte emituje ovaj event kad se runda promijeni? Ako da - tačno ime
+  eventa i kanal (da provjerimo poklapanje)?
+# Ako event postoji ali ne stiže u test okruženju - da li treba queue worker
+  (@queue:work@) koji možda nije aktivan tamo, pa da retestiramo poslije potvrde?
+
+h2. 🔴 @couriers-status@ (i slične liste) vraćaju i dispečere, ne samo kurire
+
+@GET .../couriers-status@ za firmu 24 vraća 8 redova, ali najmanje 3 su
+dispečerski/admin nalozi (@admin_delivery@), ne kuriri - uključujući ulogovanog
+dispečera samog. Red nema @type@/@role@ polje pa front ne može filtrirati. Dispečerski
+nalozi ulaze u "Kuriri", "Kuriri uživo", "Predloženi kuriri", slanje poruka, finansije -
+dispečer može sebi/drugom dispečeru suspendovati/obrisati/postaviti lozinku ili ga
+ponuditi kao kandidata za dostavu.
+
+*Treba* (jedno od):
+# @couriers-status@ (i @candidate-couriers@, @couriers-balance@, sve courier liste)
+  vraćaju samo stvarne kurire firme.
+# Ili: dodati @type@ polje na svaki red pa front sam filtrira.
+
+h2. 🔴 @resolve-restaurant-status accept@ - narudžba nestane sa svih tabova
+
+Scenario: "Čeka restoran" (zaostala narudžba, > 3h) → dispečer klikne *Prihvati* →
+@200 OK@. Po ugovoru narudžba treba da se pojavi u @GET /dispatcher/orders/waiting@
+("Čeka kurira") - **ne pojavljuje se ni tu ni bilo gdje**, ni odmah ni poslije refresha.
+
+*Reprodukovano dva puta uživo* (09.09 #3870, ponovo 13.09 #3922) - i dalje otvoreno.
+Network trag 13.09 potvrđuje da je front nedužan: front odmah (isti tick) zove
+@waiting@/@active-deliveries@/@refused@/@pending-restaurant-confirmation@, sve 200, sve
+se osvježe - ali @waiting@ odgovor sam ne sadrži tu narudžbu ni pri prvom ni pri
+ponovljenom pozivu par sekundi kasnije.
+
+# U koje tačno stanje @accept@ prebacuje narudžbu?
+# Ima li @GET /dispatcher/orders/waiting@ serverski vremenski prozor (kao
+  @pending-restaurant-confirmation@ koji ima @days_back@/@days_forward@)? Ako da -
+  zaostala narudžba (stara > 3h) ispada iz prozora čim se prihvati. Molimo isti podesivi
+  prozor i ovdje, ili da prihvaćena zaostala narudžba uđe bez obzira na @ordered_at@.
+# Treba li još neki uslov da narudžba uđe u @orders/waiting@?
+# (Sporedno) Push "Nova narudzba" ide i dispečeru koji je sam upravo uradio @accept@ -
+  namjerno? Copy je duplan i restoran je ćirilicom u inače latiničnom toku.
+
+h2. 🔴 @/logout@ ruta + CORS credentials za @/login@/@/logout@
+
+Frontend koristi @credentials: "include"@ na dva poziva (ne samo Bearer):
+# *Refresh token* (@POST /login@ sa @grant_type: refresh_token@) - refresh token je
+  @httpOnly@ cookie, mora ići kroz cookie pa i @credentials: include@.
+# *Logout* (@POST /logout@) - isto, da httpOnly refresh cookie stigne serveru radi
+  invalidacije.
+
+@allowed_origins: ['*']@ nije dovoljno za ova dva poziva - CORS spec zabranjuje @*@ kad
+je @credentials: include@ prisutan. Treba: @Access-Control-Allow-Origin@ da echo-uje
+tačan origin (ne @*@) *i* @Access-Control-Allow-Credentials: true@ za @/login@ i
+@/logout@.
+
+Dodatno - backend javlja da @/logout@ ruta *ne postoji* ni u @routes/api.php@ ni
+@routes/web.php@. Frontov poziv trenutno tiho puca (best-effort, korisnika izbacujemo
+lokalno bez obzira na ishod), ali ako ruta ne postoji, refresh-token cookie na serveru
+nikad ne bude invalidiran pri odjavi.
+
+# Treba li implementirati @POST /logout@ (invalidacija refresh cookie-ja), ili je
+  namjerno da se logout radi isključivo lokalno?
+# Ako drugo - javite, uklanjamo taj poziv s frontenda i CORS-credentials pitanje za
+  @/logout@ otpada (ostaje samo za @/login@ refresh).
+
+---
+
+h1. II. 🟠 Kvari / ograničava funkciju
+
+h2. 🟠 @POST .../offer@ prima nepostojeći @courier_id@ bez provjere
+
+@{"courier_ids":[999999999],"mode":"sequential"}@ (izmišljen ID) je vraćen sa @201@ i
+otvorenom aktivnom rundom. Nema validacije da @courier_ids@ moraju postojati kao
+korisnici niti da moraju biti iz @candidate-couriers@ liste te narudžbe - sequential
+runda sa jednim (lošim) kandidatom bi samo istekla poslije punog timeout-a bez ikakve
+povratne informacije dispečeru. (Frontend danas šalje samo ID-jeve iz iste liste, pa je
+ovo prije svega odbrambena validacija za buduće/tuđe klijente - niži prioritet.)
+
+# Treba li validacija da @courier_ids.*@ mora postojati u @candidate-couriers@ listi za
+  tu narudžbu (ili bar biti validan @courier@ nalog)?
+
+h2. 🟠 Prošireni model dodjele - podešavanja bez efekta
+
+Polja (@assignment_mode@ @ALL@/@NEAREST@/@TOP_N@, @assignment_courier_count@,
+@assignment_timeout_action@, @assignment_courier_pool@, @offer_timeout_seconds@) se
+čuvaju kroz @PATCH@ ali nemaju efekta - nisu povezana s automatskom dodjelom
+(@NotifyCouriersOrderAccepted@ Job). Panel na frontu prikazuje napomenu da su
+podešavanja trenutno bez efekta. Zahtijeva SSH pristup @api.kurir.ordera@ za dijagnozu.
+
+h2. 🟠 Valuta firme nedostupna na @my-companies@/@me@
+
+Neblokirajuće (upozorenje o neslaganju valute je na istom ekranu gdje se i podešava).
+Ako panel ikad izađe van tog ekrana, treba @currency@ polje na @GET
+/dispatcher/my-companies@ i/ili @GET /me@ - trenutno ni jedan izvor ga nema.
+
+---
+
+h1. III. 🟡 Nejasno / treba potvrda
+
+h2. 🟡 Cash limit (pazar) blokira @accept@, dispečer to ne vidi unaprijed
+
+Kurir validan kandidat (u @candidate-couriers@ listi), dobije ponudu, ali ne može je
+prihvatiti dok ne preda pazar - dispečer to ne zna unaprijed. @candidate-couriers@ nosi
+samo @vehicle@, @distance_km@, @zone@, @vehicle_suitable@, @currently_available@,
+@on_delivery@ - nema cash polja. *Potvrđeno uživo 13.09:* neuspio @accept@ (409 cash
+limit) se ne broji kao odgovor - ponuda ostaje @pending@ do prirodnog isteka celog
+@offer_timeout_seconds@, tek onda ide dalje. Cijeli slot se protraći na kuriru koji
+unaprijed ne može prihvatiti.
+
+# Može li @candidate-couriers@ vratiti cash status kandidata (npr.
+  @cash_over_limit: bool@, ili @current_cash_amount@/@cash_limit_amount@)? Front bi
+  mogao prikazati chip ("Prekoračio pazar") kao za neodgovarajuće vozilo.
+
+h2. 🟡 @timeout_action@ enum - kompletna lista
+
+Viđeno @"NEXT_NEAREST"@ - postoji li dokumentacija ostalih mogućih vrijednosti (npr.
+@CANCEL@/@STOP@)?
+
+h2. 🟡 @GET /courier/offers@ - da li ikad vraća redove van @pending@?
+
+K1 test pokazao je da ruta vraća samo ponude koje čekaju odgovor, bez @offer_status@
+polja na redu. Potvrda: da li ova ruta ikad vraća @declined@/@expired@/@accepted@ redove
+za tog kurira, ili isključivo @pending@?
+
+h2. 🟡 @GET /courier/offers@ - @delivery_price: 0@ stalno ili placeholder?
+
+Oba polja (top-level i @order.delivery_price@) su @0@ na test narudžbama - je li to
+placeholder za test podatak, ili @delivery_price@ na ovoj ruti uvijek 0 (npr. cijena se
+računa tek na @accept@)? Front bi htio prikazati stvarnu cijenu na banneru ponude.
+
+h2. 🟡 @courier-locations@ - preostale sitne potvrde
+
+Ruta radi, oblik potvrđen, ostaju:
+# Može li @location@ ikad biti @null@ za red koji jeste u odgovoru (kurir imao pa
+  obrisao poziciju)?
+# @status@ enum - koje su sve vrijednosti (@offline@/@online@/@delivering@…) i po kom
+  pravilu se @offline@ računa?
+# @search@ hvata samo ime/telefon, ne @courier_id@ - može li se dodati @courier_id@ u
+  LIKE pretragu?
+# @updated_at@ je @+02:00@ offset, dok su @cash-handovers@/@payouts@ na ISO + @Z@ - može
+  li se uskladiti?
+# Ostaje li stari @/courier/locations@ (kurirski) endpoint uporedo sa ovim
+  (dispečerskim)?
+# Mogu li se @battery@/@accuracy@/@altitude@ dodati u @location@ blok (stari endpoint ih
+  je nosio, "Selektovan kurir" kartica ih je koristila)?
+
+h2. 🟡 @email@ u @couriers-status@ - može li biti @null@?
+
+Deployano i radi. Ostaje samo: može li @email@ biti @null@ (kurir bez emaila) ili je
+uvijek string?
+
+h2. 🟡 Reset lozinke - sesije + autorizacija
+
+# Poništava li @PATCH@ s @password@ postojeće tokene/sesije kurira (odjava sa svih
+  uređaja), ili kurir ostaje ulogovan dok mu token ne istekne?
+# Smije li svaki dispečer firme resetovati lozinku bilo kom kuriru te firme, ili samo
+  admin? (Front ne skriva dugme - oslanja se na 403.)
+
+h2. 🟡 @available_currencies@ - preostale potvrde
+
+# Je li set globalan ili zavisi od firme/grada/države?
+# Je li redoslijed u nizu namjeran (front ga prikazuje kako stigne), ili treba sortirati?
+# Je li @"KM"@ garantovano uvijek u nizu? (front na prazan/null @currency@ šalje @"KM"@
+  fallback, pa set bez @"KM"@ bi bio 422)
+
+h2. 🟡 @order_status@ u 409 - treba enum mogućih vrijednosti
+
+@POST /orders/{id}/accept@ vraća @order_status@ u 409 telu; front mapira normalizovan
+ključ na čitljivu poruku heuristikom. Za 1:1 treba tačan enum (@on-hold@, @assigned@,
+@picked_up@, @in_delivery@, @delivered@, @cancelled@, @refused@…) + značenje svake.
+
+---
+
+h1. IV. ⏳ Veći posao / feature zahtjevi
+
+h2. ⏳ Zbirni pregled poslednje poruke po kuriru (@inbox-summary@)
+
+"Istorija poslatih poruka" je lista kurira; treba pretpregled po redu (naslov + vrijeme
+poslednje poruke + broj nepročitanih). Nema zbirnog endpointa - jedini put je
+@GET /couriers/{id}/inbox@ po jednom kuriru (N poziva). Traženo:
+@GET /dispatcher/delivery-companies/{companyId}/inbox-summary@ →
+@{ courier_id, last_message: { title, sent_at, category, sender } | null,
+dispatcher_unread_count }@, idealno uz istu paginaciju/pretragu kao @couriers-status@.
+
+h2. ⏳ @/earnings@ - @hours_online@ / metrika "po satu"
+
+@GET /couriers/{id}/earnings@ i dalje ne vraća @hours_online@/@avg_per_hour@. Čeka novi
+"sesije" sistem. Kad bude: dodati @hours_online@ u @daily[]@ redove (front agregira po
+sedmici).
+
+h2. ⏳ Push kanal - koji eventi šalju push, dokumentacija payload-a
+
+Front pollira (Dodela narudžbi 5 min, ostalo on-demand). Ne može se s frontenda
+provjeriti šalje li backend push za konkretne događaje.
+
+# Šalje li se push za: (a) nova ponuda kuriru, (b) novi @cash-handovers/report@
+  dispečeru, (c) narudžba dugo čeka kurira, (d) restoran ne prihvata narudžbu? Koji već
+  rade, koji ne?
+# Dokumentovan @data.type@ enum + oblik @data@ payload-a po tipu - front grana po
+  @payload.data.type@ (@usePushNotifications.onMessage@), zasad mapiran samo
+  @cash_limit_reached@.
+# Ako neki od tih događaja neće skoro dobiti push - preporučeni polling interval za
+  njega?
+
+h2. ⏳ Uklonjen/suspendovan kurir sa otvorenim dugom
+
+* Je li namjerno da @couriers-balance@ drži i kurire kojih nema u @couriers-status@?
+* Rade li @POST /dispatcher/couriers/{id}/cash-receipt@ i @.../payout@ za takvog kurira
+  (veza firma↔kurir prekinuta)? Ako mogu vratiti 4xx - treba @link_active@ flag na redu
+  ili dokumentovana poruka.
+
+---
+
+h1. V. 👁 Čeka produkcijsku potvrdu
+
+h2. 👁 @payouts.created_at@ ISO + @Z@ format
+
+Prešao na ISO + @Z@ (usklađeno s @cash-handovers@). Front barata s oba oblika. Molimo
+potvrdu s produkcije da nema pomaka u prikazu datuma isplata poslije uklanjanja
+wall-clock workaround-a (@ordered_at@, @waiting_minutes@, @minutes_until_delivery@,
+trajanja).

@@ -1,0 +1,133 @@
+{{toc}}
+
+h1. Backend → frontend: odgovori na pitanja od 07.09 (9. septembar 2026)
+
+Backend tim je odgovorio na *četiri* stavke iz
+@07_09_2026_Frontend_pitanja_za_backend.textile@. Ovaj dokument samo *prepisuje šta je
+stiglo* + označava šta time zatvaramo; naša integracija je u
+@09_09_2026_Frontend_implementacija-kuriri-valuta.textile@, a preostala otvorena pitanja
+(uklj. novopostala iz ove integracije) u @09_09_2026_Frontend_pitanja_za_backend.textile@.
+
+Mapiranje na naša pitanja: *1.1 → §1.1 (07.09)*, *1.2 → §1.2*, *1.3 → §1.3*, *2.1 → §2.1*.
+
+---
+
+h1. 1.1 @couriers-status@ vraća @email@ — DEPLOYANO
+
+Red @couriers-status@ (@fullCourierRow()@) sad nosi @email@ kurira. *Provjereno uživo
+09.09 (posljednja provjera dana): svih 8 redova firme 24 ima @email@* (string, nijedan
+@null@). @CourierEditDialog@ read-only polje "Korisničko ime (email)" se sad puni.
+Ostaju sitne potvrde (POST/PATCH @fullCourierRow@ odgovor, nullability) - vidi
+@09_09_2026_Frontend_pitanja_za_backend.textile@ §1.1.
+
+---
+
+h1. 1.2 Promjena lozinke kroz @PATCH .../couriers/{courierId}@ — SREĐENO
+
+Potvrđeno tačno kako je front već napravljen:
+
+* *Put / oblik tela* — @PATCH /api/dispatcher/delivery-companies/{companyId}/couriers/{courierId}@
+  sad prima *opciono* @password@ uz postojeća polja. Šalje se *samo kad je popunjeno*;
+  prazan string ili izostanak polja = lozinka se ne dira. Može se poslati *samo*
+  @password@ bez ijednog drugog polja. Odgovor je *isti pun red* (@DispatcherCourierResource@
+  / @fullCourierRow@) kao za ostale izmjene.
+* *Validacija* — @string, min:8@. Loša vrijednost → *422*, isti oblik greške kao ostala
+  polja: @{ "message": ..., "errors": { "password": [...] } }@.
+* *@must_change_password@* — *da*, postavlja se na @true@ (kao kod create-a). Kurir mora
+  promijeniti lozinku pri sljedećoj prijavi.
+
+*Nije spomenuto* (nosimo u pitanja, sitno): poništavaju li se aktivne sesije/tokeni
+kurira, i smije li *svaki* dispečer firme resetovati lozinku ili samo admin.
+
+---
+
+h1. 1.3 NOVA RUTA — @GET /api/dispatcher/delivery-companies/{companyId}/courier-locations@ — DEPLOYANO
+
+Ruta je 09.09 (kasnije istog dana) *proradila* i vratila red - oblik potvrđen:
+
+bc.. {
+  "success": true,
+  "data": [
+    {
+      "courier_id": 30189,
+      "name": "Dostavljac 1 Ordera",
+      "phone": "0565656560",
+      "suspended": false,
+      "vehicle": { "id": 2, "type": "car" },
+      "location": {
+        "latitude": 45.1457, "longitude": 20.4812,
+        "heading": null, "speed": null,
+        "status": "offline",
+        "updated_at": "2026-09-07T23:52:10+02:00"
+      }
+    }
+  ]
+}
+
+p. Zapažanja: nema @first_name@/@last_name@ (samo spojeno @name@), nema @accuracy@/
+@altitude@, @status@ dolazi *gotov* od backenda, @updated_at@ je ISO *sa offsetom*
+(@+02:00@, ne @Z@). Firma 24 ima 8 kurira u @couriers-status@ a ovdje se vratio *1* →
+izgleda da se vraćaju *samo kuriri s poznatom pozicijom*. Preostala sitna pitanja (može
+li @location@ biti @null@, enum za @status@, @search@ i @#ID@, offset vs @Z@) - vidi
+@09_09_2026_Frontend_pitanja_za_backend.textile@ §1.3.
+
+Server-side @search@ / @active_within@ / @page@ / @per_page@ + @meta@ blok - ono što smo
+tražili za "Kuriri uživo" na skali.
+
+* *Path parametar:* @{companyId}@ — id firme.
+* *Query parametri (svi opcioni):*
+** @search=STR@ — LIKE po imenu / prezimenu / punom imenu / telefonu
+** @active_within=MIN@ — samo kuriri čija je lokacija ažurirana u zadnjih @MIN@ minuta
+   (1–1440); bez njega — sve poznate pozicije
+** @page=N@ — ako je prisutan, odgovor je *paginiran* (dodaje se @meta@); bez njega —
+   flat @data@ niz sa svim redovima
+** @per_page=N@ — veličina strane uz @page=@ (default 50, max 200)
+* *Odgovor:*
+  bc. { success: true,
+    data: DispatcherCourierLocationResource[],
+    meta?: { current_page, last_page, per_page, total } }
+
+*Oblik @DispatcherCourierLocationResource@ nije dat* — to je glavno otvoreno pitanje za
+ovu stavku (koja polja: @courier_id@ / ime / telefon / vozilo / @latitude@ / @longitude@ /
+timestamp lokacije / status / brzina …). Dok ne stigne, "Kuriri uživo" ostaje na
+postojećem spoju (@couriers-status@ direktorij + @/courier/locations@), a nova ruta je
+pripremljena u servisu ali *nije uključena u stranicu*.
+
+---
+
+h1. 2.1 @finance-settings@ — @available_currencies@ — DEPLOYANO I RADI
+
+*Provjereno uživo 09.09 (druga provjera istog dana): @GET .../finance-settings@ sad vraća
+@"available_currencies": ["KM", "BAM", "EUR", "RSD"]@* uz @currency: "KM"@. §2.1 zatvorena
+- @FinanceSettingsPanel@ padajuću listu puni sa API-ja, bez hardkodovanog seta.
+(Napomena: 1.1 i 1.3 su i dalje 404 / fale - deploy 09.09 batch-a je išao djelomično.)
+
+|_. Metod |_. Ruta |_. Šta je novo |
+| @GET@ | @/api/dispatcher/delivery-companies/{delivery_company}/finance-settings@ | odgovor sad sadrži @available_currencies@ |
+| @PATCH@ | @/api/dispatcher/delivery-companies/{delivery_company}/finance-settings@ | odgovor takođe sadrži @available_currencies@ |
+
+Middleware nepromijenjen: @auth@ + @EnsureDispatcherBelongsToCompany@.
+
+*GET odgovor (data blok):*
+
+bc. {
+  "success": true,
+  "data": {
+    // ... sva postojeća polja ...
+    "currency": "KM",                                    // string | null (nepromijenjeno)
+    "available_currencies": ["KM", "BAM", "EUR", "RSD"]  // NOVO — list<string>
+  }
+}
+
+*PATCH — validacija @currency@:*
+* @currency@ van @available_currencies@ → *422*:
+  bc. { "message": "...", "errors": { "currency": ["The selected currency is invalid."] } }
+* @currency: null@, @""@ ili samo razmaci → *prihvaćeno*, briše valutu (backend/front onda
+  padaju na @"KM"@).
+
+Time je §2.1 (07.09) / tracker A.4a zatvorena — @FinanceSettingsPanel@ padajuću listu sad
+puni sa API-ja umjesto iz hardkodovanog seta.
+
+*Nije potpuno razjašnjeno* (nosimo u pitanja): je li lista globalna ili po firmi / gradu /
+državi, je li redoslijed u nizu značajan za prikaz, i je li @"KM"@ garantovano uvijek član
+niza.

@@ -1,0 +1,63 @@
+{{toc}}
+
+h1. Frontend → backend: prijedlozi za bolji uvid u "Predloženi kuriri" (14. septembar 2026)
+
+Tri prijedloga sa uživo pregleda ekrana "Dodela narudžbi" / "Predloženi kuriri"
+(@CandidateCouriersPanel.vue@) - nisu bagovi, nego zahtjevi za proširenje podataka koje
+frontend danas nema na raspolaganju za ove ekrane.
+
+Legenda: ⏳ veći posao/feature zahtjev
+
+---
+
+h1. I. ⏳ Veći posao / feature zahtjevi
+
+h2. ⏳ Detalji kandidata (korisničko ime/email, telefon) na klik
+
+Prijedlog: klik na kandidata u listi "Predloženi kuriri" prikaže njegove detalje -
+korisničko ime (email) i telefon.
+
+Trenutno stanje: @GET /dispatcher/orders/{id}/candidate-couriers@ vraća samo
+@courier_id@, @name@, @vehicle@, @distance_km@, @zone@, @vehicle_suitable@,
+@currently_available@, @on_delivery@ (vidi @CandidateCourierDto@ u
+@types/candidateCourier.ts@) - nema @email@/@phone@. Ekran "Dodela narudžbi" ne učitava
+odvojeno @couriers-status@ listu (koja email/phone ima) pa nema odakle unakrsno
+povezati.
+
+# Može li @candidate-couriers@ vratiti i @email@/@phone@ po redu (isti obrazac kao
+  @couriers-status@), ili je bolje da frontend doda poseban lookup (npr.
+  @GET /couriers/{id}@) samo za prikaz detalja na klik?
+
+h2. ⏳ Vidljivost kome je poslata ponuda za narudžbu - i van "Predloženi kuriri" panela
+
+Prijedlog: kad je narudžba proslijeđena kuriru na prihvatanje, dispečer treba uvid kome
+je poslat upit za tu narudžbu.
+
+Trenutno stanje: unutar samog "Predloženi kuriri" panela, dok je runda aktivna, svaki
+red kandidata već pokazuje chip sa stanjem njegove ponude (poslato/prihvaćeno/odbijeno/
+isteklo - @offerChip@ u @CandidateListItem.vue@, iz @useOrderOfferRound.ts@). Ono što
+NEDOSTAJE je isti podatak van ovog panela - npr. na listama narudžbi ("Čeka kurira",
+"Aktivne dostave") ne postoji indikacija da je narudžba trenutno "u ponudi" nekom kuriru,
+niti kome - dispečer mora otvoriti "Predloži kurira" za svaku narudžbu pojedinačno da
+provjeri.
+
+# Mogu li @GET /dispatcher/orders/waiting@ i slične liste narudžbi dobiti polje (npr.
+  @active_offer: { courier_id, courier_name, status } | null@) da se ovo vidi na samoj
+  listi, bez otvaranja assignment panela po narudžbi?
+
+h2. ⏳ Status narudžbe + dodijeljeni kurir po pretrazi ID-a narudžbe
+
+Prijedlog: kad dispečer unese ID narudžbe (isto polje kao za "Prikaži kandidate"), da
+pored statusa narudžbe vidi i koji je kurir tu narudžbu preuzeo (ako je već dodijeljena).
+
+Trenutno stanje: unos ID-a u "Predloženi kuriri" samo učita kandidate za tu narudžbu
+(@candidate-couriers@) - ne postoji poziv koji vrati status POJEDINAČNE narudžbe +
+trenutnog kurira po ID-u. Taj podatak djelimično već postoji na drugom mjestu -
+@GET /dispatcher/orders/active-deliveries@ vraća @courier: { id, name, phone, vehicle }@
+za narudžbe u @booked@/@picked_up@ stanju (vidi @ActiveDeliveryDto@ u
+@types/activeDelivery.ts@) - ali samo kao dio liste, ne kao lookup po ID-u, i ne pokriva
+druga stanja narudžbe.
+
+# Postoji li (ili može li se dodati) @GET /dispatcher/orders/{id}@ (ili slično) koji
+  vraća trenutni status narudžbe + dodijeljenog kurira (ako postoji), da dispečer po
+  unosu ID-a odmah vidi oboje na jednom mjestu, ne samo listu kandidata?

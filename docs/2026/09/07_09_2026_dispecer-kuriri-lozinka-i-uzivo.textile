@@ -1,0 +1,83 @@
+{{toc}}
+
+h1. Frontend implementacija: korisničko ime + lozinka kurira, "Kuriri uživo" obogaćen (7. septembar 2026)
+
+Kontekst: zahtjev sa issue-a (pm.bitlab.rs) - dispečer u "Izmeni kurira" treba da vidi
+korisničko ime (email) kurira i da mu može postaviti novu lozinku; sa "Kuriri uživo"
+treba link ka listi svih kurira; u "Kuriri uživo" treba telefon + vozilo kurira (Glovo
+u Banja Luci ~500 kurira); ID kurira dostupan svuda.
+
+Dodirnute datoteke:
+* @app/types/company-courier.ts@ - @CompanyCourier.email@ (opciono), @CourierUpdatePayload.password@
+* @app/components/company/couriers/CourierEditDialog.vue@ - prikaz emaila, opt-in polje "Postavi novu lozinku" + "Generiši"
+* @app/pages/dispatcher/index.vue@ - dugme "Lista kurira", učitava @couriers-status@ i pravi @courierDirectory@ mapu
+* @app/components/dispatcher/CourierSidebar.vue@ - pretraga po imenu/telefonu/ID, cap na 100 redova
+* @app/components/dispatcher/CourierListItem.vue@ - ime, #ID, telefon, vozilo
+* @app/components/dispatcher/SelectedCourierCard.vue@ - ime, ID, @tel:@ link, vozilo
+* @app/components/dispatcher/CourierMap.vue@ - popup: ime / ID / telefon / vozilo
+
+---
+
+h2. 1. Korisničko ime (email) + promjena lozinke u "Izmeni kurira"
+
+*UI:* @ID kurira@ i @Korisničko ime (email)@ su sad *read-only input polja* (prvi red
+dijaloga) - ID s prefiksom @#@, email s @mdi-account-outline@ ikonom. Nisu obični tekst
+nego onemogućena polja, radi konzistentnosti s ostatkom forme.
+
+*Lozinka - UI urađen, endpoint NEPOTVRĐEN:* @CourierUpdatePayload@ dobio opciono
+@password@. Dispečer čekira "Postavi novu lozinku" (opt-in) pa se otvori polje +
+"Generiši" (isti @generateTemporaryPassword@ kao kod create-a, @min:8@). Ako ostane
+nečekiran, @password@ se *ne šalje*. Napomena u dijalogu: sistem ne šalje email/SMS -
+dispečer prosljeđuje lozinku van sistema (isto kao create).
+
+*Kad je popunjeno,* @password@ se trenutno šalje uz @PATCH .../couriers/{courierId}@ -
+ali *nije potvrđeno da backend to polje prima*. Pitanje backendu (prima li @PATCH@
+@password@ ili treba poseban @reset-password@ endpoint, + validacija /
+@must_change_password@ / sesije / obavijest / autorizacija) - u
+@07_09_2026_Frontend_pitanja_za_backend.textile@ §1.2. Čim stigne odgovor, prilagodi se
+put/naziv polja.
+
+*OTVORENO - potvrđeno 07.09 da @email@ NE STIŽE:* @GET .../couriers-status@ red
+(@fullCourierRow@) *ne sadrži @email@* (provjereno u Network tabu - red ima
+@courier_id / name / first_name / last_name / phone / suspended* / vehicle /
+contact_phone / bank_account / note@, bez emaila). Traženo od backenda u
+@07_09_2026_Frontend_pitanja_za_backend.textile@ §1.1. Dok ne stigne, read-only polje je
+prazno. @CompanyCourier.email@ je zato *opciono* u tipu.
+
+---
+
+h2. 2. "Kuriri uživo" -> link ka listi kurira
+
+Dugme *"Lista kurira"* (@mdi-account-group-outline@) u headeru @/dispatcher@ vodi na
+@/dispatcher/couriers@. Čist frontend.
+
+---
+
+h2. 3. "Kuriri uživo" - telefon, vozilo, ime, pretraga (skala ~500 kurira)
+
+@GET /courier/locations@ vraća samo @driver_id@. Ime / telefon / vozilo se povlače iz
+@couriers-status@ liste izabrane firme (@useCompanyCouriers@) i spajaju po ID-u u
+@courierDirectory@ mapu. Nema novog backend poziva van postojećeg @couriers-status@.
+
+* Lista (@CourierSidebar@): pretraga sad hvata *ime, telefon i ID* (ranije samo ID).
+  Zbog firmi sa 500+ kurira render je ograničen na *prvih 100* rezultata uz poruku
+  "Prikazano prvih N od M - suzi pretragu".
+* Red liste (@CourierListItem@): ime kurira kao naslov, ispod @#ID · telefon · vozilo@.
+* Selektovan kurir (@SelectedCourierCard@): ime, @ID #@, telefon kao @tel:@ link, vozilo.
+* Marker popup (@CourierMap@): ime / ID / telefon / vozilo + postojeći status/brzina.
+
+Kurir kog nema u @couriers-status@ listi (npr. druge firme) prikazuje se kao ranije -
+@Dostavljač #ID@ bez dodatnih podataka.
+
+*Napomena:* @courierDirectory@ se učita jednom (na promjenu firme), lokacije se i dalje
+pollaju na 15s. Ako se pojavi potreba za "pravim" push kanalom / server-side pretragom
+kurira na skali, to je zasebna backend tema (tracker A.2 / veći posao).
+
+---
+
+h2. 4. ID kurira svuda
+
+Provjereno - @#ID@ je vidljiv u: listi kurira firme, "Izmeni kurira", "Pošalji poruku
+kuriru", "Kuriri uživo" (avatar + red + selektovana kartica + popup). Nije bilo potrebe
+za dodatnim izmjenama osim gore navedenih (red liste uživo je ranije imao samo
+@Dostavljač #ID@ - sad ID stoji uz ime).

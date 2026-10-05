@@ -1,0 +1,78 @@
+<h2 class="sr-only">Skica kako katalog uslova radi na postojecem frontu - klik na chip iz kataloga automatski popunjava naziv i vremenski prozor ako postoji</h2>
+
+<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Brzo dodavanje (iz GET /condition-tags):</div>
+<div id="chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
+
+<div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem">
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+  <div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">Naziv</div>
+    <input type="text" id="nameInput" placeholder="npr. Kiša" style="width:100%">
+  </div>
+  <div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">Tip</div>
+    <select style="width:100%"><option>Po kilometru</option></select>
+  </div>
+</div>
+
+<div style="border-top:0.5px solid var(--border);padding-top:12px;margin-bottom:6px">
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:13px;font-weight:500">Automatski po vremenu</span>
+    <input type="checkbox" id="autoTime" disabled>
+  </div>
+  <div id="autoHelp" style="font-size:12px;color:var(--text-secondary);margin-top:2px">Izaberi parametar iz kataloga iznad.</div>
+</div>
+
+<div id="timeFields" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+  <div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">Vrijeme od</div>
+    <input type="time" id="timeFrom" style="width:100%">
+  </div>
+  <div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">Vrijeme do</div>
+    <input type="time" id="timeTo" style="width:100%">
+  </div>
+</div>
+
+</div>
+
+<script>
+const tags = [
+  {key:'rain', name:'Kiša', icon:'ti-cloud-rain', from:null, to:null},
+  {key:'snow', name:'Snijeg', icon:'ti-cloud-snow', from:null, to:null},
+  {key:'traffic', name:'Gužva', icon:'ti-traffic-cone', from:'15:00', to:'17:00'},
+  {key:'night', name:'Noćna dostava', icon:'ti-moon', from:'22:00', to:'06:00'}
+];
+
+const chipsEl = document.getElementById('chips');
+tags.forEach(tag=>{
+  const chip = document.createElement('button');
+  chip.style.cssText = 'font-size:12px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px';
+  chip.innerHTML = `<i class="ti ${tag.icon}" style="font-size:14px" aria-hidden="true"></i>${tag.name}`;
+  chip.onclick = () => selectTag(tag);
+  chipsEl.appendChild(chip);
+});
+
+function selectTag(tag){
+  document.getElementById('nameInput').value = tag.name;
+  document.getElementById('nameInput').disabled = true;
+
+  const hasTime = tag.from !== null;
+  const autoTime = document.getElementById('autoTime');
+  const help = document.getElementById('autoHelp');
+  const fields = document.getElementById('timeFields');
+
+  autoTime.disabled = false;
+  autoTime.checked = hasTime;
+  fields.style.display = hasTime ? 'grid' : 'none';
+  help.textContent = hasTime
+    ? `Predlog iz kataloga - ${tag.from} do ${tag.to}, mozes izmijeniti.`
+    : `${tag.name} nema podrazumijevano vrijeme - ukljuci rucno ako treba.`;
+
+  if(hasTime){
+    document.getElementById('timeFrom').value = tag.from;
+    document.getElementById('timeTo').value = tag.to;
+  }
+}
+</script>

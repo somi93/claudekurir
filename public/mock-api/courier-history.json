@@ -1,0 +1,205 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "user_id": null,
+      "restaurant_id": 10,
+      "company_id": null,
+      "location_id": 20,
+      "state": "delivered",
+      "delivery_type": null,
+      "date": null,
+      "delivery_time": null,
+      "guest_number": null,
+      "currency": "KM",
+      "delivery_price": 4.5,
+      "delivered_at": "2026-07-31T10:30:00.000Z",
+      "location": {
+        "id": 20,
+        "address": "Zmaja od Bosne 45",
+        "apartment": null,
+        "floor": null,
+        "firm": null,
+        "zip": null,
+        "coordination": null,
+        "city": {
+          "id": 1,
+          "name": "Sarajevo",
+          "code": null
+        }
+      },
+      "restaurant": {
+        "id": 10,
+        "name": "Pizzeria Roma",
+        "address": "Ferhadija 12",
+        "location": null,
+        "city": {
+          "id": 1,
+          "name": "Sarajevo",
+          "code": null
+        }
+      }
+    },
+    {
+      "id": 2,
+      "user_id": null,
+      "restaurant_id": 20,
+      "company_id": null,
+      "location_id": 40,
+      "state": "delivered",
+      "delivery_type": null,
+      "date": null,
+      "delivery_time": null,
+      "guest_number": null,
+      "currency": "KM",
+      "delivery_price": 6.2,
+      "delivered_at": "2026-07-31T08:00:00.000Z",
+      "location": {
+        "id": 40,
+        "address": "Grbavička 3",
+        "apartment": null,
+        "floor": null,
+        "firm": null,
+        "zip": null,
+        "coordination": null,
+        "city": {
+          "id": 1,
+          "name": "Sarajevo",
+          "code": null
+        }
+      },
+      "restaurant": {
+        "id": 20,
+        "name": "Sushi Bar Tokyo",
+        "address": "Titova 5",
+        "location": null,
+        "city": {
+          "id": 1,
+          "name": "Sarajevo",
+          "code": null
+        }
+      }
+    },
+    {
+      "id": 3,
+      "user_id": null,
+      "restaurant_id": 30,
+      "company_id": null,
+      "location_id": 60,
+      "state": "delivered",
+      "delivery_type": null,
+      "date": null,
+      "delivery_time": null,
+      "guest_number": null,
+      "currency": "KM",
+      "delivery_price": 3.8,
+      "delivered_at": "2026-07-31T05:00:00.000Z",
+      "location": {
+        "id": 60,
+        "address": "Alipašina 88",
+        "apartment": null,
+        "floor": null,
+        "firm": null,
+        "zip": null,
+        "coordination": null,
+        "city": {
+          "id": 1,
+          "name": "Sarajevo",
+          "code": null
+        }
+      },
+      "restaurant": {
+        "id": 30,
+        "name": "Burger House",
+        "address": "Maršala Tita 22",
+        "location": null,
+        "city": {
+          "id": 1,
+          "name": "Sarajevo",
+          "code": null
+        }
+      }
+    },
+    {
+      "id": 4,
+      "user_id": null,
+      "restaurant_id": 40,
+      "company_id": null,
+      "location_id": 80,
+      "state": "delivered",
+      "delivery_type": null,
+      "date": null,
+      "delivery_time": null,
+      "guest_number": null,
+      "currency": "KM",
+      "delivery_price": 3.0,
+      "delivered_at": "2026-07-31T00:00:00.000Z",
+      "location": {
+        "id": 80,
+        "address": "Koševo 14",
+        "apartment": null,
+        "floor": null,
+        "firm": null,
+        "zip": null,
+        "coordination": null,
+        "city": {
+          "id": 1,
+          "name": "Sarajevo",
+          "code": null
+        }
+      },
+      "restaurant": {
+        "id": 40,
+        "name": "Ćevabdžinica Baščaršija",
+        "address": "Baščaršija 1",
+        "location": null,
+        "city": {
+          "id": 1,
+          "name": "Sarajevo",
+          "code": null
+        }
+      }
+    },
+    {
+      "id": 5,
+      "user_id": null,
+      "restaurant_id": 50,
+      "company_id": null,
+      "location_id": 100,
+      "state": "delivered",
+      "delivery_type": null,
+      "date": null,
+      "delivery_time": null,
+      "guest_number": null,
+      "currency": "KM",
+      "delivery_price": 5.1,
+      "delivered_at": "2026-07-30T18:00:00.000Z",
+      "location": {
+        "id": 100,
+        "address": "Hrasno 7",
+        "apartment": null,
+        "floor": null,
+        "firm": null,
+        "zip": null,
+        "coordination": null,
+        "city": {
+          "id": 1,
+          "name": "Sarajevo",
+          "code": null
+        }
+      },
+      "restaurant": {
+        "id": 50,
+        "name": "Pasta Fresca",
+        "address": "Dolina 9",
+        "location": null,
+        "city": {
+          "id": 1,
+          "name": "Sarajevo",
+          "code": null
+        }
+      }
+    }
+  ]
+}
