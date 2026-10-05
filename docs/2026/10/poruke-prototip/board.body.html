@@ -1,0 +1,480 @@
+<div class="wrap">
+
+<header class="top" id="vrh">
+  <div class="eyebrow">Dizajn · Poruke (dispečer) · 05.10.2026.</div>
+  <h1>Poruke</h1>
+  <p class="lede">Analiza ekrana <code>/dispatcher/notifications</code> (danas „Obaveštenja“) na pravom kodu i u pravom Chrome-u (API presretnut, bez backenda, 28 izmišljenih kurira), pa predlog: grupe primalaca umjesto padajuće liste, pregled kako kurir vidi poruku, praćenje ko je pročitao, povlačenje pogrešne poruke i popravke koje ne čekaju dizajn jer već danas kvare podatak.</p>
+  <nav class="nav" aria-label="Odjeljci">
+    <a href="#sazetak">Sažetak</a><a href="#danas">Danas</a><a href="#nalazi">Nalazi</a><a href="#predlog">Predlog</a><a href="#stanja">Stanja</a><a href="#dijelovi">Dijelovi</a><a href="#tok">Tok podataka</a><a href="#odluke">Odluke</a><a href="#mjerenja">Mjerenja</a><a href="#faze">Redosled</a><a href="#backend">Backend</a><a href="#rizici">Rizici</a><a href="#provjera">Nije provjereno</a>
+  </nav>
+  <div class="theme-row"><button type="button" class="bb" id="theme-btn" aria-pressed="false">Tema ploče</button></div>
+</header>
+
+<section class="sec" id="sazetak" aria-labelledby="h-sazetak">
+  <div class="sec-head"><div class="eyebrow">Sažetak</div><h2 id="h-sazetak">Stranica šalje poruke, ali ne zna kome, ne pokazuje šta je poslato ni ko je pročitao, a istorija kurira miješa poruke sa ponudama</h2>
+  <p class="lede">Ovo je jedini ekran preko kojeg dispečer govori svim kuririma odjednom, a napravljen je kao obrazac sa padajućom listom i spiskom imena. Nalazi ispod su izmjereni na stranici, ne samo pročitani iz koda; gdje se oslanjaju na dokument backenda, to piše.</p></div>
+  <div class="facts">
+    <div class="fact"><span class="tag">Pogrešan podatak</span><b>Ponude</b><span>Pretpregled „zadnje poruke“ i čip „58 nepročitano“ dolaze iz <code>inbox-summary</code>. Dokument od 21.09. kaže da su svi primjeri iz stvarnog odgovora imali kategoriju <code>offer</code>. Isti uzrok pogađa i detalj kurira na ekranu Kuriri.</span></div>
+    <div class="fact"><span class="tag">Pogrešan prikaz</span><b>__M_b_dlg_offers__</b><span>„Poruka“ u istoriji kurira #30189 su ponude, svaka sa dugmetom za brisanje (ako ponude u sandučiću nose pošiljaoca <code>dispatcher</code>, kao u sažetku od 21.09.). Ako nose <code>platform</code>, dijalog kaže „Nema ranije poslatih poruka“ iako u probnim podacima kurir ima 7.</span></div>
+    <div class="fact"><span class="tag">Opasno</span><b>Enter</b><span>U polju Naslov šalje poruku svim kuririma firme. Izmjereno: __M_b_enter_posts__ zahtjev, <code>all_couriers: true</code>, bez potvrde i bez pregleda.</span></div>
+    <div class="fact"><span class="tag" style="color:var(--warn)">Pogrešna poruka</span><b>__M_b_load_frames__</b><span>snimaka učitavanja u kojima kartica tvrdi „Nema kurira na listi ove firme.“ dok se spisak još učitava (do __M_b_load_last__, uz kašnjenje API-ja od 2.6 s).</span></div>
+    <div class="fact"><span class="tag" style="color:var(--warn)">Slijepa tačka</span><b>__M_b_clicks_remove_25__ dodira</b><span>najmanje da se jedna pogrešna poruka ukloni iz sandučića 25 kurira (__M_b_clicks_remove_one__ po kuriru: red, smeće, potvrda). Na jednom mjestu se ne vidi ko je pročitao (samo kurir po kurir), ko je uživo ni ko duguje, pa „samo onima u dostavi“ traži da se imena prvo prepišu sa druge stranice.</span></div>
+  </div>
+  <div class="callout"><b>Predlog u jednoj rečenici</b><p>Stranica postaje radni prostor: lijevo spisak kurira sa stanjem uživo i kvačicom za svakog, desno poruka u tri koraka (Kome, Poruka, Pregled) sa gotovim grupama primalaca („U dostavi“, „Duguju gotovinu“…), šablonima i pregledom kako kurir vidi poruku; poslije slanja kartica u „Poslato“ pokazuje ko je pročitao, podsjeća one koji nisu i može da povuče poruku iz sandučića.</p></div>
+  <p class="small">Tri stvari izlaze izvan ovog ekrana i označene su kao <span class="veto">veto</span> u odlukama: naziv u meniju („Poruke“, D1), mala izmjena na Kuriri da „Zadnja poruka“ ne prikazuje ponudu (D13) i veza „Sve poruke“ u detalju kurira (D11). Još dvije imaju posljedicu na serveru ili kod kurira: praćenje čitanja (D9) i povlačenje poruke (D10). Sve ostalo ostaje unutar <code>/dispatcher/notifications</code>. Pregled „Poslato“ iz svih dana čeka backend (B1) i ovdje je samo nacrtan.</p>
+</section>
+
+<section class="sec" id="danas" aria-labelledby="h-danas">
+  <div class="sec-head"><div class="eyebrow">Danas</div><h2 id="h-danas">Šta dispečer vidi i šta stranica radi</h2>
+  <p class="lede">Snimci su sa dev servera, API presretnut u Chrome-u (28 izmišljenih kurira; sandučići građeni prema dokumentima od 21.09. i 03.10.). Crveni brojevi vezuju snimak za legendu ispod njega; oznake stoje pored onoga što pokazuju, ne preko teksta.</p></div>
+
+  <div class="sub-head"><div class="group-title">A · Računar, 1440 × 900</div></div>
+  <div class="shots shots--wide">
+    <figure class="shot shot--wide">
+      <div class="shot-frame"><img src="__IMG_dloaded__" alt="Stranica Obaveštenja na računaru: kartica Grupno slanje poruke i ispod nje Istorija poslatih poruka sa spiskom kurira" width="880" height="673">
+        <i class="mk-n" style="left:22.8%;top:3.6%">1</i><i class="mk-n" style="left:76.5%;top:49.3%">2</i><i class="mk-n" style="left:59.5%;top:55.8%">3</i><i class="mk-n" style="left:32.5%;top:79.7%">4</i><i class="mk-n" style="left:76%;top:78.3%">5</i><i class="mk-n" style="left:89%;top:89%">6</i></div>
+      <figcaption><b>Prvi prikaz, 28 kurira</b><span>Obrazac na vrhu, spisak svih kurira ispod</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Naziv „Obaveštenja“.</b> Kurir iste poruke vidi pod „Poruke“, jedna od kategorija se zove „Obaveštenje“, a dugme na Kuriri „Grupna poruka“.</span></li>
+        <li data-n="2"><span><b>Primaoci su padajući spisak imena</b> (__M_b_menu_items__ stavki). Ne piše ko je uživo, ko je u dostavi ni ko duguje; tri suspendovana imaju samo „(suspendovan)“ u imenu.</span></li>
+        <li data-n="3"><span><b>„izabrano: 0“ i Pošalji.</b> Nema pregleda kako će poruka izgledati kuriru ni potvrde prije slanja. Pošalji je visok __M_b_hit_send__.</span></li>
+        <li data-n="4"><span><b>„Zadnja poruka“ je ponuda:</b> „Nova ponuda za dostavu · pre 2 min“. U stvarnom odgovoru od 21.09. svi primjeri su imali kategoriju <code>offer</code>.</span></li>
+        <li data-n="5"><span><b>Čip „58 nepročitano“</b> najvjerovatnije broji i ponude, koje nastaju nepročitane i tako ostaju (03.10.). Značenje broja backend nije potvrdio (pitanje od 15.09.). Broj 58 je iz probnih podataka. Čip je 10 px, kontrast __M_b_c_chip__ : 1.</span></li>
+        <li data-n="6"><span><b>Spisak svih kurira u kutiji od 360 px</b> unutar stranice. Iscrtava svakog: pri 500 kurira 500 redova i __M_b_nodes500__ elemenata.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot shot--wide">
+      <div class="shot-frame"><img src="__IMG_dchips__" alt="Isti obrazac sa svih 28 kurira izabranih: polje Primaoci je zid od 28 čipova" width="880" height="539">
+        <i class="mk-n" style="left:89.2%;top:65.3%">1</i><i class="mk-n" style="left:18.4%;top:85.8%">2</i><i class="mk-n" style="left:77.8%;top:85.7%">3</i></div>
+      <figcaption><b>„Izaberi sve kurire firme“</b><span>Poslije izbora, prije slanja</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>28 kurira = 28 čipova.</b> Polje je visoko __M_b_chips28__ (sa 8 čipova __M_b_chips8__), kartica __M_b_card__. Svaki čip ima × od __M_b_hit_chip__.</span></li>
+        <li data-n="2"><span><b>„svi (28)“</b> uključuje 3 suspendovana i šalje se kao <code>all_couriers: true</code>. Šta backend pod „svi“ podrazumijeva nije potvrđeno.</span></li>
+        <li data-n="3"><span><b>Pošalji šalje odmah.</b> Poslije slanja odgovor „__M_b_toast_mismatch__“ prolazi i kad je ekran obećao „__M_b_screen_mismatch__“ (izmjereno uz odgovor servera od 25); razlika se nigdje ne pominje.</span></li>
+      </ul>
+    </figure>
+  </div>
+  <div class="shots">
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_ddialogdispatcher__" alt="Dijalog Poruke - Amir Hodžić: sve prikazane poruke su Nova ponuda za dostavu, svaka sa smećem" width="640" height="525">
+        <i class="mk-n" style="left:51.6%;top:11.2%">1</i><i class="mk-n" style="left:62.5%;top:45.3%">2</i><i class="mk-n" style="left:81.3%;top:34.9%">3</i></div>
+      <figcaption><b>Istorija kurira #30189, ponude nose pošiljaoca <code>dispatcher</code></b><span>Slučaj iz dokumenta od 21.09.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Naslov dijaloga</b> i filter kategorije; čita se samo prva stranica od 20 poruka (jedan zahtjev, <code>?page=1&amp;per_page=20</code>).</span></li>
+        <li data-n="2"><span><b>Sve prikazano su ponude:</b> __M_b_dlg_offers__. U probnim podacima kurir ima 63 ponude novije od svih 7 poruka. Običan kurir (#30201): __M_b_dlg_normal__.</span></li>
+        <li data-n="3"><span><b>Smeće na svakoj ponudi</b> (__M_b_hit_trash__): briše se trag ponude iz sandučeta kurira.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_ddialogplatform__" alt="Isti dijalog kad ponude nose pošiljaoca platform: Nema ranije poslatih poruka ovom kuriru" width="640" height="225">
+        <i class="mk-n" style="left:51.6%;top:26.2%">1</i><i class="mk-n" style="left:51.6%;top:75.6%">4</i></div>
+      <figcaption><b>Isti kurir, ponude nose pošiljaoca <code>platform</code></b><span>Drugi mogući slučaj</span></figcaption>
+      <ul class="leg">
+        <li data-n="4"><span><b>„Nema ranije poslatih poruka ovom kuriru.“</b> U probnim podacima kurir ima 7 poruka dispečera, ali je prvih 20 u sandučiću samo ponuda; filtriranje je na klijentu, a „Prikaži još“ stoji u grani koja se tada ne prikazuje.</span></li>
+      </ul>
+      <p class="fig-note">Koji od ta dva slučaja je stvaran, u dokumentima nije zapisano za <code>GET /couriers/{id}/inbox</code>; za <code>inbox-summary</code> piše <code>dispatcher</code>. Oba su pogrešna.</p>
+    </figure>
+  </div>
+  <div class="shots">
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_dloading__" alt="Stranica dok se spisak kurira učitava: Istorija poslatih poruka kaže Nema kurira na listi ove firme" width="880" height="673">
+        <i class="mk-n" style="left:29%;top:76.6%">1</i><i class="mk-n" style="left:77.8%;top:55.7%">2</i></div>
+      <figcaption><b>Dok se spisak učitava</b><span>API kasni 2.6 s</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>„Nema kurira na listi ove firme.“</b> stoji __M_b_load_frames__ snimaka (od prvog do __M_b_load_last__). Nema okvira za učitavanje.</span></li>
+        <li data-n="2"><span><b>Pošalji je sivo</b> bez riječi o tome zašto.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_derror__" alt="Stranica kad spisak kurira ne može da se učita: crveno upozorenje i ispod njega Nema kurira na listi ove firme" width="880" height="673">
+        <i class="mk-n" style="left:37%;top:12.8%">1</i><i class="mk-n" style="left:29%;top:84.1%">2</i></div>
+      <figcaption><b>Spisak se ne učita (500)</b><span>Ostaje samo obrazac</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Upozorenje kaže istinu:</b> „Ne mogu da učitam listu kurira.“</span></li>
+        <li data-n="2"><span><b>A ispod njega stoji „Nema kurira na listi ove firme.“</b> Nema dugmeta „Pokušaj ponovo“; spisak se ponovo čita tek pri promjeni firme ili ponovnom otvaranju stranice.</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <div class="sub-head"><div class="group-title">B · Telefon, 390 × 844</div></div>
+  <div class="shots">
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_ptop__" alt="Stranica na telefonu: obrazac Grupno slanje poruke" width="520" height="1125">
+        <i class="mk-n" style="left:46%;top:10.4%">1</i><i class="mk-n" style="left:61.5%;top:67.4%">2</i><i class="mk-n" style="left:64%;top:60.5%">3</i></div>
+      <figcaption><b>Vrh stranice</b><span>Prvi prikaz</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Isti naziv „Obaveštenja“</b> i na telefonu.</span></li>
+        <li data-n="2"><span><b>Pošalji</b> je visok __M_b_hit_send__ (cilj je 44 px), nalazi se u kartici i odlazi sa njom kad se stranica skroluje; nema pregleda ni potvrde.</span></li>
+        <li data-n="3"><span><b>Primaoci</b>: isto padajuće polje; sa više izabranih čipova obrazac raste, a dugme ode niže.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_pscroll__" alt="Stranica na telefonu, skrolovana do spiska kurira: čipovi nepročitano i ime u tri reda" width="520" height="1125">
+        <i class="mk-n" style="left:95%;top:53%">1</i><i class="mk-n" style="left:58%;top:56.8%">2</i></div>
+      <figcaption><b>Spisak kurira</b><span>Poslije skrola</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Spisak u kutiji od 360 px</b> (sadržaj 1 880 px) unutar stranice koja se i sama skroluje: skrol u skrolu.</span></li>
+        <li data-n="2"><span><b>Čip „58 nepročitano“</b> pritiska ime, koje se lomi u tri reda; pretpregled je skraćen („pre 2 …“).</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <div class="two">
+    <div class="card"><h3>Šta radi dobro (da se ne pokvari)</h3><ul class="opts">
+      <li><i>✓</i><span>Dvostruki klik na Pošalji šalje jednom (__M_b_dbl_posts__ zahtjev).</span></li>
+      <li><i>✓</i><span>Kategorija <code>offer</code> nije u izboru; nepoznata kategorija pada na „Obaveštenje“ (isti obrazac kao vokabular vozila).</span></li>
+      <li><i>✓</i><span>Obavezna polja se provjeravaju; greška slanja ostavlja tekst u obrascu.</span></li>
+      <li><i>✓</i><span>Na 320 px nema vodoravnog skrola.</span></li>
+      <li><i>✓</i><span>Dugme Nazad ima metu 44 × 44 px iako je vidljivo 36 (pseudo-element), pa to nije nalaz.</span></li>
+    </ul></div>
+    <div class="card"><h3>Kako je izmjereno</h3><ul class="opts">
+      <li><i>·</i><span>Prava stranica na dev serveru, API presretnut (<code>Fetch</code>), 28 izmišljenih kurira. Sandučići: 63 ponude i 7 poruka kod jednog kurira, ostali 4–39 ponuda i do 7 poruka.</span></li>
+      <li><i>·</i><span>Ponude u sandučiću probane u oba oblika pošiljaoca (<code>dispatcher</code> i <code>platform</code>), jer nijedan dokument ne kaže koji je stvaran.</span></li>
+      <li><i>·</i><span>Mete dodira na pravoj stranici mjerene pogotkom (<code>elementFromPoint</code>), ne veličinom pravougaonika.</span></li>
+      <li><i>·</i><span>Pretraga: istih 12 upita na stranici i na <code>matchCourier</code> iz ekrana Kuriri.</span></li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="sec" id="nalazi" aria-labelledby="h-nalazi">
+  <div class="sec-head"><div class="eyebrow">Nalazi</div><h2 id="h-nalazi">Osamnaest nalaza, poredanih po šteti koju prave</h2>
+  <p class="lede">Crveno kvari podatak ili šalje poruku bez pitanja, narandžasto kvari iskustvo ili ostavlja dispečera bez informacije, žuto je sitnije ili važi za cijelu aplikaciju. Svaki nalaz ima dokaz: mjerenje u Chrome-u, tačno mjesto u kodu ili dokument backenda.</p></div>
+  <div class="scroll-x"><table class="fnd stack"><thead><tr><th>#</th><th>Nalaz</th><th>Dokaz</th><th>Rješava</th></tr></thead><tbody>
+    <tr><td><span class="pill pill--bad">F1</span></td><td>Istorija po kuriru pokazuje ponude kao poruke ili ne pokazuje ništa</td><td data-l="Dokaz">Dijalog traži jednu stranicu od 20 poruka pa filtrira na klijentu (<code>sender === 'dispatcher'</code>). Kurir #30189 (63 ponude novije od 7 poruka): ako ponude nose <code>dispatcher</code> to je 20 ponuda, 0 poruka i 20 dugmadi za brisanje; ako nose <code>platform</code> piše „Nema ranije poslatih poruka ovom kuriru.“, a „Prikaži još“ se ne nudi. Običan kurir (#30201): __M_b_dlg_normal__ su ponude.</td><td data-l="Rješava">Faza 0.1 · D11</td></tr>
+    <tr><td><span class="pill pill--bad">F2</span></td><td>Pretpregled zadnje poruke i broj „nepročitano“ dolaze iz <code>inbox-summary</code>, koji vraća ponude</td><td data-l="Dokaz">Dokument 21.09. (R11): u stvarnom odgovoru svi primjeri imaju <code>category: "offer"</code> i <code>sender: "dispatcher"</code>. Dokument 03.10.: ponude nastaju nepročitane i ostaju tako (15 od 16 poruka jednog kurira). Značenje <code>dispatcher_unread_count</code> nikad nije potvrđeno (pitanje 15.09., checklista N5b). Isti podaci hrane detalj na Kuriri: „Zadnja poruka“ u <code>RosterDetail</code> i filter „Nepročitane poruke“ (<code>buildRoster</code> ne gleda kategoriju).</td><td data-l="Rješava">D12 · D13 · backend B2</td></tr>
+    <tr><td><span class="pill pill--bad">F3</span></td><td>Enter u polju Naslov šalje poruku svima</td><td data-l="Dokaz">Obrazac je <code>v-form</code> sa <code>@submit.prevent</code>; sa popunjenim tekstom i izabranim „svi (28)“ Enter u naslovu daje __M_b_enter_posts__ <code>POST …/broadcast</code> sa <code>all_couriers: true</code>. Dvostruki klik na Pošalji šalje jednom.</td><td data-l="Rješava">Faza 0.3 · D8</td></tr>
+    <tr><td><span class="pill pill--warn">F4</span></td><td>Slanje svima bez pregleda i potvrde</td><td data-l="Dokaz">Pošalji šalje odmah; nema prikaza kako poruka izgleda kuriru (kategorija, naslov, telefon u tekstu). „Izaberi sve“ daje 28 od 28 (tri suspendovana među njima) i <code>all_couriers: true</code>; šta backend pod „svi“ podrazumijeva nije potvrđeno.</td><td data-l="Rješava">D3 · D5 · D6 · backend B4</td></tr>
+    <tr><td><span class="pill pill--warn">F5</span></td><td>Primaoci su imena u padajućoj listi, bez konteksta</td><td data-l="Dokaz">__M_b_menu_items__ stavki, nijedna ne kaže ko je uživo, u dostavi ili duguje, pa „samo onima u dostavi“ traži da se imena prvo prepišu sa druge stranice. 28 izabranih je zid od 28 čipova (polje __M_b_chips28__, kartica __M_b_card__).</td><td data-l="Rješava">D3 · D4</td></tr>
+    <tr><td><span class="pill pill--warn">F6</span></td><td>Nema traga o poslatom: ko je pročitao, šta je stiglo, kako povući</td><td data-l="Dokaz">Odgovor na slanje je poznat samo kao <code>{ sent_to_count }</code> (tip <code>BroadcastResponse</code>), bez oznake grupne poruke. Brisanje je po poruci u jednom sandučetu (<code>DELETE /inbox/{id}</code>): red, smeće, potvrda, najmanje __M_b_clicks_remove_25__ dodira za 25 kurira. Kad server javi 25, odgovor „__M_b_toast_mismatch__“ poslije „__M_b_screen_mismatch__“ prolazi bez napomene.</td><td data-l="Rješava">D9 · D10 · backend B1</td></tr>
+    <tr><td><span class="pill pill--warn">F7</span></td><td>Učitavanje i pad izvora govore „Nema kurira“</td><td data-l="Dokaz">__M_b_load_frames__ snimaka (do __M_b_load_last__) uz API koji kasni 2.6 s. Pad <code>couriers-status</code>: crveno upozorenje i ispod njega „Nema kurira na listi ove firme.“, bez „Pokušaj ponovo“. Pad <code>inbox-summary</code> je tih: redovi bez pretpregleda i bez ijedne riječi.</td><td data-l="Rješava">Faza 0.2 · D12</td></tr>
+    <tr><td><span class="pill pill--warn">F8</span></td><td>Pretraga kurira</td><td data-l="Dokaz">Spisak nalazi __M_b_list_hits__ upita (30189, Hodžić, Željko), meni primalaca __M_b_menu_hits__. Ne rade, između ostalog, „hodzic“, „djuric“, „zeljko“, „Жељко“, „065“, „amir hodzic“. <code>matchCourier</code> sa ekrana Kuriri nalazi __M_b_kuriri_hits__.</td><td data-l="Rješava">Faza 0.4 · D4</td></tr>
+    <tr><td><span class="pill pill--warn">F9</span></td><td>Nacrt se gubi</td><td data-l="Dokaz">Ukucan naslov i tekst nestaju kad se ode na Kuriri i vrati (izmjereno). Poslije slanja briše se i izbor primalaca.</td><td data-l="Rješava">D7</td></tr>
+    <tr><td><span class="pill pill--warn">F10</span></td><td>Brojke se ne osvježavaju</td><td data-l="Dokaz"><code>inbox-summary</code> se čita jednom pri otvaranju (poslije slanja i poslije zatvaranja dijaloga još po jednom): poslije 65 s i dalje 1 poziv.</td><td data-l="Rješava">D12</td></tr>
+    <tr><td><span class="pill pill--mute">F11</span></td><td>Kontrast</td><td data-l="Dokaz">Podnaslov kartice __M_b_c_sub__, ID kurira __M_b_c_id__, prazno stanje __M_b_c_empty__, čip „nepročitano“ __M_b_c_chip__ (10 px), „suspendovan“ __M_b_c_sus__. Cilj je 4.5 : 1.</td><td data-l="Rješava">D2</td></tr>
+    <tr><td><span class="pill pill--mute">F12</span></td><td>Mete dodira ispod 44 px</td><td data-l="Dokaz">Pošalji __M_b_hit_send__, polje pretrage __M_b_hit_search__, × na čipu __M_b_hit_chip__, brisanje poruke __M_b_hit_trash__, zatvaranje dijaloga __M_b_hit_close__ (mjereno pogotkom). Dugme Nazad ima __M_b_hit_back__.</td><td data-l="Rješava">D2</td></tr>
+    <tr><td><span class="pill pill--mute">F13</span></td><td>Tastatura</td><td data-l="Dokaz">__M_b_tabstops__ mjesta za Tab, od toga __M_b_tabrows__ redova pojedinačno; nema strelica po listi.</td><td data-l="Rješava">D4</td></tr>
+    <tr><td><span class="pill pill--mute">F14</span></td><td>Skala</td><td data-l="Dokaz">500 kurira: __M_b_nodes500__ elemenata, 500 redova u kutiji od 360 px, __M_b_long500__ dugih zadataka pri učitavanju, kucanje u pretragu __M_b_search4x__ pri 4× sporijem procesoru.</td><td data-l="Rješava">D4</td></tr>
+    <tr><td><span class="pill pill--mute">F15</span></td><td>Raspored</td><td data-l="Dokaz">Na 1440 px stranica je široka __M_b_pagew__ px, a polja __M_b_fieldw__ px; dvije kartice jedna ispod druge. Na telefonu je spisak skrol u skrolu: __M_b_phone_list__.</td><td data-l="Rješava">D2</td></tr>
+    <tr><td><span class="pill pill--mute">F16</span></td><td>Naziv</td><td data-l="Dokaz">Meni i naslov „Obaveštenja“, kurir „Poruke“, kategorija „Obaveštenje“, dugme na Kuriri „Grupna poruka“.</td><td data-l="Rješava">D1</td></tr>
+    <tr><td><span class="pill pill--mute">F17</span></td><td>Dispečer ne zna da li kurir dobija obavještenje na telefon</td><td data-l="Dokaz">Dokument 03.10. (§3): backend nije potvrdio da dispečerova poruka šalje push. Stranica o tome ne govori; kurir poruku sigurno vidi tek kad otvori aplikaciju (dokument 27.08.).</td><td data-l="Rješava">D5 (natpis) · backend B7</td></tr>
+    <tr><td><span class="pill pill--mute">F18</span></td><td>Množina u čipu</td><td data-l="Dokaz">Čip kaže „1 nepročitano“, „2 nepročitano“, „5 nepročitano“; ekran Kuriri ima „nepročitana / nepročitane / nepročitanih“.</td><td data-l="Rješava">nestaje sa D12</td></tr>
+  </tbody></table></div>
+  <p class="small">Pretraga, izmjerena istim kucanjem na pravoj stranici i na <code>matchCourier</code> (12 upita: „hodzic“, „Hodžić“, „djuric“, „zeljko“, „Željko“, „Жељко“, „065“, „123-456“, „30189“, „#30189“, „amir hodzic“, „hodzic amir“): spisak danas __M_b_list_hits__, nova pretraga __M_b_kuriri_hits__. Skup kurira je isti za oba mjerenja.</p>
+</section>
+
+<section class="sec" id="predlog" aria-labelledby="h-predlog">
+  <div class="sec-head"><div class="eyebrow">Predlog</div><h2 id="h-predlog">Kome, šta, kako izgleda kuriru, pa praćenje i povlačenje</h2>
+  <p class="lede">Prototip radi sa istim kuririma na računaru i na telefonu. Računar i telefon su ovdje dva različita uređaja: poruke koje pošalješ sa jednog ne pojavljuju se u „Poslato“ na drugom, a u sandučićima kurira se vide na oba. To je tačno ograničenje prve faze (dok backend ne da pakete poruka, B1). Ono što bi otišlo serveru piše u dnevniku ispod.</p></div>
+
+  <div class="k-ctl" role="group" aria-label="Spisak kurira">
+    <span class="muted small">Spisak:</span>
+    <button type="button" class="bb" data-ctl="state" data-v="ok" aria-pressed="true">Učitano</button>
+    <button type="button" class="bb" data-ctl="state" data-v="loading" aria-pressed="false">Učitavanje</button>
+    <button type="button" class="bb" data-ctl="state" data-v="error" aria-pressed="false">Greška</button>
+    <button type="button" class="bb" data-ctl="state" data-v="empty" aria-pressed="false">Prazna firma</button>
+    <button type="button" class="bb" data-ctl="scale" data-v="small" aria-pressed="true">28 kurira</button>
+    <button type="button" class="bb" data-ctl="scale" data-v="big" aria-pressed="false">500 kurira</button>
+  </div>
+  <div class="k-ctl" role="group" aria-label="Izvori podataka">
+    <span class="muted small">Izvori:</span>
+    <button type="button" class="bb" data-ctl="sources" data-v="ok" aria-pressed="true">Rade</button>
+    <button type="button" class="bb" data-ctl="sources" data-v="locations" aria-pressed="false">Bez pozicija</button>
+    <button type="button" class="bb" data-ctl="sources" data-v="balances" aria-pressed="false">Bez novca</button>
+  </div>
+  <div class="k-ctl" role="group" aria-label="Ponašanje servera">
+    <span class="muted small">Slanje:</span>
+    <button type="button" class="bb" data-ctl="send" data-v="ok" aria-pressed="true">Prolazi</button>
+    <button type="button" class="bb" data-ctl="send" data-v="fail" aria-pressed="false">Pada</button>
+    <button type="button" class="bb" data-ctl="send" data-v="less" aria-pressed="false">Server javi manje</button>
+    <span class="muted small">Provjera čitanja:</span>
+    <button type="button" class="bb" data-ctl="check" data-v="ok" aria-pressed="true">Radi</button>
+    <button type="button" class="bb" data-ctl="check" data-v="fail" aria-pressed="false">Pada za 3 kurira</button>
+    <span class="muted small">Povlačenje:</span>
+    <button type="button" class="bb" data-ctl="retract" data-v="ok" aria-pressed="true">Radi</button>
+    <button type="button" class="bb" data-ctl="retract" data-v="fail" aria-pressed="false">Djelimično pada</button>
+  </div>
+  <div class="k-ctl" role="group" aria-label="Vrijeme i faze">
+    <button type="button" class="bb" data-ctl="phase2" aria-pressed="false">Faza 2: poslato sa servera (B1)</button>
+    <button type="button" class="bb" data-board="time">Prođe 2 minute</button>
+    <button type="button" class="bb" data-board="reopen">Ponovo otvori stranicu</button>
+    <button type="button" class="bb" data-board="reset">Poništi sve</button>
+  </div>
+
+  <p class="small k-onlynarrow">Prikaz za računar (1280 px) je skriven na uskom ekranu; otvori ploču na većem ekranu da ga vidiš. Telefonski prikaz ispod radi isto.</p>
+  <div class="k-box k-box--desk">
+    <div class="k-boxhead"><b>Računar</b><span class="muted small">1280 px, najuži prikaz sa stalnom bočnom trakom</span></div>
+    <div id="m-desk-wrap" class="k-deskwrap"><div id="m-desk" class="k-app k-app--desk m-app"></div></div>
+  </div>
+
+  <div class="proto2">
+    <div class="k-box k-box--phone">
+      <div class="k-boxhead"><b>Telefon</b><span class="muted small">390 px, izbor ručno je donji list</span></div>
+      <div class="k-phonewrap"><div id="m-phone" class="k-app k-app--phone m-app"></div></div>
+    </div>
+    <div class="proto-right">
+      <div class="now"><h4>Šta bi otišlo serveru</h4><div id="m-log"></div></div>
+      <div class="now"><h4>Šta probati</h4>
+        <ol class="try">
+          <li>Klikni <b>U dostavi</b>, pa <b>Duguju gotovinu</b>: kvačice u listi prate izbor, a dugme kaže koliko kurira dobija poruku.</li>
+          <li>Ukucaj naslov i pritisni <b>Enter</b>: ide na tekst, ne šalje. Upiši tekst sa brojem telefona i otvori pregled <b>Otvorena</b>.</li>
+          <li><b>Šabloni → Bonus</b>: pokušaj da pošalješ; traži da se zamijeni ___. Kategorija <b>Za uraditi</b> u pregledu dodaje „Zadatak od dispečera“.</li>
+          <li>Izaberi <b>Svi aktivni</b> i pošalji: traži potvrdu od 10 primalaca; suspendovani nisu u zahtjevu.</li>
+          <li>U <b>Poslato</b> pritisni <b>Provjeri čitanje</b>, pa <b>Prođe 2 minute</b> (provjera se sama ponovi i više njih je pročitalo); otvori <b>Primaoci</b> i pozovi nepročitane.</li>
+          <li><b>Podseti</b> nepročitane: obrazac se popuni, izbor su samo oni.</li>
+          <li><b>Povuci</b> poruku: u dnevniku se broje <code>DELETE</code> zahtjevi (po jedan po sandučetu), kartica kaže „uklonjena“. Probaj i „Djelimično pada“.</li>
+          <li>Ikona istorije kod <b>Amira Hodžića</b>: nijedna ponuda, po 8 poruka, „Prikaži starije“.</li>
+          <li>U pretragu ukucaj <b>zeljko</b>, <b>065</b>, <b>#30189</b> ili <b>hodzic amir</b>.</li>
+          <li>Ukucaj pola poruke i pritisni <b>Ponovo otvori stranicu</b>: nacrt se vraća.</li>
+          <li>Tastatura: <b>/</b> traži, strelice po listi i po grupama, <b>Space</b> bira, <b>Ctrl+Enter</b> šalje, <b>Esc</b> zatvara.</li>
+          <li>Uključi <b>Faza 2</b>: ovako izgleda „Poslato“ kad backend da pakete.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="stanja" aria-labelledby="h-stanja">
+  <div class="sec-head"><div class="eyebrow">Stanja</div><h2 id="h-stanja">Šta stranica kaže u svakom stanju</h2>
+  <p class="lede">Tekst poruke je najskuplja stvar na ekranu: ni jedno stanje ga ne smije izbrisati. Greška, prazna firma i učitavanje nikad ne izgledaju isto, a svaki izvor koji padne gasi samo ono što od njega zavisi.</p></div>
+  <div class="scroll-x"><table class="fnd stack"><thead><tr><th>Stanje</th><th>Šta se vidi</th><th>Radnja</th><th>Zašto</th></tr></thead><tbody>
+    <tr><td><b>Učitavanje spiska</b></td><td data-l="Vidi se">Okviri umjesto grupa i redova; obrazac radi, tekst se može kucati.</td><td data-l="Radnja">Nema.</td><td data-l="Zašto">Dok se ne zna ko su kuriri ne tvrdi se ništa (F7).</td></tr>
+    <tr><td><b>Greška spiska</b></td><td data-l="Vidi se">„Ne mogu da učitam kurire“ lijevo, traka „Spisak kurira nije učitan“ umjesto grupa; Pošalji sivo uz razlog.</td><td data-l="Radnja">Pokušaj ponovo.</td><td data-l="Zašto">Tekst poruke ostaje; dispečer ne gubi ono što je ukucao.</td></tr>
+    <tr><td><b>Prazna firma</b></td><td data-l="Vidi se">„Još nema kurira u ovoj firmi“.</td><td data-l="Radnja">Nema (kurire dodaje na Kuriri).</td><td data-l="Zašto">Jedino stanje u kome je tvrdnja „nema kurira“ tačna.</td></tr>
+    <tr><td><b>Pozicije ne rade</b></td><td data-l="Vidi se">Grupe „U dostavi“, „Slobodni“, „Offline“ imaju „–“ i isključene su; traka objašnjava. Izabrana grupa pada na „Svi aktivni“.</td><td data-l="Radnja">Nema; ostalo radi.</td><td data-l="Zašto">Stanje uživo koje se ne zna ne smije odlučivati ko dobija poruku.</td></tr>
+    <tr><td><b>Novac ne radi</b></td><td data-l="Vidi se">„Duguju gotovinu“ isključena uz objašnjenje.</td><td data-l="Radnja">Nema.</td><td data-l="Zašto">Isti razlog.</td></tr>
+    <tr><td><b>Slanje padne</b></td><td data-l="Vidi se">Crveni blok iznad dugmeta: „Server nije prihvatio poruku. Pokušaj ponovo; tekst i izbor primalaca su ostali.“</td><td data-l="Radnja">Pošalji opet.</td><td data-l="Zašto">Greška je tamo gdje je dispečer gleda, a ne u toastu koji nestane.</td></tr>
+    <tr><td><b>Server javi manje</b></td><td data-l="Vidi se">Toast: „Poruka poslata 22 od 25 kurira. Provjeri u praćenju ko je nije dobio.“ Provjera pokazuje „Nema poruke 3“.</td><td data-l="Radnja">Provjeri čitanje.</td><td data-l="Zašto">Razlika između obećanog i stvarnog ne smije proći (F6).</td></tr>
+    <tr><td><b>Provjera ne uspije za neke</b></td><td data-l="Vidi se">U zbiru „Provjera nije uspjela 3“; ti kuriri su u filteru „Nema poruke“ sa istim natpisom.</td><td data-l="Radnja">Provjeri ponovo.</td><td data-l="Zašto">Greška provjere nije isto što i „nije pročitao“.</td></tr>
+    <tr><td><b>Više od 40 primalaca</b></td><td data-l="Vidi se">Kartica: „Čitanje se ne prati“ i objašnjenje; „Povuci“ ostaje.</td><td data-l="Radnja">Povuci.</td><td data-l="Zašto">Provjera po sandučićima bi bila nalet na server (B1 rješava).</td></tr>
+    <tr><td><b>Povlačenje djelimično</b></td><td data-l="Vidi se">List: „Uklonjena iz 19 sandučića, 6 nije uspjelo.“</td><td data-l="Radnja">Pokušaj ponovo (samo preostalima).</td><td data-l="Zašto">Ne tvrdi se da je poruka povučena kad nije.</td></tr>
+    <tr><td><b>Prazno „Poslato“</b></td><td data-l="Vidi se">Objašnjenje šta će se tu pojaviti i zašto starije poruke još nema; dugme „Nova poruka“.</td><td data-l="Radnja">Nova poruka.</td><td data-l="Zašto">Ne obećava istoriju koju backend ne daje (B1).</td></tr>
+    <tr><td><b>Nema rezultata pretrage</b></td><td data-l="Vidi se">„Nema kurira za „xyz““ i podsjetnik šta pretraga razumije.</td><td data-l="Radnja">Očisti pretragu.</td><td data-l="Zašto">Isti obrazac kao Kuriri.</td></tr>
+  </tbody></table></div>
+
+  <div class="shots shots--3">
+    <figure class="shot"><figcaption><b>Grupe primalaca</b><span>Izabrana „U dostavi“, „Duguju gotovinu“ isključena (izvor ne radi)</span></figcaption><div class="k-app m-parts"><div class="m-tiles" id="g-tiles" style="padding:0"></div></div></figure>
+    <figure class="shot"><figcaption><b>Pregled kako kurir vidi poruku</b><span>U listi · otvorena sa telefonom · otvorena sa linkom</span></figcaption><div class="k-app m-parts m-stack"><div class="m-pv" id="g-pv1" style="margin:0"></div><div class="m-pv" id="g-pv2" style="margin:0"></div><div class="m-pv" id="g-pv3" style="margin:0"></div></div></figure>
+  </div>
+  <div class="shots shots--3">
+    <figure class="shot"><figcaption><b>Poslato: još nije provjereno · provjera teče · pročitano 5 od 8</b><span>Ista kartica u tri stanja</span></figcaption><div class="k-app m-parts m-stack"><div id="g-new"></div><div id="g-run"></div><div id="g-done"></div></div></figure>
+    <figure class="shot"><figcaption><b>Poslato: svi pročitali · povučena · više od 40 primalaca</b><span>Ostala stanja kartice</span></figcaption><div class="k-app m-parts m-stack"><div id="g-all"></div><div id="g-gone"></div><div id="g-big"></div></div></figure>
+  </div>
+</section>
+
+<section class="sec" id="dijelovi" aria-labelledby="h-dijelovi">
+  <div class="sec-head"><div class="eyebrow">Dijelovi</div><h2 id="h-dijelovi">Od čega se ekran sastoji</h2>
+  <p class="lede">Većina je već u aplikaciji: listovi, dugmad i polja iz Profila i Kuriri, pločice kao filteri na Kuriri, red poruke iz kurirskog sandučića. Novo su grupe primalaca, karta „Poslato“ i pretraga poruke po sandučićima.</p></div>
+  <div class="cols-3">
+    <div class="card"><h3>Kuriri (lijevo)</h3><ul class="opts">
+      <li><i>·</i><span><b>Kvačica na svakom redu</b> je izbor primalaca; zbir „25 od 28 izabrano“, „Izaberi prikazane“ i „Poništi“.</span></li>
+      <li><i>·</i><span><b>Red:</b> ime, ID, telefon, vozilo, stanje uživo, ikona istorije kurira. Jedno mjesto za Tab (dva dugmeta aktivnog reda), strelice po listi.</span></li>
+      <li><i>·</i><span><b>Pretraga</b> je ista kao na Kuriri (<code>matchCourier</code>): bez dijakritika, ćirilica, telefon u svakom zapisu, redoslijed riječi.</span></li>
+      <li><i>·</i><span>Iscrtava se po 12 redova, „Prikaži još“; 500 kurira ostaju 422 elementa.</span></li>
+    </ul></div>
+    <div class="card"><h3>Kome</h3><ul class="opts">
+      <li><i>·</i><span><b>Šest grupa:</b> Svi aktivni, U dostavi, Slobodni, Offline, Duguju gotovinu, Suspendovani. Brojevi su iz istih izvora kao na Kuriri.</span></li>
+      <li><i>·</i><span><b>Pravilo, ne snimak:</b> „U dostavi“ je ko je u dostavi u času slanja; potvrda pokazuje tačan broj.</span></li>
+      <li><i>·</i><span><b>Zbir</b> kaže broj, imena i „uključuje 2 suspendovana“. Klik na red prelazi na ručni izbor; „Svi aktivni“ vraća.</span></li>
+      <li><i>·</i><span>Izvor koji ne radi gasi samo svoje grupe.</span></li>
+    </ul></div>
+    <div class="card"><h3>Poruka</h3><ul class="opts">
+      <li><i>·</i><span><b>Kategorija</b> (3, bez rezervisane „Ponuda“), naslov, tekst, brojač znakova.</span></li>
+      <li><i>·</i><span><b>Šabloni:</b> 5 početnih tekstova, „Sačuvaj kao šablon“ (u pregledaču), „Vrati moj tekst“ ako šablon pregazi napisano.</span></li>
+      <li><i>·</i><span><b>___ blokira slanje</b> („Bonus od ___ KM“): ne šalje se šablon koji niko nije dopunio.</span></li>
+      <li><i>·</i><span><b>Enter u naslovu</b> prelazi na tekst; <b>Ctrl+Enter</b> šalje.</span></li>
+      <li><i>·</i><span><b>Nacrt</b> se čuva sam i vraća uz natpis od kada je.</span></li>
+    </ul></div>
+    <div class="card"><h3>Pregled</h3><ul class="opts">
+      <li><i>·</i><span>Kopija stvarnog reda iz kurirskog sandučića („U listi“) i otvorene poruke („Otvorena“): kategorija, naslov, tekst, sat, telefon i link dodirljivi.</span></li>
+      <li><i>·</i><span>„Za uraditi“ pokazuje „Zadatak od dispečera“; ćirilica se pokazuje latinicom i to piše.</span></li>
+      <li><i>·</i><span>Natpis: „Kurir vidi poruku kad otvori aplikaciju.“ (push nije potvrđen).</span></li>
+    </ul></div>
+    <div class="card"><h3>Poslato</h3><ul class="opts">
+      <li><i>·</i><span><b>Kartica po poruci:</b> kategorija, naslov, grupa i broj, sat; traka „Pročitalo 19 od 25“ sa legendom.</span></li>
+      <li><i>·</i><span><b>Provjeri čitanje</b> (ručno + dva automatska puta, 20 s i 2 min), <b>Podseti nepročitane</b>, <b>Primaoci</b> (filter, poziv), <b>Povuci</b>.</span></li>
+      <li><i>·</i><span>Vrijedi za ovu sesiju. U fazi 2 isti prikaz dobija sve dane sa servera.</span></li>
+    </ul></div>
+    <div class="card"><h3>Poruke kurira (list)</h3><ul class="opts">
+      <li><i>·</i><span>Poruke jednog kurira, najnovija prva, bez ponuda; filter po kategoriji; „Prikaži starije“.</span></li>
+      <li><i>·</i><span>Pročitano / nije pročitano po poruci, uklanjanje uz pitanje u redu.</span></li>
+      <li><i>·</i><span>„Pošalji poruku &lt;ime&gt;“ vraća na obrazac sa tim kurirom. Isti list može da otvori i detalj na Kuriri (D11).</span></li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="sec" id="tok" aria-labelledby="h-tok">
+  <div class="sec-head"><div class="eyebrow">Tok podataka</div><h2 id="h-tok">Tri izvora za izbor primalaca, a sandučići samo kad zatreba</h2>
+  <p class="lede">Stranica prestaje da čita <code>inbox-summary</code> (zagađen ponudama, F2). Spisak, pozicije i novac čita isti hook kao ekran Kuriri, pa su grupe i brojevi na oba ekrana isti.</p></div>
+  <div class="scroll-x"><table class="fnd stack"><thead><tr><th>Izvor</th><th>Kad</th><th>Koliko često</th><th>Ako padne</th></tr></thead><tbody>
+    <tr><td><code>GET …/couriers-status</code></td><td data-l="Kad">Pri otvaranju, „Osvježi“, povratak u tab ako je starije od 60 s</td><td data-l="Često">Po potrebi</td><td data-l="Ako padne">Greška spiska + „Pokušaj ponovo“; tekst ostaje</td></tr>
+    <tr><td><code>GET …/courier-locations</code></td><td data-l="Kad">Pri otvaranju</td><td data-l="Često">15 s, samo dok je tab vidljiv</td><td data-l="Ako padne">Isključene grupe uživo + objašnjenje</td></tr>
+    <tr><td><code>GET …/couriers-balance</code></td><td data-l="Kad">Pri otvaranju</td><td data-l="Često">60 s, samo dok je tab vidljiv</td><td data-l="Ako padne">Isključena „Duguju gotovinu“</td></tr>
+    <tr><td><code>POST …/broadcast</code> ili <code>POST /couriers/{id}/inbox</code></td><td data-l="Kad">Pošalji (poslije potvrde od 10 primalaca)</td><td data-l="Često">Po slanju</td><td data-l="Ako padne">Crveni blok, tekst i izbor ostaju</td></tr>
+    <tr><td><code>GET /couriers/{id}/inbox?category=&amp;page=1&amp;per_page=10</code></td><td data-l="Kad">Provjera čitanja, po jedan zahtjev za svakog primaoca</td><td data-l="Često">Ručno + 20 s i 2 min poslije slanja; najviše 6 istovremeno; samo do 40 primalaca</td><td data-l="Ako padne">Taj kurir je „Provjera nije uspjela“</td></tr>
+    <tr><td><code>GET /couriers/{id}/inbox?category=…</code></td><td data-l="Kad">List „Poruke kurira“: tri zahtjeva (po kategoriji), pa po jedan kad se traži starije</td><td data-l="Često">Po otvaranju</td><td data-l="Ako padne">„Ne mogu da učitam poruke“ + ponovo</td></tr>
+    <tr><td><code>DELETE /inbox/{id}</code></td><td data-l="Kad">Povuci (po sandučetu) i uklanjanje jedne poruke</td><td data-l="Često">Najviše 6 istovremeno</td><td data-l="Ako padne">Djelimično: koliko je uklonjeno + ponovo</td></tr>
+    <tr><td><code>GET …/inbox-summary</code></td><td data-l="Kad"><b>Ne čita se</b> na ovoj stranici</td><td data-l="Često">—</td><td data-l="Ako padne">—</td></tr>
+  </tbody></table></div>
+  <div class="cols-2">
+    <div class="card"><h3>Kako radi praćenje čitanja (dok nema B1)</h3>
+      <p>Backend ne daje oznaku grupne poruke. Zato se poslije slanja čita prva stranica sandučića svakog primaoca sa <code>?category=</code> kategorije koja je poslana (ponude se tako ne miješaju) i tražimo poruku istog naslova, teksta i kategorije, poslanu u razmaku do 15 minuta od slanja. <code>read</code> te poruke je tačan podatak; dvije poruke istog teksta u istoj sesiji dobijaju svaka svoju.</p>
+      <p class="undo">Granice: do 40 primalaca, 6 zahtjeva istovremeno. Ako naglo padne više od trećine zahtjeva, provjera staje i kaže „Server je zauzet, pokušaj za minut“ (pravilo za izradu, nije u prototipu). Ograničenje brzine servera nije poznato (B5).</p></div>
+    <div class="card"><h3>Šta se pamti na uređaju</h3>
+      <p>Nacrt (naslov, tekst, kategorija, izbor) i lični šabloni žive u <code>localStorage</code> uz zapis od kada su; nacrt stariji od 7 dana se odbacuje (plan za izradu; u prototipu su u memoriji stranice, a šabloni u <code>localStorage</code>). Lista „Poslato“ vrijedi dok je tab otvoren (<code>sessionStorage</code>); zatvaranjem taba nestaje, a poruke su i dalje u sandučićima.</p>
+      <p class="undo">Ništa od toga ne ide serveru. Poruka se šalje tek na Pošalji.</p></div>
+  </div>
+</section>
+
+<section class="sec" id="odluke" aria-labelledby="h-odluke">
+  <div class="sec-head"><div class="eyebrow">Odluke</div><h2 id="h-odluke">Petnaest odluka, svaka sa preporukom</h2>
+  <p class="lede">Ako ne kažeš drugačije, gradi se preporuka. Pet odluka je označeno <span class="veto">veto</span>: tri izlaze izvan ove stranice (D1, D11, D13), a dvije imaju trošak ili posljedicu na serveru (D9, D10).</p></div>
+  <div class="cols-2">
+    <div class="card card--veto"><h3>D1 · Naziv „Poruke“ <span class="veto">veto</span></h3><p>Stavka u meniju, naslov stranice i kartica na početnoj postaju „Poruke“; adresa ostaje <code>/dispatcher/notifications</code>.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Kurir to vidi kao „Poruke“ od 03.10., a „Obaveštenja“ je i naziv jedne kategorije.</span></li><li><i>○</i><span>Ostaviti „Obaveštenja“.</span></li></ul><p class="undo">Poništavanje: tri teksta u <code>utils/navigation.ts</code> i naslov stranice.</p></div>
+    <div class="card"><h3>D2 · Raspored, veličine, kontrast</h3><p>Lijevo spisak kurira (400 px), desno poruka; na telefonu jedna kolona sa zalijepljenim dugmetom Pošalji. Ciljevi: tekst 4.5 : 1, mete 44 px.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Isti raspored kao Kuriri (spisak + desno), pa se uči jednom. Rješava F11, F12, F15.</span></li><li><i>○</i><span>Dvije kartice jedna ispod druge kao danas: obrazac i spisak se ne vide zajedno.</span></li></ul></div>
+    <div class="card"><h3>D3 · Primaoci su grupe, pravila a ne snimci</h3><p>Šest grupa; suspendovani su van svih osim „Duguju gotovinu“ i „Suspendovani“. Računaju se u času slanja.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Najčešće poruke su „svima“, „u dostavi“, „duguju“; to su jedan dodir. Suspendovani ne dobijaju „gužva u gradu“.</span></li><li><i>○</i><span>„Svi“ uključuje suspendovane kao danas (<code>all_couriers</code>): jednostavnije, ali im šalje i ono što ih se ne tiče.</span></li></ul><p class="undo">Poništavanje: dodati sedmu grupu „Svi (28)“.</p></div>
+    <div class="card"><h3>D4 · Izbor se vidi u listi, pretraga kao na Kuriri</h3><p>Kvačica na svakom redu; klik na red prelazi na ručni izbor; <code>matchCourier</code>; po 12 redova; strelice i jedno mjesto za Tab.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Jedan izvor istine za primaoce (skup id-jeva); grupe su prečice do njega.</span></li><li><i>○</i><span>Zadržati padajuću listu sa čipovima: zid od 28 čipova, __M_b_menu_hits__ upita.</span></li></ul></div>
+    <div class="card"><h3>D5 · Pregled „Tako kurir vidi poruku“</h3><p>Stvarni red sandučića i otvorena poruka, uz natpis da kurir poruku vidi kad otvori aplikaciju.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Dispečer ne zna kako izgleda ono što šalje (kategorija, ćirilica, telefon); pregled je jeftin jer je komponenta već tu.</span></li></ul><p class="undo">Poništavanje: sakriti sekciju Pregled.</p></div>
+    <div class="card"><h3>D6 · Potvrda od 10 primalaca</h3><p>Do 9 primalaca šalje se jednim dodirom; od 10 list pokazuje broj, imena i pregled.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Pogrešna poruka svima je najskuplja greška: vidi se tek kad je svi prime. Prag je u jednoj konstanti.</span></li><li><i>○</i><span>Potvrda uvijek: sporije za jednog kurira. Nikad: kao danas.</span></li></ul></div>
+    <div class="card"><h3>D7 · Nacrt se čuva sam, bez upozorenja pri izlasku</h3><p>Naslov, tekst, kategorija i izbor ostaju; baner „Vraćen nacrt od 14:20 · Odbaci nacrt“.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Upozorenje bi pitalo za nešto što se ne gubi. Rješava F9.</span></li></ul></div>
+    <div class="card"><h3>D8 · Enter u naslovu ide na tekst, Ctrl+Enter šalje</h3><p>Dugme Pošalji i Ctrl+Enter prolaze kroz iste provjere i potvrdu.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Rješava F3. Faza 0.3 se može poslati odmah.</span></li></ul></div>
+    <div class="card card--veto"><h3>D9 · Praćenje čitanja po sandučićima, do 40 primalaca <span class="veto">veto</span></h3><p>Dok backend ne da pakete (B1), provjera čita sanduče svakog primaoca i traži poruku po tekstu. „Poslato“ vrijedi za ovu sesiju.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Jedino što dispečeru daje tačan odgovor na „jesu li vidjeli“ već danas. Koristi samo postojeće rute.</span></li><li><i>○</i><span>Ne praviti dok B1 ne stigne: „Poslato“ bi bilo prazno, a stranica bi samo dobila lijepi obrazac.</span></li></ul><p class="undo">Trošak: do 40 zahtjeva po provjeri. Poništavanje: sakriti „Provjeri čitanje“; ostatak radi.</p></div>
+    <div class="card card--veto"><h3>D10 · Povuci poruku iz sandučića <span class="veto">veto</span></h3><p>Briše poruku iz sandučića svih primalaca (<code>DELETE /inbox/{id}</code>), uz pitanje i objašnjenje da ko je pročitao, pročitao je.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Danas je to __M_b_clicks_remove_25__ dodira za 25 kurira; sa kartice su dva.</span></li><li><i>○</i><span>Bez povlačenja: pogrešna poruka ostaje.</span></li></ul><p class="undo">Poništavanje: sakriti dugme „Povuci“.</p></div>
+    <div class="card card--veto"><h3>D11 · Istorija kurira kao list, bez ponuda <span class="veto">veto</span></h3><p>Tri zahtjeva po kategoriji i spajanje po vremenu; ponude se ne čitaju ni ne prikazuju. Detalj kurira na Kuriri dobija vezu „Sve poruke“ koja otvara isti list.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Rješava F1 bez čekanja na backend (B3 bi to skratilo na jedan zahtjev). Veza na Kuriri je mala izmjena izvan ove stranice.</span></li></ul><p class="undo">Poništavanje: veza na Kuriri se izostavi.</p></div>
+    <div class="card"><h3>D12 · Stranica ne čita <code>inbox-summary</code></h3><p>Ni pretpregled ni brojač „nepročitano“, dok backend ne ispravi odgovor (B2).</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Podatak je pogrešan, a tihi pad izvora skriva i to. Na ovom ekranu rješava F2, F10 i F18 i tihi pad iz F7.</span></li></ul></div>
+    <div class="card card--veto"><h3>D13 · Kuriri: „Zadnja poruka“ bez ponude <span class="veto">veto</span></h3><p><code>buildRoster</code> čuva kategoriju poruke, pa detalj ne pokazuje ponudu kao zadnju poruku. Brojač „nepročitano“ ostaje dok ne stigne B2.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Najmanja izmjena koja zaustavlja pogrešan tekst na ekranu koji je upravo završen.</span></li></ul><p class="undo">Poništavanje: jedan uslov u <code>buildRoster</code>.</p></div>
+    <div class="card"><h3>D14 · Šabloni i ___</h3><p>Pet početnih tekstova, lični šabloni u pregledaču, ___ blokira slanje.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Početni tekstovi su moj prijedlog formulacije, dispečer ih mijenja. Zajednički šabloni po firmi bi tražili backend (B8).</span></li></ul></div>
+    <div class="card"><h3>D15 · Faza 2 se ne gradi dok backend ne potvrdi B1</h3><p>Ugovor je u pitanjima za backend; u prototipu je prikazano šta se dobija.</p><ul class="opts"><li class="rec"><i>●</i><span><b>Preporuka.</b> Ekran građen prema ugovoru koji backend nije potvrdio može da završi kao <code>inbox-summary</code>: oblik je pogođen, ali sadržaj (ponude) nije bio ono što je ekran pretpostavio.</span></li></ul></div>
+  </div>
+</section>
+
+<section class="sec" id="mjerenja" aria-labelledby="h-mjerenja">
+  <div class="sec-head"><div class="eyebrow">Mjerenja</div><h2 id="h-mjerenja">Danas i u prototipu, istim mjerilom</h2>
+  <p class="lede">Isti 28 izmišljenih kurira, isti Chrome, isto kucanje. „Dodiri“ su pravi klikovi pointera u skripti (tastatura se ne računa); „prije“ je izmjereno na pravoj stranici, „poslije“ na prototipu. Gdje mjerila nisu ista, piše uz red.</p></div>
+  <div class="scroll-x"><table class="fnd stack"><thead><tr><th>Mjerilo</th><th>Prije</th><th>Poslije</th><th>Napomena</th></tr></thead><tbody>
+    <tr><td>Dodira: poruka svim aktivnim kuririma (kucano)</td><td data-l="Prije">__M_b_clicks_all__</td><td data-l="Poslije">__M_a_clicks_all__</td><td data-l="Napomena">Poslije je tu i potvrda; šalje se bez suspendovanih. Prije: naslov, otvori primaoce, „Izaberi sve“, Pošalji (Esc zatvara meni).</td></tr>
+    <tr><td>Dodira: poruka svim aktivnim iz šablona</td><td data-l="Prije">—</td><td data-l="Poslije">__M_a_clicks_tpl__</td><td data-l="Napomena">Šabloni, izbor, Pošalji, potvrda.</td></tr>
+    <tr><td>Dodira: samo onima koji su sada u dostavi</td><td data-l="Prije">nije moguće</td><td data-l="Poslije">__M_a_clicks_delivering__</td><td data-l="Napomena">Prije se stanje uživo ne vidi na stranici. Poslije: grupa, naslov, Pošalji (4 kurira, bez potvrde).</td></tr>
+    <tr><td>Dodira: podsjetnik onima koji nisu pročitali</td><td data-l="Prije">nije moguće</td><td data-l="Poslije">__M_a_clicks_remind__</td><td data-l="Napomena">Provjera, Podseti, Pošalji, potvrda. Odmah poslije slanja svih 25 su nepročitani, pa je podsjetnik za svih 25.</td></tr>
+    <tr><td>Dodira: ukloniti pogrešnu poruku iz sandučića 25 kurira</td><td data-l="Prije">najmanje __M_b_clicks_remove_25__</td><td data-l="Poslije">__M_a_clicks_retract__</td><td data-l="Napomena">Prije: __M_b_clicks_remove_one__ po kuriru (red, smeće, potvrda), izmjereno na jednom pa pomnoženo sa 25. Poslije: 25 zahtjeva __M_a_retract_req__ DELETE u pozadini.</td></tr>
+    <tr><td>Upiti u pretrazi koji nađu kurira (12)</td><td data-l="Prije">__M_b_list_hits__ (meni primalaca __M_b_menu_hits__)</td><td data-l="Poslije">12 od 12</td><td data-l="Napomena">Poslije koristi isti <code>matchCourier</code> kao Kuriri.</td></tr>
+    <tr><td>Snimaka učitavanja sa „Nema kurira“ (26 snimaka u oko 3 s)</td><td data-l="Prije">__M_b_load_frames__</td><td data-l="Poslije">__M_a_load_lie__</td><td data-l="Napomena">Prije uz kašnjenje API-ja od 2.6 s; poslije stanje „učitavanje“ držano 3 s.</td></tr>
+    <tr><td>Enter u naslovu (zahtjeva za slanje)</td><td data-l="Prije">__M_b_enter_posts__</td><td data-l="Poslije">__M_a_enter_posts__</td><td data-l="Napomena">Provjereno i sa popunjenim tekstom i izabranim primaocima.</td></tr>
+    <tr><td>Nacrt poslije odlaska na drugu stranicu i povratka</td><td data-l="Prije">izgubljen</td><td data-l="Poslije">vraćen</td><td data-l="Napomena">Poslije: ponovno otvaranje stranice vraća tekst, kategoriju i izbor.</td></tr>
+    <tr><td>Mjesta za Tab u listi / na cijelom ekranu</td><td data-l="Prije">__M_b_tabrows__ / __M_b_tabstops__</td><td data-l="Poslije">__M_a_tab_list__ / __M_a_tab_main__</td><td data-l="Napomena">Strelice, Home, End po listi; Space bira. Ekran ima i obrazac, pa 15 mjesta.</td></tr>
+    <tr><td>Najmanji kontrast teksta</td><td data-l="Prije">__M_b_c_sub__</td><td data-l="Poslije">__M_a_contrast_min__</td><td data-l="Napomena">Prije: 8 odabranih stilova. Poslije: svaki tekst u __M_a_contrast_states__ stanja (do __M_a_contrast_nodes__ tekstova), isključena su onemogućena dugmad (izuzeta iz pravila) i neizmijenjena bočna traka.</td></tr>
+    <tr><td>Kontrole sa metom ispod 44 px</td><td data-l="Prije">5 vrsta</td><td data-l="Poslije">0 od 80</td><td data-l="Napomena">Prije: Pošalji __M_b_hit_send__, pretraga __M_b_hit_search__, × čipa __M_b_hit_chip__, smeće __M_b_hit_trash__, zatvaranje __M_b_hit_close__. Poslije: 60 na računaru + 20 na telefonu, izmjereno veličinom pravougaonika.</td></tr>
+    <tr><td>Elementi u DOM-u, 28 kurira</td><td data-l="Prije">__M_b_nodes28__</td><td data-l="Poslije">__M_a_nodes28__</td><td data-l="Napomena">Prije cijela stranica (sa Vuetify poljima i bočnom trakom), poslije okvir prototipa sa bočnom trakom.</td></tr>
+    <tr><td>Elementi u DOM-u, 500 kurira</td><td data-l="Prije">__M_b_nodes500__</td><td data-l="Poslije">__M_a_nodes500__</td><td data-l="Napomena">Poslije se iscrtava __M_a_rows500__ redova + „Prikaži još“.</td></tr>
+    <tr><td>Kucanje „ha“ u pretragu, 500 kurira, procesor 4× sporiji</td><td data-l="Prije">__M_b_search4x__</td><td data-l="Poslije">__M_a_search4x__</td><td data-l="Napomena">Do stabilnog broja redova.</td></tr>
+    <tr><td>Telefon: visina stranice u ekranima (844 px)</td><td data-l="Prije">__M_b_phone_screens__</td><td data-l="Poslije">__M_a_phone_screens__</td><td data-l="Napomena"><b>Poslije je duže</b>: tri nova odjeljka (grupe __M_a_phone_tiles_h__, pregled, sažetak). Pošalji je zalijepljeno uz dno, prije je bilo na 587 px i odlazilo sa stranicom.</td></tr>
+  </tbody></table></div>
+  <p class="small"><b>Ono što nije bolje:</b> provjera čitanja je nov teret za server (do 40 zahtjeva po provjeri, 6 istovremeno), stranica je duža na telefonu, a „Poslato“ pokriva samo ovu sesiju dok backend ne da pakete. <b>Ono što je isto:</b> dvostruki klik na Pošalji šalje jednom i prije (__M_b_dbl_posts__) i poslije.</p>
+</section>
+
+<section class="sec" id="faze" aria-labelledby="h-faze">
+  <div class="sec-head"><div class="eyebrow">Redosled</div><h2 id="h-faze">Šta se gradi i kako se zna da je gotovo</h2></div>
+  <ol class="phases">
+    <li><span><b>Faza 0 · Popravke koje ne čekaju dizajn (može odvojeno)</b></span><span>Nalazi koji danas kvare podatak ili šalju poruku bez pitanja.</span>
+      <ul>
+        <li><b>0.1</b> Istorija kurira bez ponuda: tri zahtjeva po kategoriji, spajanje po vremenu, ispravno listanje (F1).</li>
+        <li><b>0.2</b> Učitavanje i greška: okvir, „Pokušaj ponovo“, nikad „Nema kurira“ dok se ne zna (F7).</li>
+        <li><b>0.3</b> Enter u naslovu ne šalje (F3).</li>
+        <li><b>0.4</b> Pretraga kao na Kuriri (F8).</li>
+        <li><b>0.5</b> Kuriri: „Zadnja poruka“ bez ponude (D13).</li>
+      </ul></li>
+    <li><span><b>Faza 1 · Nova stranica Poruke</b></span><span>Sve što radi nad postojećim rutama.</span>
+      <ul>
+        <li>Čista logika u <code>utils</code> (grupe primalaca, plan slanja, provjera nacrta, poklapanje poruke, spajanje kategorija), prvo u običnom Node-u.</li>
+        <li><code>useCourierRoster</code> dobija opciju bez <code>inbox-summary</code>; novi composable-i za nacrt, šablone, „Poslato“, praćenje i poruke kurira.</li>
+        <li>Komponente u <code>components/dispatcher/messages</code>, stranica prepisana; stari dijalog istorije briše se tek kad <code>grep</code> pokaže da ga niko ne uvozi.</li>
+        <li>Naziv u meniju (D1), veza „Sve poruke“ na Kuriri (D11), natpisi.</li>
+      </ul></li>
+    <li><span><b>Faza 2 · Kad backend potvrdi B1/B2</b></span><span>„Poslato“ iz svih dana, tačni pročitani, jedan zahtjev umjesto 40, uklanjanje jednim pozivom.</span>
+      <ul>
+        <li>Ne gradi se unaprijed (D15). Oblik ugovora je u sekciji Backend.</li>
+      </ul></li>
+  </ol>
+  <div class="verify"><h3>Kako će se provjeriti</h3><ul>
+    <li><b>Čista logika</b> u običnom Node-u (34 provjere već prolaze nad prototipom: grupe, plan slanja, poklapanje poruke, spajanje kategorija sa 200 nasumičnih skupova). Isti prototip je prošao i 166 provjera u pravom Chrome-u (tok, greške, mreža) i 52 provjere uređaja i pristupačnosti. To je dokaz za prototip, ne za aplikaciju: iste provjere se ponavljaju nad izrađenim stranicama.</li>
+    <li><b>E2E u pravom Chrome-u</b> nad presretnutim API-jem: stanja, grupe, ručni izbor, pretraga, šabloni, slanje sa potvrdom i bez, greške slanja i provjere, praćenje, podsjetnik, povlačenje (potpuno i djelimično), istorija kurira, nacrt, 500 kurira; telefon 390 i 320 dodirom; kontrast svakog teksta; mete dodira; tastatura.</li>
+    <li><b>Provjera snimaka svih stanja očima</b>, ne samo brojkom.</li>
+    <li><b>Mjerenja istim mjerilom</b> kao u sekciji Mjerenja; <code>nuxi typecheck</code> bez grešaka.</li>
+  </ul></div>
+</section>
+
+<section class="sec" id="backend" aria-labelledby="h-backend">
+  <div class="sec-head"><div class="eyebrow">Backend</div><h2 id="h-backend">Šta traži odgovor</h2>
+  <p class="lede">Ništa od ovoga ne blokira Fazu 1. Zato tačno piše šta front radi dok odgovor ne stigne. Ide u dnevni dokument pitanja za backend: u današnji kao novi Dio ako se gradi danas, inače u novi dnevni fajl (stariji se ne mijenjaju).</p></div>
+  <div class="scroll-x"><table class="fnd stack"><thead><tr><th>#</th><th>Šta</th><th>Zašto</th><th>Dok ne stigne</th></tr></thead><tbody>
+    <tr><td><span class="pill pill--bad">B2</span></td><td><code>inbox-summary</code> ne smije da računa ponude: <code>last_message</code> je zadnja poruka koja nije <code>offer</code>, <code>dispatcher_unread_count</code> broji samo takve (ili novo polje pored). Uz to: šta tačno broji brojač (pitanje od 15.09.)?</td><td data-l="Zašto">Dokument 21.09. (R11): svi stvarni primjeri su ponude. Pogađa Kuriri (detalj i filter „Nepročitane poruke“) i staru stranicu.</td><td data-l="Dok ne stigne">Ova stranica ne čita sažetak (D12); Kuriri ne pokazuje ponudu kao zadnju poruku (D13).</td></tr>
+    <tr><td><span class="pill pill--warn">B1</span></td><td>Paket poruke: <code>POST …/broadcast</code> vraća <code>message_id</code> i <code>recipients[{courier_id, inbox_id}]</code>; red poruke u <code>GET /couriers/{id}/inbox</code> nosi <code>message_id</code>; <code>GET …/messages</code> (lista poslatog sa <code>recipients_total</code>, <code>read_count</code>, pošiljalac), <code>GET …/messages/{id}/recipients</code> (ko je pročitao i kada), <code>DELETE …/messages/{id}</code>.</td><td data-l="Zašto">Bez toga „ko je pročitao“ traži 40 zahtjeva i poklapanje po tekstu, istorija je samo za ovu sesiju, a povlačenje je 25 brisanja.</td><td data-l="Dok ne stigne">Praćenje i povlačenje po sandučićima, do 40 primalaca (D9, D10).</td></tr>
+    <tr><td><span class="pill pill--warn">B3</span></td><td><code>GET /couriers/{id}/inbox?sender=dispatcher</code> ili <code>?exclude_category=offer</code> (stavka 7 iz <code>05_10_2026</code> raste sa 🟡 na 🟠).</td><td data-l="Zašto">Istorija kurira i praćenje čitaju po kategoriji; ovako je dovoljan jedan zahtjev umjesto tri.</td><td data-l="Dok ne stigne">Tri zahtjeva po kategoriji.</td></tr>
+    <tr><td><span class="pill pill--warn">B7</span></td><td>Šalje li dispečerova poruka push i koji je <code>data.type</code> (stavka 3 iz <code>03_10_2026</code>, bez odgovora).</td><td data-l="Zašto">Dispečer mora znati da li „javi se odmah“ stiže kao obavještenje.</td><td data-l="Dok ne stigne">Natpis: „Kurir vidi poruku kad otvori aplikaciju.“</td></tr>
+    <tr><td><span class="pill pill--mute">B4</span></td><td>Šta je „svi“ u <code>all_couriers: true</code> (uključuje li suspendovane) i može li odgovor da nosi <code>skipped[{courier_id, reason}]</code> kao što ponuda već ima.</td><td data-l="Zašto">Razlika „svi (28)“ naspram „poslata 25“ danas prolazi nezapaženo (F6).</td><td data-l="Dok ne stigne">Front šalje izričit spisak id-jeva, ne <code>all_couriers</code>, osim kad je izabran cijeli spisak.</td></tr>
+    <tr><td><span class="pill pill--mute">B5</span></td><td>Ograničenje brzine za dispečera (zahtjeva u minuti) i oblik odgovora (429, <code>Retry-After</code>).</td><td data-l="Zašto">Provjera čitanja je do 40 zahtjeva odjednom.</td><td data-l="Dok ne stigne">Granica 40, 6 istovremeno, staje kad padne trećina.</td></tr>
+    <tr><td><span class="pill pill--mute">B6</span></td><td>Najveća dužina naslova i teksta, nove redove, i da li se tekst čuva kako je napisan.</td><td data-l="Zašto">Brojač znakova i upozorenje prije slanja.</td><td data-l="Dok ne stigne">Brojač bez ograničenja.</td></tr>
+    <tr><td><span class="pill pill--mute">B8</span></td><td>Šabloni poruka po firmi (opciono).</td><td data-l="Zašto">Lični šabloni u pregledaču se ne dijele među dispečerima.</td><td data-l="Dok ne stigne">Šabloni u pregledaču.</td></tr>
+  </tbody></table></div>
+  <div class="two">
+    <div><h4>Predlog oblika za B1 (front se prilagodi onome što backend izabere)</h4>
+<pre class="code">POST /dispatcher/delivery-companies/{id}/broadcast
+→ { "success": true, "data": {
+      "message_id": 812,
+      "sent_to_count": 25,
+      "recipients": [ { "courier_id": 30189, "inbox_id": 700001 } ],
+      "skipped":    [ { "courier_id": 30198, "reason": "suspended" } ] } }
+
+GET /dispatcher/delivery-companies/{id}/messages?page=&amp;category=&amp;q=
+→ { "data": [ { "id": 812, "category": "announcement",
+      "title": "…", "body": "…", "sent_at": "2026-10-05T12:31:00Z",
+      "sent_by": { "id": 30369, "name": "Test Dispečer" },
+      "recipients_total": 25, "read_count": 19 } ], "meta": {…} }
+
+GET …/messages/{id}/recipients
+→ { "data": [ { "courier_id": 30189, "inbox_id": 700001,
+                "read": true, "read_at": "2026-10-05T12:32:10Z" } ] }
+
+DELETE …/messages/{id}      → { "removed": 25 }</pre></div>
+    <div><h4>Najmanje što bi pomoglo odmah</h4>
+      <p class="small"><b>B2</b> (sažetak bez ponuda) ispravlja podatak na dva ekrana. <b>B1 bez lista</b>: samo <code>message_id</code> u odgovoru slanja i na redu poruke u sandučiću. Time poklapanje po tekstu postaje tačno, povlačenje je tačno, a lista i broj pročitanih mogu da stignu kasnije.</p>
+      <p class="small">Pitanja idu u dnevni dokument (<code>docs/2026/10/…_Frontend_pitanja_za_backend.textile</code>), tracker i <code>app/pages/dev/otvorene-stavke.vue</code>, tek kad se stranica gradi.</p></div>
+  </div>
+</section>
+
+<section class="sec" id="rizici" aria-labelledby="h-rizici">
+  <div class="sec-head"><div class="eyebrow">Rizici</div><h2 id="h-rizici">Šta može da krene naopako</h2></div>
+  <div class="cols-3">
+    <div class="card"><h3>Poklapanje po tekstu</h3><p>Praćenje i povlačenje traže poruku po naslovu, tekstu i kategoriji u prozoru od 15 minuta. Dvije identične poruke u istoj sesiji dobijaju svaka svoju; identična poruka drugog dispečera u tom prozoru bi se mogla poklopiti. List za povlačenje zato piše naslov i sat.</p></div>
+    <div class="card"><h3>Opterećenje servera</h3><p>Do 40 zahtjeva po provjeri, 6 istovremeno, ručno i dvaput automatski. Ograničenje brzine nije poznato (B5). Kad padne više od trećine zahtjeva, provjera staje i to kaže. Lista iznad 40 primalaca se ne prati.</p></div>
+    <div class="card"><h3>„Poslato“ je za jednu sesiju</h3><p>Zatvaranjem taba nestaje, i drugi dispečer ga ne vidi. Zato je ime „Poslato u ovoj sesiji“, a prazno stanje to objašnjava. Poruke ostaju u sandučićima i vide se preko istorije kurira.</p></div>
+    <div class="card"><h3>Grupe su pravila</h3><p>„U dostavi“ je ko je u dostavi u času slanja. Ako kurir u međuvremenu završi, potvrda ipak pokazuje stvaran broj, a kartica „Poslato“ pamti tačne primaoce.</p></div>
+    <div class="card"><h3>Suspendovani nisu u „Svi aktivni“</h3><p>Dispečer navikao na „Izaberi sve“ šalje manje ljudi nego prije. Zbir to kaže (25 od 28), a posebna grupa „Suspendovani“ postoji.</p></div>
+    <div class="card"><h3>Obim</h3><p>Prepisuje se stranica, dodaje se opcija u <code>useCourierRoster</code> i jedna izmjena na Kuriri. Faza 0 se isporučuje odvojeno ako odobrenje kasni.</p></div>
+  </div>
+  <div class="card" style="margin-top:6px"><h3>Namjerno izostavljeno</h3><ul class="opts">
+    <li><i>○</i><span><b>Zakazano slanje, prilozi, slike:</b> backend ne podržava.</span></li>
+    <li><i>○</i><span><b>Odgovori kurira:</b> poruka je jednosmjerna („Odgovor nije moguć“); „Pozovi dispečera“ čeka telefon u DTO-u (03.10., stavka 8).</span></li>
+    <li><i>○</i><span><b>Ručno biranje kategorije „Ponuda“:</b> rezervisana je za sistem.</span></li>
+  </ul></div>
+</section>
+
+<section class="sec" id="provjera" aria-labelledby="h-provjera">
+  <div class="sec-head"><div class="eyebrow">Nije provjereno</div><h2 id="h-provjera">Šta se ovdje ne tvrdi</h2>
+  <p class="lede">Provjera je rađena u Chrome-u na Windowsu nad izmišljenim podacima. Ispod je ono što nije provjereno i što bi trebalo provjeriti prije nego što se nešto proglasi gotovim.</p></div>
+  <div class="cols-2">
+    <div class="card"><h3>Stvarni backend</h3><ul class="opts">
+      <li><i>·</i><span>Koji pošiljalac stoji na ponudi u <code>GET /couriers/{id}/inbox</code> (<code>dispatcher</code> ili <code>platform</code>): probana su oba oblika.</span></li>
+      <li><i>·</i><span>Značenje <code>dispatcher_unread_count</code>, ponašanje <code>?category=</code> za poruke bez kategorije, ograničenje brzine, najveća dužina teksta.</span></li>
+      <li><i>·</i><span>Šta pod „svi“ podrazumijeva <code>all_couriers</code>; da li dispečerova poruka šalje push.</span></li>
+      <li><i>·</i><span>Brzina 40 paralelnih čitanja sandučića na stvarnom serveru.</span></li>
+    </ul></div>
+    <div class="card"><h3>Uređaji i alati</h3><ul class="opts">
+      <li><i>·</i><span>iOS Safari i pravi telefon (dodir, tastatura, zalijepljeno dugme uz ekransku tastaturu).</span></li>
+      <li><i>·</i><span>Čitač ekrana: provjerene su uloge, nazivi, fokus i redoslijed Tab, ne zvuk.</span></li>
+      <li><i>·</i><span>Produkcijski build i dva dispečera istovremeno.</span></li>
+      <li><i>·</i><span>Prototip nije kod aplikacije: prenosi se logika i izgled, ne iscrtavanje (Vue/Vuetify).</span></li>
+    </ul></div>
+  </div>
+</section>
+
+</div>
