@@ -1,82 +1,98 @@
 import { ref, watch, type ComputedRef } from "vue";
 import { fetchFinanceSettings, updateFinanceSettings } from "~/services/financeSettingsService";
-import { toFriendlyErrorMessage } from "~/utils/errorMessage";
-import { useAlertStore } from "~/stores/alert";
-import { DEFAULT_CURRENCY } from "~/utils/currency";
-import type { FinanceSettings } from "~/types/finance-settings";
+import { getErrorStatus, getFieldErrors, toFriendlyErrorMessage } from "~/utils/errorMessage";
+import { buildFinanceBody } from "~/utils/companySettings";
+import type { ActionResult } from "~/composables/useCourierRoster";
+import type { FinanceSettings, FinanceSettingsUpdate } from "~/types/finance-settings";
 
-// options.enabled - lazy gate za tabove: dok je false, composable ne povlači
-// podatke (komponenta iza taba još nije otvorena). Bez opcije se ponaša kao i
-// prije (uvek učitava).
+// Finansijske postavke izabrane firme. `settings` je SAČUVANO stanje: editor radi na svom nacrtu i
+// ovdje stiže tek kad server prihvati izmjenu (saveSection). PATCH i dalje nosi svih 11 polja
+// (sačuvano stanje + izmijenjena polja), jer djelimično tijelo backend nije potvrdio.
+//
+const NO_ANSWER = "Server ne odgovara.";
+
+// options.enabled - lazy gate: dok je false, composable ne povlači podatke.
 export const useFinanceSettings = (
   companyId: ComputedRef<number | null>,
   options: { enabled?: ComputedRef<boolean> } = {}
 ) => {
-  const alertStore = useAlertStore();
-
   const settings = ref<FinanceSettings | null>(null);
   const loadingSettings = ref(false);
   const savingSettings = ref(false);
+  // Pad učitavanja: ekran pokazuje poruku sa "Pokušaj ponovo" umjesto prazne kartice.
+  const loadFailed = ref(false);
+  // Poruka za stranice koje je pokazuju kao zajedničku grešku (Finansije, Kuriri).
   const errorMessage = ref("");
+  // Kratak razlog za mjesto liste ("Server ne odgovara." / nema veze), uz naslov koji kaže šta se desilo.
+  const loadReason = ref("");
+
+  // Odgovor za firmu koja više nije izabrana se odbacuje.
+  let seq = 0;
 
   const fetchSettings = async (id: number) => {
+    const mine = ++seq;
     loadingSettings.value = true;
+    loadFailed.value = false;
+    errorMessage.value = "";
+    loadReason.value = "";
     try {
-      settings.value = await fetchFinanceSettings(id);
+      const loaded = await fetchFinanceSettings(id);
+      if (mine === seq) settings.value = loaded;
     } catch (error) {
-      errorMessage.value = toFriendlyErrorMessage(
-        error,
-        "Ne mogu da učitam finansijske postavke."
-      );
+      if (mine !== seq) return;
+      loadFailed.value = true;
+      const reason = toFriendlyErrorMessage(error, NO_ANSWER);
+      loadReason.value = reason;
+      errorMessage.value = reason === NO_ANSWER ? "Ne mogu da učitam finansijske postavke." : reason;
     } finally {
-      loadingSettings.value = false;
+      if (mine === seq) loadingSettings.value = false;
     }
   };
 
-  const saveSettings = async () => {
-    if (!companyId.value || !settings.value) return;
+  const reload = async () => {
+    const id = companyId.value;
+    if (id) await fetchSettings(id);
+  };
+
+  // Čuva polja jednog editora. Greška stiže kao rezultat (poruka + poruke uz polja), ne kao
+  // zajednička poruka stranice, pa je editor pokazuje uz ono što se mijenja.
+  const saveSection = async (patch: Partial<FinanceSettingsUpdate>): Promise<ActionResult> => {
+    const id = companyId.value;
+    const current = settings.value;
+    if (!id || !current) return { ok: false, message: "Firma nije izabrana.", fields: {} };
+    if (savingSettings.value) return { ok: false, message: "", fields: {} };
     savingSettings.value = true;
     try {
-      // assignment_courier_count se šalje SAMO za TOP_N, inače null (validaciono
-      // pravilo iz Uputstva 02.09). timeout_action/courier_pool imaju backend
-      // default pa uvijek idu s vrijednošću; offer_timeout_seconds se provlači
-      // kakav jeste (5-120 ili null).
-      const mode = settings.value.assignment_mode ?? "ALL";
-      settings.value = await updateFinanceSettings(companyId.value, {
-        cash_limit_amount: settings.value.cash_limit_amount,
-        cash_limit_enforcement: settings.value.cash_limit_enforcement,
-        payout_period_days: settings.value.payout_period_days,
-        currency: settings.value.currency?.trim() || DEFAULT_CURRENCY,
-        daily_handover_time: settings.value.daily_handover_time || null,
-        assignment_mode: mode,
-        assignment_courier_count:
-          mode === "TOP_N" ? settings.value.assignment_courier_count ?? null : null,
-        assignment_timeout_action:
-          settings.value.assignment_timeout_action ?? "NEXT_NEAREST",
-        assignment_courier_pool: settings.value.assignment_courier_pool ?? "ALL_ACTIVE",
-        offer_timeout_seconds: settings.value.offer_timeout_seconds ?? null,
-        show_price_breakdown: settings.value.show_price_breakdown ?? true,
-      });
-      alertStore.success("Finansijske postavke su sačuvane.");
+      const saved = await updateFinanceSettings(id, buildFinanceBody(current, patch));
+      if (companyId.value === id) settings.value = saved;
+      return { ok: true };
     } catch (error) {
-      errorMessage.value = toFriendlyErrorMessage(
-        error,
-        "Ne mogu da sačuvam finansijske postavke."
-      );
+      const fields = getFieldErrors(error);
+      const rejected = getErrorStatus(error) === 422 && Object.keys(fields).length > 0;
+      return {
+        ok: false,
+        message: toFriendlyErrorMessage(
+          error,
+          rejected
+            ? "Server nije prihvatio izmjenu. Provjeri označeno polje."
+            : "Server nije prihvatio izmjenu. Pokušaj ponovo; tvoj unos je ostao u formi."
+        ),
+        fields,
+      };
     } finally {
       savingSettings.value = false;
     }
   };
 
-  // immediate: true - companyId polazi od hardkodovane vrednosti (vidi
-  // useDeliveryCompaniesStore), ne od null-a, pa bez ovoga watch nikad ne bi
-  // okinuo prvi fetch. enabled u depovima: kad se tab prvi put otvori, watch
-  // okine i tek tada ide fetch.
+  // immediate: true - companyId polazi od hardkodovane vrijednosti (vidi
+  // useDeliveryCompaniesStore), ne od null-a, pa bez ovoga watch nikad ne bi okinuo prvi fetch.
+  // Druga firma: prethodne postavke se odmah uklanjaju da se ne vide uz pogrešnu firmu.
   watch(
     [companyId, () => options.enabled?.value ?? true],
-    ([id, enabled]) => {
+    ([id, enabled], previous) => {
+      if (previous && previous[0] !== id) settings.value = null;
       if (!id || !enabled) return;
-      fetchSettings(id);
+      void fetchSettings(id);
     },
     { immediate: true }
   );
@@ -85,7 +101,10 @@ export const useFinanceSettings = (
     settings,
     loadingSettings,
     savingSettings,
+    loadFailed,
     errorMessage,
-    saveSettings,
+    loadReason,
+    saveSection,
+    reload,
   };
 };

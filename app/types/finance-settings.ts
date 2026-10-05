@@ -13,7 +13,7 @@ export type CashLimitEnforcement = "BLOCK" | "NOTIFY_ONLY";
 //                       (N = assignment_courier_count)
 // BEST_MATCH je STARA vrijednost - i dalje živi u bazi za firme koje su je ranije
 // podesile; front je prihvata pri čitanju i ne gubi je kroz PATCH, ali je NE
-// nudi kao izbor novim firmama (vidi assignmentModeOptions u FinanceSettingsPanel).
+// nudi kao izbor novim firmama (vidi modeOptions u utils/companySettings.ts).
 // NAPOMENA: kao i ranije, cijeli prošireni model se ČUVA kroz PATCH ali TRENUTNO
 // NEMA stvarnog efekta na dodjelu (nije povezan sa NotifyCouriersOrderAccepted
 // Job) - stvarna logika dolazi u odvojenoj, koordinisanoj sesiji.
@@ -54,7 +54,7 @@ export type FinanceSettings = {
   // null = bez limita. 0 je backendom potvrđena stroga vrednost ("kurir ne
   // sme da drži nikakvu gotovinu"), ne tretira se kao null - vidi
   // 26_08_2026_odgovori-cash-limit.textile, tačka 5. Toggle u
-  // FinanceSettingsPanel drži ovo razdvojeno da dispečer ne upiše 0 misleći
+  // Editor limita (CompanySettings) drži ovo razdvojeno da dispečer ne upiše 0 misleći
   // "bez limita".
   cash_limit_amount: number | null;
   cash_limit_enforcement: CashLimitEnforcement;
@@ -66,7 +66,7 @@ export type FinanceSettings = {
   currency?: string | null;
   // Kanonski set dozvoljenih valuta - GET i PATCH finance-settings ga vraćaju
   // (odgovor 2.1, deployano i provjereno uživo 09.09: ["KM","BAM","EUR","RSD"]).
-  // Dio ugovora, zato NIJE opciono. FinanceSettingsPanel njime puni padajuću
+  // Dio ugovora, zato NIJE opciono. Editor valute (CompanySettings) njime puni izbor
   // listu - front NE hardkoduje set. PATCH vraća 422 (errors.currency) za
   // vrijednost van seta. OTVORENO: je li set globalan ili po firmi/gradu/državi,
   // je li redoslijed značajan (vidi

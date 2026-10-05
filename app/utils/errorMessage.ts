@@ -56,3 +56,16 @@ export const getValidationMessage = (error: unknown, field: string): string | nu
   const messages = data?.errors?.[field];
   return Array.isArray(messages) && typeof messages[0] === "string" ? messages[0] : null;
 };
+
+// Sve poruke servera uz polja (Laravel: errors.polje[0]), po imenu polja u API-ju. Poruke servera
+// su na engleskom i stoje uz polje; opšta poruka je naša (toFriendlyErrorMessage).
+export const getFieldErrors = (error: unknown): Record<string, string> => {
+  const out: Record<string, string> = {};
+  if (typeof error !== "object" || error === null) return out;
+  const errors = (error as { data?: { errors?: Record<string, unknown> } }).data?.errors;
+  if (!errors || typeof errors !== "object") return out;
+  for (const [key, value] of Object.entries(errors)) {
+    if (Array.isArray(value) && typeof value[0] === "string") out[key] = value[0];
+  }
+  return out;
+};

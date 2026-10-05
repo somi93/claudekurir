@@ -3,8 +3,8 @@ import {
   fetchRestaurantCooperations,
   setRestaurantActive,
 } from "~/services/restaurantCooperationService";
-import { getErrorStatus, toFriendlyErrorMessage } from "~/utils/errorMessage";
-import { useAlertStore } from "~/stores/alert";
+import { getErrorStatus, getFieldErrors, toFriendlyErrorMessage } from "~/utils/errorMessage";
+import type { ActionResult } from "~/composables/useCourierRoster";
 import type { RestaurantCooperation } from "~/types/restaurant-cooperation";
 
 // Backend (27.08) razlikuje dva slučaja kad PATCH ne prođe zbog id-a:
@@ -16,65 +16,71 @@ const toggleErrorMessage = (error: unknown): string => {
     return "Nemaš pristup ovoj vezi - restoran je vezan za drugu firmu za dostavu.";
   }
   if (status === 404) {
-    return "Ova veza sa restoranom više ne postoji. Osveži listu i pokušaj ponovo.";
+    return "Ova veza sa restoranom više ne postoji. Osvježi listu i pokušaj ponovo.";
   }
-  return toFriendlyErrorMessage(error, "Ne mogu da sačuvam status saradnje.");
+  return toFriendlyErrorMessage(error, "Ne mogu da sačuvam status saradnje. Pokušaj ponovo.");
 };
 
-// options.enabled - lazy gate za tabove (vidi useFinanceSettings).
+// options.enabled - lazy gate (vidi useFinanceSettings).
 export const useRestaurantCooperation = (
   companyId: ComputedRef<number | null>,
   options: { enabled?: ComputedRef<boolean> } = {}
 ) => {
-  const alertStore = useAlertStore();
-
   const restaurants = ref<RestaurantCooperation[]>([]);
   const loadingRestaurants = ref(false);
+  // Pad učitavanja: poruka sa "Pokušaj ponovo" u mjestu liste.
+  const loadFailed = ref(false);
   const errorMessage = ref("");
 
+  // Odgovor za firmu koja više nije izabrana se odbacuje.
+  let seq = 0;
+
   const fetchRestaurants = async (id: number) => {
+    const mine = ++seq;
     loadingRestaurants.value = true;
+    loadFailed.value = false;
+    errorMessage.value = "";
     try {
-      restaurants.value = await fetchRestaurantCooperations(id);
+      const loaded = await fetchRestaurantCooperations(id);
+      if (mine === seq) restaurants.value = loaded;
     } catch (error) {
-      errorMessage.value = toFriendlyErrorMessage(error, "Ne mogu da učitam listu restorana.");
+      if (mine !== seq) return;
+      loadFailed.value = true;
+      errorMessage.value = toFriendlyErrorMessage(error, "Server ne odgovara.");
     } finally {
-      loadingRestaurants.value = false;
+      if (mine === seq) loadingRestaurants.value = false;
     }
   };
 
-  // Optimistički prekidač (isti obrazac kao useCompanyCouriers.setSuspended) -
-  // odmah flipujemo active_restoran + suspension_reason, pa vraćamo nazad ako
-  // zahtev ne uspe. reason ide samo pri suspenziji; pri reaktivaciji ga backend
-  // sam čisti, pa lokalno postavljamo null.
-  const toggleRestaurant = async (
+  const reload = async () => {
+    const id = companyId.value;
+    if (id) await fetchRestaurants(id);
+  };
+
+  // Suspenzija / uključivanje iz lista: red se mijenja tek kad server prihvati, a greška stiže
+  // kao rezultat (list je pokazuje uz dugme). reason ide samo pri suspenziji; pri uključivanju ga
+  // backend sam briše, pa lokalno postavljamo null.
+  const setCooperation = async (
     restaurant: RestaurantCooperation,
     active: boolean,
     reason?: string
-  ) => {
-    const previous = {
-      active: restaurant.active_restoran,
-      reason: restaurant.suspension_reason,
-    };
-    restaurant.active_restoran = active;
-    restaurant.suspension_reason = active ? null : reason ?? null;
+  ): Promise<ActionResult> => {
     try {
       await setRestaurantActive(restaurant.id, active, reason);
-      alertStore.success(
-        active ? "Saradnja sa restoranom je uključena." : "Saradnja sa restoranom je suspendovana."
-      );
+      restaurant.active_restoran = active;
+      restaurant.suspension_reason = active ? null : (reason ?? null);
+      return { ok: true };
     } catch (error) {
-      restaurant.active_restoran = previous.active;
-      restaurant.suspension_reason = previous.reason;
-      errorMessage.value = toggleErrorMessage(error);
+      return { ok: false, message: toggleErrorMessage(error), fields: getFieldErrors(error) };
     }
   };
 
   watch(
     [companyId, () => options.enabled?.value ?? true],
-    ([id, enabled]) => {
+    ([id, enabled], previous) => {
+      if (previous && previous[0] !== id) restaurants.value = [];
       if (!id || !enabled) return;
-      fetchRestaurants(id);
+      void fetchRestaurants(id);
     },
     { immediate: true }
   );
@@ -82,7 +88,9 @@ export const useRestaurantCooperation = (
   return {
     restaurants,
     loadingRestaurants,
+    loadFailed,
     errorMessage,
-    toggleRestaurant,
+    reload,
+    setCooperation,
   };
 };

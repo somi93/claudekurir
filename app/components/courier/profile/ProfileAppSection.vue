@@ -1,6 +1,6 @@
 <template>
-  <ProfileSection title="Aplikacija">
-    <ProfileRow
+  <SettingSection title="Aplikacija">
+    <SettingRow
       :icon="pushView.icon"
       label="Obavještenja"
       :value="pushView.value"
@@ -19,7 +19,7 @@
           Uključi
         </button>
       </template>
-    </ProfileRow>
+    </SettingRow>
     <TintAlert
       v-if="push === 'denied'"
       class="pa-tint"
@@ -36,7 +36,7 @@
       </template>
     </TintAlert>
 
-    <ProfileRow
+    <SettingRow
       :icon="geoView.icon"
       label="Lokacija"
       :value="geoView.value"
@@ -65,7 +65,7 @@
           Provjeri
         </button>
       </template>
-    </ProfileRow>
+    </SettingRow>
     <TintAlert
       v-if="geo === 'denied'"
       class="pa-tint"
@@ -81,7 +81,7 @@
       </template>
     </TintAlert>
 
-    <ProfileRow
+    <SettingRow
       :icon="soundEnabled ? 'mdi-volume-high' : 'mdi-volume-off'"
       label="Zvuk i vibracija"
       :value="soundEnabled ? 'Uključeno' : 'Isključeno'"
@@ -100,20 +100,20 @@
           @click="setEnabled(!soundEnabled)"
         />
       </template>
-    </ProfileRow>
+    </SettingRow>
 
     <template #foot>
       Bez lokacije ponude ne stižu; bez obavještenja ne stižu kad je aplikacija u pozadini.
     </template>
-  </ProfileSection>
+  </SettingSection>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import TintAlert from "~/components/common/TintAlert.vue";
 import ProfileChip from "~/components/courier/profile/ProfileChip.vue";
-import ProfileRow from "~/components/courier/profile/ProfileRow.vue";
-import ProfileSection from "~/components/courier/profile/ProfileSection.vue";
+import SettingRow from "~/components/common/SettingRow.vue";
+import SettingSection from "~/components/common/SettingSection.vue";
 import { useLocationPermission } from "~/composables/useLocationPermission";
 import { usePushNotifications } from "~/composables/usePushNotifications";
 import { useSoundNotifications } from "~/composables/useSoundNotifications";

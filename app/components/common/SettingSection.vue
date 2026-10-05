@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { useId } from "vue";
 
-// Grupa redova na ekranu Profil: sitan naslov iznad (kontrast 5.4 : 1, danas 2.33 : 1), bijela
+// Grupa redova postavki (Profil, Firma): sitan naslov iznad (kontrast 5.4 : 1, danas 2.33 : 1), bijela
 // kartica sa radijusom 20 i sjenkom kao u Porukama i Novčaniku, opciona napomena ispod (`foot`)
 // i sadržaj izvan kartice (`after`, npr. dugme Odjavi se).
 defineProps<{ title: string }>();

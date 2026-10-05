@@ -13,7 +13,7 @@
 
     <div class="sidebar-company">
       <GlobalSelect
-        v-model="companiesStore.selectedCompanyId"
+        :model-value="companiesStore.selectedCompanyId"
         :items="companyItems"
         item-title="name"
         item-value="id"
@@ -21,6 +21,7 @@
         :loading="companiesStore.loadingCompanies"
         density="compact"
         hide-details
+        @update:model-value="onCompanyPick"
       />
     </div>
 
@@ -73,6 +74,7 @@ import { computed, onMounted, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useRoute } from "nuxt/app";
 import { useDisplay } from "vuetify";
+import { interceptCompanyChange } from "~/composables/useSheetGuard";
 import { useDeliveryCompaniesStore } from "~/stores/deliveryCompanies";
 import { useSessionStore } from "~/stores/session";
 import { dispatcherNavItems } from "~/utils/navigation";
@@ -104,6 +106,13 @@ watch(
 
 const companiesStore = useDeliveryCompaniesStore();
 onMounted(() => companiesStore.ensureLoaded());
+
+// Stranica sa neosnimljenim unosom (Firma) može da zaustavi promjenu firme i pita; inače se firma
+// mijenja odmah, kao i do sada.
+const onCompanyPick = (id: number | null) => {
+  if (id !== null && interceptCompanyChange(id)) return;
+  companiesStore.selectedCompanyId = id;
+};
 
 const sessionStore = useSessionStore();
 const { user } = storeToRefs(sessionStore);

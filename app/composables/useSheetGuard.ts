@@ -23,3 +23,20 @@ export const interceptLeaving = (): boolean => {
   }
   return false;
 };
+
+// Promjena dostavne firme u ladici dok stranica ima neosnimljen unos: ladica pita stranicu prije
+// nego što izbor stupi na snagu. Stranica se prijavi dok je otvorena i vrati true ako je promjenu
+// zaustavila (sama pita "Imaš nesačuvane izmjene" i firmu promijeni tek poslije "Odbaci izmjene").
+type CompanyGuard = (next: number) => boolean;
+
+let companyGuard: CompanyGuard | null = null;
+
+export const registerCompanyChangeGuard = (guard: CompanyGuard): (() => void) => {
+  companyGuard = guard;
+  return () => {
+    if (companyGuard === guard) companyGuard = null;
+  };
+};
+
+// Vraća true ako je promjena zaustavljena.
+export const interceptCompanyChange = (next: number): boolean => companyGuard?.(next) ?? false;

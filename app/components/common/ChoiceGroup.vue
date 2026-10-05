@@ -1,7 +1,7 @@
 <template>
   <div
     class="cg"
-    :class="[`cg--${variant}`, columns === 3 ? 'cg--3' : '']"
+    :class="[`cg--${variant}`, columns === 3 ? 'cg--3' : columns === 1 ? 'cg--1' : '']"
     role="radiogroup"
     :aria-label="label"
     @keydown="onKey"
@@ -39,7 +39,7 @@
 import { nextTick } from "vue";
 
 // Izbor jednog od nekoliko (role=radiogroup): kartice sa ikonom (vozilo, način isplate) ili
-// pilule (kategorija poruke, način isplate zarade). Strelice, Home i End mijenjaju izbor i
+// pilule (kategorija poruke, način isplate zarade). `columns`: 1 za duže opise, 2 (zadano), 3. Strelice, Home i End mijenjaju izbor i
 // fokus, kao kod pravog radiogroup-a; samo izabrana opcija je u redoslijedu tastera Tab.
 export type ChoiceOption = {
   value: string | number;
@@ -58,7 +58,7 @@ const props = withDefaults(
     options: ChoiceOption[];
     label: string;
     variant?: "cards" | "pills";
-    columns?: 2 | 3;
+    columns?: 1 | 2 | 3;
   }>(),
   { variant: "cards", columns: 2 }
 );
@@ -106,6 +106,16 @@ const onKey = async (event: KeyboardEvent) => {
 
 .cg--cards.cg--3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Jedna kolona: opcije sa dužim opisom (način dodjele, skup kurira). */
+.cg--cards.cg--1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cg--cards.cg--1 .cg-opt {
+  min-height: 72px;
+  padding-right: 44px;
 }
 
 .cg--cards .cg-opt {

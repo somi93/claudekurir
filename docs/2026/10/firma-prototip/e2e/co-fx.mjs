@@ -20,7 +20,7 @@ export function buildRestaurants(n = 12, { now = new Date() } = {}) {
     const b = base[i % base.length];
     extra.push({ ...b, name: `${b.name.slice(0, 22)} ${i + 1}`, internal: false, ac: i % 7 !== 0, ar: i % 5 !== 0, reason: i % 5 === 0 ? "Privremeno" : undefined });
   }
-  return [...base, ...extra].map((r, i) => ({
+  return [...base, ...extra].slice(0, n).map((r, i) => ({
     id: 600 + i,
     restaurant_id: 100 + i * 3,
     restaurant_name: r.name,

@@ -31,8 +31,8 @@
           @nudge="openSheet('licni', 'ecName')"
         />
 
-        <ProfileSection title="Kontakt podaci">
-          <ProfileRow
+        <SettingSection title="Kontakt podaci">
+          <SettingRow
             icon="mdi-account-outline"
             label="Ime i prezime"
             :value="nameValue"
@@ -42,7 +42,7 @@
             :aria-label="rowLabel('Ime i prezime', nameValue, !nameValue)"
             @click="openSheet('kontakt', 'name')"
           />
-          <ProfileRow
+          <SettingRow
             icon="mdi-phone-outline"
             label="Telefon"
             :value="profile.phone || 'Nije dodat'"
@@ -52,10 +52,10 @@
             :aria-label="rowLabel('Telefon', profile.phone, !profile.phone)"
             @click="openSheet('kontakt', 'phone')"
           />
-        </ProfileSection>
+        </SettingSection>
 
-        <ProfileSection title="Lični podaci">
-          <ProfileRow
+        <SettingSection title="Lični podaci">
+          <SettingRow
             icon="mdi-cake-variant"
             label="Datum rođenja"
             :value="dobValue"
@@ -65,7 +65,7 @@
             :aria-label="rowLabel('Datum rođenja', dobValue, !profile.dateOfBirth)"
             @click="openSheet('licni', 'dob')"
           />
-          <ProfileRow
+          <SettingRow
             icon="mdi-account-alert-outline"
             label="Hitni kontakt"
             :value="emergencyValue"
@@ -76,7 +76,7 @@
             :aria-label="rowLabel('Hitni kontakt', emergencyValue, !hasEmergencyContact)"
             @click="openSheet('licni', 'ecName')"
           />
-          <ProfileRow
+          <SettingRow
             icon="mdi-bank-outline"
             label="IBAN"
             :value="ibanValue"
@@ -86,10 +86,10 @@
             :aria-label="rowLabel('IBAN', ibanValue, !profile.iban)"
             @click="openSheet('licni', 'iban')"
           />
-        </ProfileSection>
+        </SettingSection>
 
-        <ProfileSection title="Vozilo">
-          <ProfileRow
+        <SettingSection title="Vozilo">
+          <SettingRow
             :icon="vehicleView.icon"
             label="Tip vozila"
             :value="vehicleView.label"
@@ -101,11 +101,11 @@
             :aria-label="`Vozilo: ${vehicleValue}. Promijeni`"
             @click="openSheet('vozilo')"
           />
-        </ProfileSection>
+        </SettingSection>
 
-        <ProfileSection :title="companies.length > 1 ? 'Firme' : 'Firma'">
+        <SettingSection :title="companies.length > 1 ? 'Firme' : 'Firma'">
           <template v-if="companiesLoaded">
-            <ProfileRow
+            <SettingRow
               v-for="company in companies"
               :key="company.id"
               icon="mdi-domain"
@@ -133,14 +133,14 @@
               <button type="button" class="pf-act" @click="retryCompanies">Pokušaj ponovo</button>
             </template>
           </TintAlert>
-          <ProfileRow v-else icon="mdi-domain" label="Dostavna firma" value="Učitavam…" empty />
+          <SettingRow v-else icon="mdi-domain" label="Dostavna firma" value="Učitavam…" empty />
           <template #foot>Firmu mijenja dispečer.</template>
-        </ProfileSection>
+        </SettingSection>
 
         <ProfileAppSection :courier-id="courierId" />
 
-        <ProfileSection title="Nalog">
-          <ProfileRow
+        <SettingSection title="Nalog">
+          <SettingRow
             icon="mdi-lock-outline"
             label="Lozinka"
             value="Promijeni lozinku"
@@ -153,8 +153,8 @@
               <ProfileChip v-if="mustChangePassword" tone="warn">Privremena</ProfileChip>
               <v-icon icon="mdi-chevron-right" size="20" />
             </template>
-          </ProfileRow>
-          <ProfileRow
+          </SettingRow>
+          <SettingRow
             icon="mdi-gift-outline"
             label="Preporuči prijatelja"
             :value="`${REFERRAL_REWARD_AMOUNT} KM za oboje`"
@@ -162,7 +162,7 @@
             to="/courier/referral"
             :aria-label="`Preporuči prijatelja: ${REFERRAL_REWARD_AMOUNT} KM za oboje. Otvori`"
           />
-          <ProfileRow
+          <SettingRow
             icon="mdi-email-outline"
             label="Prijava (email)"
             :value="profile.email"
@@ -176,7 +176,7 @@
                 {{ emailCopied ? "Kopirano" : "Kopiraj" }}
               </ProfileChip>
             </template>
-          </ProfileRow>
+          </SettingRow>
           <template #after>
             <button type="button" class="pf-logout" @click="openSheet('odjava')">
               <v-icon icon="mdi-logout" size="20" />
@@ -187,7 +187,7 @@
             </p>
             <span class="pf-sr" role="status">{{ emailCopied ? "Email je kopiran." : "" }}</span>
           </template>
-        </ProfileSection>
+        </SettingSection>
       </template>
     </div>
 
@@ -236,8 +236,8 @@ import PersonalSheet from "~/components/courier/profile/PersonalSheet.vue";
 import ProfileAppSection from "~/components/courier/profile/ProfileAppSection.vue";
 import ProfileChip from "~/components/courier/profile/ProfileChip.vue";
 import ProfileIdentity from "~/components/courier/profile/ProfileIdentity.vue";
-import ProfileRow from "~/components/courier/profile/ProfileRow.vue";
-import ProfileSection from "~/components/courier/profile/ProfileSection.vue";
+import SettingRow from "~/components/common/SettingRow.vue";
+import SettingSection from "~/components/common/SettingSection.vue";
 import ProfileSkeleton from "~/components/courier/profile/ProfileSkeleton.vue";
 import VehicleSheet from "~/components/courier/profile/VehicleSheet.vue";
 import { useProfileSheet } from "~/composables/useProfileSheet";
