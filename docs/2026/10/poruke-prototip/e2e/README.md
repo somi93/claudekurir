@@ -9,7 +9,13 @@ odgovara sama skripta. Nije dio aplikacije; kopirano iz radne sesije od 05.10.20
 - `nh.mjs` – `session(name, {width, height, world})`: otvara stranicu, presreće API (Fetch.enable), vodi dnevnik zahtjeva, `load()`, `setFlags()`, `evalJs()`, snimci.
 - `nfx.mjs`, `fx.mjs` – izmišljeni svijet (kuriri, lokacije, saldo, sandučići, firme); `world: {n: 28}` bira broj kurira.
 - `nlib.mjs`, `contrast.mjs` – pomoćne (klikovi pravim događajima, kontrast WCAG po tekstu).
-- `n0-smoke.mjs`, `n1-states.mjs` – primjeri skripti nad pravom stranicom (stanja, učitavanje, greške).
+- `n0-smoke.mjs`, `n1-states.mjs` – primjeri skripti nad starom stranicom Obaveštenja (stanja, učitavanje, greške).
+- `n2-poruke.mjs` – IZRAĐENA stranica Poruke, računar 1440: stanja, grupe, Enter/Ctrl+Enter, slanje sa/bez potvrde, praćenje čitanja,
+  podsjetnik, povlačenje, poruke kurira (bez ponuda), pretraga, tastatura, šabloni, nacrt, greška slanja, kontrast i mete (stranica i listovi), stanja spiska.
+- `n3-poruke-telefon.mjs` – isto na telefonu 390 i 320 (pravi dodir), te 500 kurira (`node ... n3-poruke-telefon.mjs phone|big`).
+- `n4-poruke-greske.mjs` – server javi manje, provjera pada (za jednog / više od trećine), dvije iste poruke, povlačenje bez provjere i djelimično, "Poslato" poslije ponovnog učitavanja.
+- `n5-kuriri-poruke.mjs` – ekran Kuriri: "Zadnja poruka" bez ponude (D13) i veza "Sve poruke" (D11).
+- `../app-logic-test.mjs` – čista logika APLIKACIJE (`app/utils/*.ts`, esbuild bundle) nad istim svijetom kao prototip: `node docs/2026/10/poruke-prototip/app-logic-test.mjs`.
 
 ## Kako se koristi
 1. Pokreni dev server usmjeren na lažni API host (port ne mora imati ništa na sebi, skripta presreće zahtjeve):
@@ -21,6 +27,11 @@ odgovara sama skripta. Nije dio aplikacije; kopirano iz radne sesije od 05.10.20
    Ako ništa od ovoga nije dostupno, ne izmišljaj rezultate: napiši koje su provjere preskočene.
 
 ## Pravila koja su se isplatila
+- Donji list (`AppSheet`) se uvlači ~0.5 s (u produkcijskom buildu duže): poslije otvaranja čekaj ≥ 700 ms prije klika na dugme u njemu, inače koordinate zastare.
+- Toast ("Poruka poslata...") stoji 10 s preko vrha stranice i prekriva kartice/filtere: tab i filter u listu prebaci programski (`el.click()`), ne pravim klikom.
+- Stavke menija (`v-menu`) klikaj bez `scrollIntoView` (overlay se pri skrolu premješta, pa koordinate zastare); `click()` u `nh.mjs` baca grešku za skriven element umjesto da klikne (0,0).
+- Space na dugmetu: `key:" "`, `code:"Space"`, `text:" "`.
+- Ikone (`mdi-*`) se učitavaju sa mreže; bez interneta su prazne u snimcima, a provjere (mjere, kontrast teksta) i dalje važe.
 - Pravi događaji: `Input.dispatchMouseEvent` na sredini elementa (hvata prekrivene mete; `el.click()` ne), tipke `Input.dispatchKeyEvent`
   (Enter na dugmetu traži `text:"\r"`, Space `text:" "`), dodir `Input.dispatchTouchEvent`.
 - Prije klika čekaj ~450 ms nakon otvaranja `v-menu`/sheet-a (animacija promaši stavku).

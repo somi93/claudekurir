@@ -938,6 +938,86 @@ const ITEMS: OpenItem[] = [
     priority: "backend",
     source: "05_10_2026_Frontend_pitanja_za_backend.textile",
   },
+  {
+    id: "poruke-inbox-summary-ponude",
+    title: "Poruke: inbox-summary ne smije računati ponude (+ šta broji dispatcher_unread_count)",
+    pages: ["/dispatcher/couriers", "/dispatcher/notifications"],
+    api: ["GET .../inbox-summary"],
+    description:
+      "05.10: u stvarnom odgovoru (21.09, R11) svi primjeri su 'offer'; last_message i broj nepročitanih su pogrešni. Ekran Poruke ga ne čita, Kuriri 'Zadnja poruka' ne prikazuje ponudu. Stavka 12 (Dio 2).",
+    priority: "backend",
+    source: "05_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "poruke-paket-poruke",
+    title: "Poruke: paket poruke (message_id u odgovoru slanja i na redu sandučića, lista poslatog, primaoci, brisanje po poruci)",
+    pages: ["/dispatcher/notifications"],
+    api: ["POST .../broadcast", "GET /couriers/{id}/inbox"],
+    description:
+      "05.10: bez toga praćenje čitanja traži do 40 zahtjeva i poklapanje po tekstu, 'Poslato' je samo za ovu sesiju, a povlačenje je jedno brisanje po sandučiću. Najmanje što pomaže: message_id. Stavka 13 (Dio 2).",
+    priority: "backend",
+    source: "05_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "poruke-inbox-filter-posiljalac",
+    title: "Poruke: filter inboxa po pošiljaocu / exclude_category=offer (diže stavku 7 na 🟠)",
+    pages: ["/dispatcher/notifications", "/dispatcher/couriers"],
+    api: ["GET /couriers/{id}/inbox"],
+    description:
+      "05.10: istorija poruka kurira i praćenje čitanja čitaju tri kategorije posebno jer ponude gomilaju prvu stranicu. Koji pošiljalac stoji na ponudi u sandučiću (dispatcher ili platform)? Stavka 14 (Dio 2).",
+    priority: "backend",
+    source: "05_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "poruke-push-dispecer",
+    title: "Poruke: šalje li dispečerova poruka push i koji je data.type",
+    pages: ["/dispatcher/notifications"],
+    api: ["FCM"],
+    description:
+      "05.10: ponovo stavka 3 iz 03.10 (bez odgovora). Natpis na ekranu: 'Kurir vidi poruku kad otvori aplikaciju.' Stavka 15 (Dio 2).",
+    priority: "backend",
+    source: "05_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "poruke-all-couriers-skipped",
+    title: "Poruke: značenje all_couriers:true i skipped[]",
+    pages: ["/dispatcher/notifications"],
+    api: ["POST .../broadcast"],
+    description:
+      "05.10: uključuje li 'svi' suspendovane; može li odgovor da nosi skipped[{courier_id, reason}]. Front šalje izričit spisak id-jeva. Stavka 16 (Dio 2).",
+    priority: "backend",
+    source: "05_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "poruke-rate-limit",
+    title: "Poruke: ograničenje brzine za dispečera (429, Retry-After)",
+    pages: ["/dispatcher/notifications"],
+    api: ["GET /couriers/{id}/inbox"],
+    description:
+      "05.10: praćenje čitanja je do 40 zahtjeva, 6 istovremeno. Stavka 17 (Dio 2).",
+    priority: "backend",
+    source: "05_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "poruke-max-duzina",
+    title: "Poruke: najveća dužina naslova i teksta",
+    pages: ["/dispatcher/notifications"],
+    api: ["POST .../broadcast", "POST /couriers/{id}/inbox"],
+    description:
+      "05.10: brojač znakova bez ograničenja dok ne stigne. Stavka 18 (Dio 2).",
+    priority: "backend",
+    source: "05_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "poruke-sabloni-firma",
+    title: "Poruke: zajednički šabloni po firmi (opciono)",
+    pages: ["/dispatcher/notifications"],
+    api: [],
+    description:
+      "05.10: lični šabloni su u pregledaču dispečera i ne dijele se. Stavka 19 (Dio 2).",
+    priority: "backend",
+    source: "05_10_2026_Frontend_pitanja_za_backend.textile",
+  },
 ];
 
 const GROUP_ORDER: { key: Priority; label: string }[] = [

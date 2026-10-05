@@ -30,7 +30,8 @@ import type {
 } from "~/types/company-courier";
 import type { DispatcherCourierLocation } from "~/types/courier";
 import type { CourierBalance } from "~/types/courier-balance";
-import type { DispatcherMessageCategory, InboxSummaryEntry } from "~/types/inbox";
+import type { InboxSummaryEntry } from "~/types/inbox";
+import type { MessageDraft } from "~/utils/messageDraft";
 
 // Povremeno osvježavanje dok je tab vidljiv: stanje uživo kao na Kuriri uživo (15 s), novac i
 // poruke rjeđe (60 s). Spisak kurira se čita pri otvaranju i pri povratku u tab ako je stariji od
@@ -63,15 +64,16 @@ const failure = (error: unknown, fallback: string): ActionResult => ({
   fields: fieldErrors(error),
 });
 
-export type MessageDraft = {
-  category: DispatcherMessageCategory;
-  title: string;
-  body: string;
+export type CourierRosterOptions = {
+  // Čita li se inbox-summary (pretpregled zadnje poruke i broj nepročitanih). Ekran Poruke ga ne
+  // čita: sažetak broji i ponude za dostavu, pa su oba podatka pogrešna dok backend to ne ispravi (B2).
+  summary?: boolean;
 };
 
 // Dispečerska lista kurira: pet izvora spojenih po courier_id u jedan spisak, njihovo osvježavanje
 // i sve radnje nad kurirom. Izvor koji ne radi ne ruši listu (vidi buildRoster).
-export const useCourierRoster = () => {
+export const useCourierRoster = (options: CourierRosterOptions = {}) => {
+  const withSummary = options.summary !== false;
   const companies = useDeliveryCompaniesStore();
   const { selectedCompanyId, errorMessage: companiesError } = storeToRefs(companies);
   const companyId = computed(() => selectedCompanyId.value);
@@ -119,6 +121,11 @@ export const useCourierRoster = () => {
   });
   // Osvježavanje nije uspjelo, a lista već postoji: ostaje stara, uz traku.
   const stale = computed(() => rowsLoaded.value && rowsFailed.value);
+
+  // Izvor "radi" kad je bar jednom stigao i zadnje osvježavanje nije palo. Stanje uživo ili novac
+  // koji se ne zna ne smije da odlučuje ko dobija poruku (grupe koje od njih zavise se gase).
+  const locationsOk = computed(() => locations.value !== null && !locationsFailed.value);
+  const balancesOk = computed(() => balances.value !== null && !balancesFailed.value);
 
   // --- Čitanje ----------------------------------------------------------------------------
 
@@ -189,7 +196,7 @@ export const useCourierRoster = () => {
 
   const loadSlow = async () => {
     stamps.slow = Date.now();
-    await Promise.all([loadBalances(), loadSummary()]);
+    await Promise.all([loadBalances(), withSummary ? loadSummary() : Promise.resolve()]);
   };
 
   // Ručno osvježavanje i "Pokušaj ponovo": sve odjednom.
@@ -426,6 +433,7 @@ export const useCourierRoster = () => {
         }
         return failure(error, "Ne mogu da pošaljem poruku. Pokušaj ponovo; tekst je ostao u listu.");
       }
+      if (!withSummary) return { ok: true };
       // Oznaka poruke u listi odmah, a pravo stanje stiže sa sljedećim čitanjem sažetka.
       if (summary.value) {
         const at = new Date().toISOString();
@@ -459,6 +467,8 @@ export const useCourierRoster = () => {
     locationsFailed,
     balancesFailed,
     summaryFailed,
+    locationsOk,
+    balancesOk,
     currency,
     cashLimit,
     companyId,

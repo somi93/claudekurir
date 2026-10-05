@@ -155,3 +155,117 @@ h2. 🟢 11. Ko je suspendovao i slika kurira
 
 @couriers-status@ ne vraća ko je suspendovao kurira (@suspended_by@) ni osnovu adrese za @image_path@. Front u detalju
 pokazuje razlog i vrijeme suspenzije ali ne i autora, a umjesto slike inicijale. Ništa ne blokira.
+
+---
+
+h1. Dio 2: ekran "Poruke" (@/dispatcher/notifications@)
+
+Isti dan, druga tema. Ekran koji je do jutros bio "Obaveštenja" je prepisan u radni prostor *"Poruke"*: spisak kurira sa
+stanjem uživo, gotove grupe primalaca (aktivni, u dostavi, slobodni, offline, duguju gotovinu, suspendovani), pregled kako
+kurir vidi poruku, "Poslato u ovoj sesiji" sa praćenjem ko je pročitao, podsjetnikom i povlačenjem poruke iz sandučića, i
+istorija poruka jednog kurira bez ponuda. Sve to radi *samo nad postojećim rutama*; ništa od ispod ne blokira ekran, ali
+bez toga je praćenje čitanja skupo i približno. Nove stavke nastavljaju brojanje iz Dijela 1. Ono što front radi dok
+odgovor ne stigne piše uz svaku stavku.
+
+Šta front sada šalje (informativno, bitno za opterećenje):
+
+* Slanje: jednom kuriru @POST /couriers/{id}/inbox@, više njih @POST .../broadcast@ sa *izričitim spiskom*
+  (@all_couriers: false@, @courier_ids@); @all_couriers: true@ samo kad je izabran cijeli spisak firme. Suspendovani nisu u
+  grupi "Svi aktivni" (ostaju u "Duguju gotovinu" i "Suspendovani"), pa "svi" od danas može biti manje od svih.
+* Praćenje čitanja (ručno, i samo od sebe ~20 s i ~2 min poslije slanja): za svakog primaoca
+  @GET /couriers/{id}/inbox?category=<poslata kategorija>&page=1&per_page=10@, *najviše 6 istovremeno*, *samo do 40
+  primalaca*; staje ako padne više od trećine zahtjeva. Poruka se traži po naslovu, tekstu, kategoriji i pošiljaocu u
+  razmaku do 15 minuta od slanja.
+* Povlačenje: @DELETE /inbox/{id}@ po sandučetu, najviše 6 istovremeno (uz prethodno čitanje sandučića ako poruka još nije
+  nađena).
+* Poruke jednog kurira: tri zahtjeva, po jedan za @announcement@, @todo@ i @promotion@
+  (@?category=&page=&per_page=10@), spojeni po vremenu; ponude (@offer@) se ne čitaju.
+* *Ekran ne čita @inbox-summary@* (vidi stavku 12).
+
+---
+
+h2. 🔴 12. @inbox-summary@ ne smije da računa ponude (i šta tačno broji @dispatcher_unread_count@)
+
+Dokument od 21.09. (R11): u stvarnom odgovoru svi primjeri imaju @category: "offer"@ i @sender: "dispatcher"@, a ponude
+nastaju kao nepročitane i ostaju takve (03.10). Zato su @last_message@ ("Zadnja poruka") i broj nepročitanih pogrešni:
+pokazuju ponudu kao poruku dispečera. Zamolba: @last_message@ je zadnja poruka koja *nije* @offer@, a
+@dispatcher_unread_count@ broji samo takve (ili novo polje pored). Uz to još jednom pitanje od 15.09.: *šta tačno broji
+@dispatcher_unread_count@* (nepročitane poruke koje je poslao dispečer, ili nepročitano kod kurira)?
+
+Dok ne stigne: ekran Poruke @inbox-summary@ ne čita uopšte; na ekranu Kuriri "Zadnja poruka" ne prikazuje ponudu (pada na
+čitanje sandučića), a brojač "nepročitano" i filter "Nepročitane poruke" ostaju kakvi jesu.
+
+---
+
+h2. 🟠 13. Paket poruke: @message_id@ u odgovoru slanja i na redu sandučića
+
+Backend nema oznaku grupne poruke, pa front poslije slanja *traži poruku po tekstu* u sandučiću svakog primaoca (do 40
+zahtjeva po provjeri). Predloženi oblik (front se prilagodi onome što izaberete):
+
+bc. POST /dispatcher/delivery-companies/{id}/broadcast
+→ { "success": true, "data": {
+      "message_id": 812,
+      "sent_to_count": 25,
+      "recipients": [ { "courier_id": 30189, "inbox_id": 700001 } ],
+      "skipped":    [ { "courier_id": 30198, "reason": "suspended" } ] } }
+
+GET /dispatcher/delivery-companies/{id}/messages?page=&category=&q=
+→ { "data": [ { "id": 812, "category": "announcement", "title": "…", "body": "…", "sent_at": "…",
+      "sent_by": { "id": 30369, "name": "…" }, "recipients_total": 25, "read_count": 19 } ], "meta": {…} }
+
+GET .../messages/{id}/recipients   → { "data": [ { "courier_id", "inbox_id", "read", "read_at" } ] }
+DELETE .../messages/{id}           → { "removed": 25 }
+
+*Najmanje što pomaže odmah:* samo @message_id@ u odgovoru slanja i na redu poruke u @GET /couriers/{id}/inbox@. Time
+poklapanje po tekstu postaje tačno, povlačenje je tačno, a lista i broj pročitanih mogu da stignu kasnije.
+
+Dok ne stigne: "Poslato" je samo za ovu sesiju (sessionStorage), praćenje do 40 primalaca, povlačenje po sandučiću.
+
+---
+
+h2. 🟠 14. Filter po pošiljaocu ili @exclude_category@ na @GET /couriers/{id}/inbox@ (diže stavku 7 na 🟠)
+
+Stavka 7 je bila 🟡 (detalj kurira). Sada na tome stoji i istorija poruka kurira i praćenje čitanja: ponude gomilaju prvu
+stranicu (probni kurir: 63 ponude novije od svih 7 poruka), pa front čita tri kategorije posebno. Prijedlog:
+@?sender=dispatcher@ ili @?exclude_category=offer@; tada je dovoljan jedan zahtjev umjesto tri. Pitanje koje stoji
+otvoreno: *koji pošiljalac stoji na ponudi u @GET /couriers/{id}/inbox@* (@dispatcher@ ili @platform@)? U sažetku je
+@dispatcher@; za sam sandučić nijedan dokument ne kaže. Front podnosi oba.
+
+---
+
+h2. 🟠 15. Šalje li dispečerova poruka push, i koji je @data.type@
+
+Ponovo stavka 3 iz @03_10_2026@ (bez odgovora). Dispečer mora da zna da li "javi se odmah" stiže kao obavještenje, ili kurir
+poruku vidi tek kad otvori aplikaciju. Dok ne stigne, pregled na ekranu kaže samo: "Kurir vidi poruku kad otvori
+aplikaciju."
+
+---
+
+h2. 🟡 16. Značenje @all_couriers: true@ i @skipped[]@
+
+Uključuje li "svi" suspendovane kurire i kurire koji više nisu vezani za firmu? Može li odgovor da nosi @skipped[{courier_id,
+reason}]@ (kao što ponuda već ima), da razlika "poslato 28" naspram "poslata 25" ne prođe nezapaženo? Front od danas
+šalje izričit spisak id-jeva, a @all_couriers: true@ samo kad je izabran cijeli spisak firme, i upozorava kad
+@sent_to_count@ nije jednak broju koji je ekran obećao.
+
+---
+
+h2. 🟡 17. Ograničenje brzine za dispečera (429, @Retry-After@)
+
+Provjera čitanja je do 40 zahtjeva, 6 istovremeno, ručno i dva puta samo od sebe. Koliko zahtjeva u minuti dispečer smije i
+kako izgleda odgovor kad ga prekorači (@429@, @Retry-After@)? Dok ne stigne: granica 40, 6 istovremeno, staje kad padne
+više od trećine zahtjeva i kaže "Server je zauzet, pokušaj za minut".
+
+---
+
+h2. 🟡 18. Najveća dužina naslova i teksta poruke
+
+Najveća dužina naslova i teksta, da li su novi redovi dozvoljeni i čuva li se tekst kako je napisan (razmaci, novi redovi)?
+Dok ne stigne: brojač znakova bez ograničenja; poklapanje poruke se radi poslije @trim@.
+
+---
+
+h2. 🟢 19. Zajednički šabloni poruka po firmi (opciono)
+
+Lični šabloni su u pregledaču dispečera (@localStorage@) i ne dijele se među dispečerima. Ako firma želi zajedničke
+(@GET/POST/DELETE .../message-templates@), treba nam to; ništa ne blokira.

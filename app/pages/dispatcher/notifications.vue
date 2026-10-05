@@ -1,454 +1,680 @@
 <template>
-  <GlobalPage :max-width="1000">
+  <GlobalPage :max-width="1200">
     <template #header>
-      <PageHeader title="Obaveštenja" back-to="/" back-label="Nazad na početnu" />
+      <PageHeader title="Poruke" back-to="/" back-label="Nazad na početnu">
+        <template #subtitle>
+          <template v-if="roster.state.value === 'ready'">
+            {{ couriersText(roster.roster.value.length) }} · {{ liveCount }} uživo
+          </template>
+        </template>
+      </PageHeader>
     </template>
 
-    <PageAlert v-if="errorMessage" closable class="mb-4" @close="clearError">
-      {{ errorMessage }}
-    </PageAlert>
+    <div class="mp" :class="{ 'mp--wide': wide }">
+      <MessageRecipientList
+        v-if="wide"
+        ref="listEl"
+        v-model:q="q"
+        class="mp-list"
+        :state="roster.state.value"
+        :stale="roster.stale.value"
+        :error-text="errorText"
+        :total="roster.roster.value.length"
+        :items="matched"
+        :visible-count="shown"
+        :picked="audienceIds"
+        :picked-count="audience.length"
+        :now="now"
+        :currency="roster.currency.value"
+        :updated-at="roster.updatedAt.value"
+        :refreshing="roster.refreshing.value"
+        :flash-ids="noFlash"
+        show-kbd
+        @toggle="togglePick"
+        @history="openHistory"
+        @select-shown="selectShown"
+        @select-none="selectNone"
+        @more="shown += PAGE_ROWS"
+        @refresh="roster.refresh()"
+        @retry="roster.refresh()"
+      />
 
-    <GlobalCard padding="20px">
-      <template #title>Grupno slanje poruke</template>
-      <template #subtitle>
-        Pošalji obaveštenje izabranim kuririma ili svim kuririma firme odjednom.
-      </template>
-
-      <v-form ref="formRef" class="composer mt-2" @submit.prevent="submit">
-        <GlobalSelect
-          v-model="form.category"
-          label="Kategorija"
-          :items="DISPATCHER_MESSAGE_CATEGORIES"
-          item-title="label"
-          item-value="value"
-          hide-details="auto"
-        />
-        <GlobalTextField
-          v-model="form.title"
-          label="Naslov"
-          enterkeyhint="next"
-          :rules="[rules.required()]"
-          hide-details="auto"
-          @keydown.enter.exact.prevent="focusBody"
-          @keydown.ctrl.enter.prevent="submit"
-          @keydown.meta.enter.prevent="submit"
-        />
-        <GlobalTextarea
-          v-model="form.body"
-          label="Poruka"
-          rows="4"
-          auto-grow
-          :rules="[rules.required()]"
-          hide-details="auto"
-          @keydown.ctrl.enter.prevent="submit"
-          @keydown.meta.enter.prevent="submit"
-        />
-        <GlobalAutocomplete
-          v-model="selectedIds"
-          :items="courierOptions"
-          item-title="label"
-          item-value="value"
-          multiple
-          chips
-          closable-chips
-          select-all
-          select-all-text="Izaberi sve kurire firme"
-          label="Primaoci"
-          placeholder="Pretraži kurira po imenu ili ID-u..."
-          no-data-text="Nema kurira za zadatu pretragu."
-          :custom-filter="matchOption"
-          :error="showRecipientError"
-          :error-messages="recipientErrorText"
-          hide-details="auto"
-        />
-
-        <div class="composer-foot">
-          <span class="composer-count">{{ couriersReady ? recipientSummary : "Spisak kurira nije učitan." }}</span>
-          <GlobalButtonPrimary
-            type="submit"
-            prepend-icon="mdi-send-outline"
-            :loading="broadcasting"
-            :disabled="!couriersReady || couriers.length === 0"
+      <div class="mp-right">
+        <div class="mp-tabs" role="tablist" aria-label="Poruke" @keydown="onTabKey">
+          <button
+            id="mp-tab-new"
+            type="button"
+            role="tab"
+            class="mp-tab"
+            data-tab="new"
+            aria-controls="mp-pane"
+            :aria-selected="tab === 'new'"
+            :tabindex="tab === 'new' ? 0 : -1"
+            @click="tab = 'new'"
           >
-            Pošalji
-          </GlobalButtonPrimary>
+            <v-icon icon="mdi-square-edit-outline" size="20" />Nova poruka
+          </button>
+          <button
+            id="mp-tab-sent"
+            type="button"
+            role="tab"
+            class="mp-tab"
+            data-tab="sent"
+            aria-controls="mp-pane"
+            :aria-selected="tab === 'sent'"
+            :tabindex="tab === 'sent' ? 0 : -1"
+            @click="tab = 'sent'"
+          >
+            <v-icon icon="mdi-send-outline" size="20" />Poslato<em v-if="sent.batches.value.length">{{
+              sent.batches.value.length
+            }}</em>
+          </button>
         </div>
-      </v-form>
-    </GlobalCard>
 
-    <GlobalCard padding="20px" class="mt-4">
-      <template #title>Istorija poslatih poruka</template>
-      <template #subtitle>
-        Izaberi kurira da vidiš i pretražiš šta mu je ranije poslato.
-      </template>
-
-      <GlobalTextField
-        v-model="historySearch"
-        density="compact"
-        variant="solo"
-        flat
-        hide-details
-        clearable
-        placeholder="Pretraži kurira po imenu ili ID-u..."
-        prepend-inner-icon="mdi-magnify"
-        class="mt-2"
-      />
-
-      <p v-if="loadingCouriers && !couriersLoaded" class="history-empty mt-3" role="status">
-        Učitavam kurire…
-      </p>
-      <div v-else-if="!couriersLoaded" class="history-empty mt-3" role="alert">
-        Ne mogu da učitam listu kurira.
-        <v-btn variant="text" size="small" @click="reloadCouriers()">Pokušaj ponovo</v-btn>
-      </div>
-      <div v-else-if="filteredHistoryCouriers.length > 0" class="history-courier-list mt-2">
-        <button
-          v-for="courier in filteredHistoryCouriers"
-          :key="courier.courier_id"
-          type="button"
-          class="history-courier-row"
-          @click="openHistory(courier)"
-        >
-          <div class="history-courier-text">
-            <div class="history-courier-main">
-              <span class="history-courier-id">#{{ courier.courier_id }}</span>
-              <span class="history-courier-name">{{ toLatin(courier.name) }}</span>
-              <span v-if="courier.suspended" class="history-courier-tag">suspendovan</span>
-            </div>
-            <span
-              v-if="summaryFor(courier.courier_id)?.lastMessage"
-              class="history-courier-preview"
-            >
-              {{ toLatin(summaryFor(courier.courier_id)!.lastMessage!.title) }} ·
-              {{ formatRelativeTime(summaryFor(courier.courier_id)!.lastMessage!.sentAt) }}
-            </span>
-          </div>
-          <v-chip
-            v-if="summaryFor(courier.courier_id)?.dispatcherUnreadCount"
-            size="x-small"
-            variant="tonal"
-            color="accent"
-            class="history-courier-unread"
+        <div class="mp-scroll" :class="{ 'is-card': tab === 'new' }">
+          <div
+            id="mp-pane"
+            role="tabpanel"
+            :aria-labelledby="tab === 'new' ? 'mp-tab-new' : 'mp-tab-sent'"
           >
-            {{ summaryFor(courier.courier_id)!.dispatcherUnreadCount }} nepročitano
-          </v-chip>
-          <v-icon icon="mdi-chevron-right" size="18" class="history-courier-open" />
-        </button>
-      </div>
-      <p v-else class="history-empty mt-3">
-        {{
-          couriers.length === 0
-            ? "Nema kurira na listi ove firme."
-            : "Nema kurira za zadatu pretragu."
-        }}
-      </p>
-    </GlobalCard>
+            <MessageCompose
+              v-show="tab === 'new'"
+              ref="composeEl"
+              :draft="drafts.draft"
+              :restored-at="drafts.restoredAt.value"
+              :can-undo="drafts.undoDraft.value != null"
+              :builtin="templates.builtin"
+              :mine="templates.mine.value"
+              :plan="plan"
+              :check="check"
+              :roster-ready="roster.state.value === 'ready'"
+              :sending="sent.sending.value"
+              :send-error="sendError"
+              :now="now"
+              @edit="onEdit"
+              @apply-template="onApplyTemplate"
+              @delete-template="onDeleteTemplate"
+              @save-template="saveTemplateOpen = true"
+              @undo="drafts.undoTemplate()"
+              @drop-draft="onDropDraft"
+              @send="trySend"
+            >
+              <template #audience>
+                <MessageAudience
+                  :state="roster.state.value"
+                  :selection="effective"
+                  :counts="counts"
+                  :sources="sources"
+                  :audience="audience"
+                  :phone="!wide"
+                  @preset="setPreset"
+                  @pick="pickOpen = true"
+                  @retry="roster.refresh()"
+                />
+              </template>
+            </MessageCompose>
 
-    <FormDialog
-      :open="showHistory"
-      hide-actions
-      max-width="560"
-      :title="
-        historyCourier
-          ? `Poruke - ${toLatin(historyCourier.name)} · #${historyCourier.courier_id}`
-          : 'Poruke kurira'
-      "
-      @update:open="showHistory = $event"
+            <SentMessagesPane
+              v-if="tab === 'sent'"
+              ref="sentPane"
+              :batches="sent.batches.value"
+              :checks="tracking.checks.value"
+              :couriers="rosterById"
+              :now="now"
+              :flash-id="flashId"
+              @new="tab = 'new'"
+              @check="onCheck"
+              @remind="onRemind"
+              @retract="onRetract"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Telefon: ručni izbor kurira je donji list. -->
+    <AppSheet
+      v-if="!wide"
+      :open="pickOpen"
+      title="Izaberi kurire"
+      @update:open="pickOpen = $event"
+      @submit="pickOpen = false"
     >
-      <CourierMessageHistory
-        :courier-id="showHistory ? historyCourier?.courier_id ?? null : null"
+      <MessageRecipientList
+        v-model:q="q"
+        class="mp-pick"
+        :state="roster.state.value"
+        :stale="roster.stale.value"
+        :error-text="errorText"
+        :total="roster.roster.value.length"
+        :items="matched"
+        :visible-count="shown"
+        :picked="audienceIds"
+        :picked-count="audience.length"
+        :now="now"
+        :currency="roster.currency.value"
+        :updated-at="roster.updatedAt.value"
+        :refreshing="roster.refreshing.value"
+        :flash-ids="noFlash"
+        @toggle="togglePick"
+        @history="openHistory"
+        @select-shown="selectShown"
+        @select-none="selectNone"
+        @more="shown += PAGE_ROWS"
+        @refresh="roster.refresh()"
+        @retry="roster.refresh()"
       />
-    </FormDialog>
+      <template #footer>
+        <AppButton submit data-autofocus>
+          {{ audience.length ? `Gotovo · ${audience.length} izabrano` : "Gotovo" }}
+        </AppButton>
+      </template>
+    </AppSheet>
+
+    <MessageSendConfirm
+      :open="confirmOpen"
+      :plan="snap?.plan ?? plan"
+      :audience="snap?.label ?? ''"
+      :list="snap?.list ?? audience"
+      :draft="drafts.draft"
+      :sending="sent.sending.value"
+      :now="now"
+      @update:open="confirmOpen = $event"
+      @confirm="confirmSend"
+    />
+
+    <SaveTemplateSheet
+      :open="saveTemplateOpen"
+      :suggestion="drafts.draft.title.trim()"
+      :max="templates.MAX_LABEL"
+      @update:open="saveTemplateOpen = $event"
+      @save="onSaveTemplate"
+    />
+
+    <RetractSheet
+      :open="tracking.retract.value != null"
+      :batch="retractBatch"
+      :state="tracking.retract.value"
+      @update:open="onRetractOpen"
+      @go="tracking.runRetract()"
+    />
+
+    <CourierMessagesSheet
+      :open="historyId != null"
+      :courier="historyCourier"
+      :now="now"
+      :send-label="historyCourier ? `Pošalji poruku ${historyCourier.first}` : undefined"
+      @update:open="onHistoryOpen"
+      @send="sendToHistoryCourier"
+    />
   </GlobalPage>
 </template>
 
 <script setup lang="ts">
-definePageMeta({ title: "Obaveštenja" });
+definePageMeta({ title: "Poruke" });
 
-import { computed, reactive, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { onBeforeRouteLeave } from "vue-router";
 import { storeToRefs } from "pinia";
-import type { VForm } from "vuetify/components";
-import { useDeliveryCompaniesStore } from "~/stores/deliveryCompanies";
-import { useCompanyCouriers } from "~/composables/useCompanyCouriers";
-import { useCourierMessaging } from "~/composables/useCourierMessaging";
-import { useValidationRules } from "~/composables/useValidationRules";
+import AppButton from "~/components/common/AppButton.vue";
+import AppSheet from "~/components/common/AppSheet.vue";
 import GlobalPage from "~/components/common/GlobalPage.vue";
 import PageHeader from "~/components/common/PageHeader.vue";
-import PageAlert from "~/components/common/PageAlert.vue";
-import GlobalCard from "~/components/common/GlobalCard.vue";
-import GlobalButtonPrimary from "~/components/common/GlobalButtonPrimary.vue";
-import GlobalAutocomplete from "~/components/common/GlobalAutocomplete.vue";
-import FormDialog from "~/components/common/FormDialog.vue";
-import CourierMessageHistory from "~/components/company/couriers/CourierMessageHistory.vue";
+import CourierMessagesSheet from "~/components/dispatcher/messages/CourierMessagesSheet.vue";
+import MessageAudience from "~/components/dispatcher/messages/MessageAudience.vue";
+import MessageCompose from "~/components/dispatcher/messages/MessageCompose.vue";
+import MessageRecipientList from "~/components/dispatcher/messages/MessageRecipientList.vue";
+import MessageSendConfirm from "~/components/dispatcher/messages/MessageSendConfirm.vue";
+import RetractSheet from "~/components/dispatcher/messages/RetractSheet.vue";
+import SaveTemplateSheet from "~/components/dispatcher/messages/SaveTemplateSheet.vue";
+import SentMessagesPane from "~/components/dispatcher/messages/SentMessagesPane.vue";
+import { useCourierRoster } from "~/composables/useCourierRoster";
+import { useMessageDraft } from "~/composables/useMessageDraft";
+import { useMessageTemplates } from "~/composables/useMessageTemplates";
+import { useMessageTracking } from "~/composables/useMessageTracking";
+import { PAGE_ROWS, WIDE_QUERY } from "~/composables/useRosterView";
+import { useSentMessages } from "~/composables/useSentMessages";
+import { interceptLeaving } from "~/composables/useSheetGuard";
+import { useAlertStore } from "~/stores/alert";
+import { useDeliveryCompaniesStore } from "~/stores/deliveryCompanies";
 import {
-  DEFAULT_MESSAGE_CATEGORY,
-  DISPATCHER_MESSAGE_CATEGORIES,
-  formatRelativeTime,
-} from "~/utils/inbox";
-import { fetchInboxSummary } from "~/services/courierInboxService";
-import { buildRoster, matchCourier } from "~/utils/courierRoster";
-import type { BroadcastMessagePayload, InboxSummaryEntry } from "~/types/inbox";
-import type { CompanyCourier } from "~/types/company-courier";
+  couriersText,
+  liveGroup,
+  matchCourier,
+  sortRoster,
+  type RosterCourier,
+} from "~/utils/courierRoster";
+import {
+  audienceLabel,
+  audienceOf,
+  normalizeSelection,
+  presetCounts,
+  sendPlan,
+  type PresetKey,
+  type Selection,
+  type SendPlan,
+  type SourcesOk,
+} from "~/utils/messageAudience";
+import { checkDraft, sentText, type MessageDraft } from "~/utils/messageDraft";
+import { reminderDraft, unreadIds } from "~/utils/messageTracking";
 
-const rules = useValidationRules();
+// Poruke: radni prostor za slanje poruka kuririma. Lijevo spisak kurira sa stanjem uživo i kvačicom
+// za svakog, desno poruka u tri koraka (Kome, Poruka, Pregled) sa gotovim grupama primalaca, šablonima
+// i pregledom kako kurir vidi poruku; poslije slanja kartica u "Poslato" pokazuje ko je pročitao,
+// podsjeća one koji nisu i može da povuče poruku. Stranica ne čita inbox-summary (broji i ponude).
+// Vidi docs/2026/10/05_10_2026_Poruke_handoff.md.
+const roster = useCourierRoster({ summary: false });
+const alerts = useAlertStore();
+const { errorMessage: companiesError } = storeToRefs(useDeliveryCompaniesStore());
+const companyId = roster.companyId;
+const now = roster.now;
 
-const companiesStore = useDeliveryCompaniesStore();
-const { selectedCompanyId, errorMessage: companiesError } = storeToRefs(companiesStore);
-companiesStore.ensureLoaded();
-
-const companyId = computed(() => selectedCompanyId.value);
-
-const {
-  couriers,
-  loadingCouriers,
-  couriersLoaded,
-  reloadCouriers,
-  errorMessage: couriersError,
-} = useCompanyCouriers(companyId);
-// Dok se zna samo da se spisak učitava (ili je pao), ne tvrdi se ništa o kuririma.
-const couriersReady = computed(() => couriersLoaded.value);
-const { broadcasting, broadcast } = useCourierMessaging();
-
-// Isti oblik reda i ista pretraga kao na Kuriri (matchCourier): bez dijakritika, ćirilica,
-// telefon u svakom zapisu, #ID, bilo koji redoslijed riječi.
-const rosterById = computed(
-  () => new Map(buildRoster(couriers.value).map((courier) => [courier.id, courier]))
-);
-const matchOption = (_value: unknown, query: string, item?: { raw?: { value?: number } }) => {
-  const courier = rosterById.value.get(item?.raw?.value ?? -1);
-  return courier ? matchCourier(courier, query) : false;
+const errorText = computed(() => roster.rowsError.value || companiesError.value);
+const wide = ref(true);
+let mq: MediaQueryList | null = null;
+const syncWide = () => {
+  wide.value = mq?.matches ?? true;
 };
 
-const courierOptions = computed(() =>
-  couriers.value.map((courier) => ({
-    value: courier.courier_id,
-    label: `${toLatin(courier.name)} · #${courier.courier_id}${
-      courier.suspended ? " (suspendovan)" : ""
-    }`,
-  }))
+// --- Izvori i spisak ----------------------------------------------------------------------------
+
+const sources = computed<SourcesOk>(() => ({
+  locations: roster.locationsOk.value,
+  balances: roster.balancesOk.value,
+}));
+
+const rosterById = computed<ReadonlyMap<number, RosterCourier>>(
+  () => new Map(roster.roster.value.map((c) => [c.id, c]))
+);
+const counts = computed(() => presetCounts(roster.roster.value, now.value));
+const liveCount = computed(
+  () =>
+    roster.roster.value.filter((c) => {
+      const g = liveGroup(c, now.value);
+      return g === "delivering" || g === "online";
+    }).length
 );
 
-// --- Grupno slanje ---
-const formRef = ref<InstanceType<typeof VForm> | null>(null);
-const form = reactive({
-  category: DEFAULT_MESSAGE_CATEGORY,
-  title: "",
-  body: "",
+// Pretraga i iscrtavanje po dio (500 kurira ostaje lagano).
+const q = ref("");
+const shown = ref(PAGE_ROWS);
+watch(q, () => {
+  shown.value = PAGE_ROWS;
 });
-const selectedIds = ref<number[]>([]);
-const showRecipientError = ref(false);
-
-const allSelected = computed(
-  () => couriers.value.length > 0 && selectedIds.value.length >= couriers.value.length
+const matched = computed(() =>
+  sortRoster(
+    roster.roster.value.filter((c) => matchCourier(c, q.value)),
+    "live",
+    now.value
+  )
 );
+const noFlash: ReadonlySet<number> = new Set();
 
-const recipientSummary = computed(() =>
-  allSelected.value
-    ? `svi (${couriers.value.length})`
-    : `izabrano: ${selectedIds.value.length}`
+// --- Nacrt, izbor, šabloni ----------------------------------------------------------------------
+
+const drafts = useMessageDraft(companyId);
+const templates = useMessageTemplates();
+
+// Izabrana grupa čiji izvor ne radi pada na "Svi aktivni" (ne ostaje tiho prazna).
+const effective = computed<Selection>(() => normalizeSelection(drafts.selection.value, sources.value));
+
+const audience = computed<RosterCourier[]>(() =>
+  roster.state.value === "ready" ? audienceOf(roster.roster.value, effective.value, now.value) : []
 );
+const audienceIds = computed<ReadonlySet<number>>(() => new Set(audience.value.map((c) => c.id)));
+const plan = computed<SendPlan>(() => sendPlan(roster.roster.value, audience.value));
+const check = computed(() => checkDraft(drafts.draft, plan.value.count));
 
-const recipientErrorText = computed(() =>
-  showRecipientError.value
-    ? 'Izaberi bar jednog kurira ili "Izaberi sve kurire firme".'
-    : undefined
-);
-
-watch(selectedIds, () => {
-  if (selectedIds.value.length > 0) showRecipientError.value = false;
+// Izvor koji je zaista pao (ne samo još nije stigao) trajno gasi izabranu grupu.
+watch([roster.locationsFailed, roster.balancesFailed], () => {
+  if (
+    drafts.selection.value.kind === "preset" &&
+    effective.value !== drafts.selection.value &&
+    (roster.locationsFailed.value || roster.balancesFailed.value)
+  ) {
+    drafts.setSelection(effective.value);
+  }
 });
 
-// Enter u naslovu ide na tekst poruke; šalje samo dugme ili Ctrl+Enter.
-const focusBody = () => {
-  const el = (formRef.value as unknown as { $el?: HTMLElement } | null)?.$el;
-  el?.querySelector<HTMLTextAreaElement>("textarea")?.focus();
+const setPreset = (key: PresetKey) => drafts.setSelection({ kind: "preset", key });
+
+const togglePick = (id: number) => {
+  const cur = new Set(audienceIds.value);
+  if (cur.has(id)) cur.delete(id);
+  else cur.add(id);
+  drafts.setSelection({ kind: "manual", ids: cur });
+};
+const selectShown = () => {
+  const cur = new Set(audienceIds.value);
+  for (const c of matched.value) cur.add(c.id);
+  drafts.setSelection({ kind: "manual", ids: cur });
+};
+const selectNone = () => drafts.setSelection({ kind: "manual", ids: new Set() });
+
+// Vraćanje nacrta: kad je spisak prvi put učitan za firmu.
+const restoredFor = new Set<number>();
+watch(
+  [() => roster.state.value, companyId],
+  ([state, id]) => {
+    if (state !== "ready" || id == null || restoredFor.has(id)) return;
+    restoredFor.add(id);
+    drafts.restore();
+  },
+  { immediate: true }
+);
+
+const composeEl = ref<InstanceType<typeof MessageCompose> | null>(null);
+const sendError = ref("");
+
+const onEdit = (patch: Partial<MessageDraft>) => {
+  sendError.value = "";
+  drafts.edit(patch);
 };
 
-const submit = async () => {
-  if (!companyId.value || !couriersReady.value) return;
-
-  const { valid } = (await formRef.value?.validate()) ?? { valid: false };
-  if (selectedIds.value.length === 0) showRecipientError.value = true;
-  if (!valid || selectedIds.value.length === 0) return;
-
-  const base = {
-    category: form.category,
-    title: form.title.trim(),
-    body: form.body.trim(),
-  };
-  const payload: BroadcastMessagePayload = allSelected.value
-    ? { ...base, all_couriers: true }
-    : { ...base, all_couriers: false, courier_ids: [...selectedIds.value] };
-
-  const ok = await broadcast(companyId.value, payload);
-  if (!ok) return;
-
-  form.category = DEFAULT_MESSAGE_CATEGORY;
-  form.title = "";
-  form.body = "";
-  selectedIds.value = [];
-  showRecipientError.value = false;
-  formRef.value?.resetValidation();
-  loadSummary();
+const onApplyTemplate = async (id: string) => {
+  const t = templates.find(id);
+  if (!t) return;
+  drafts.applyTemplate(t);
+  sendError.value = "";
+  composeEl.value?.reset();
+  await nextTick();
+  composeEl.value?.focusTitle();
 };
 
-// --- Pregled poslednje poruke po kuriru (inbox-summary, odgovor 15.09) ---
-// Jedan poziv za cijelu firmu umesto GET .../inbox po kuriru (N poziva) - vidi
-// fetchInboxSummary. Mapa po courier_id da je O(1) lookup u redu liste.
-const summaryByCourier = ref(new Map<number, InboxSummaryEntry>());
-const loadingSummary = ref(false);
+const onDeleteTemplate = (id: string) => {
+  templates.remove(id);
+  alerts.info("Šablon je obrisan.");
+};
 
-const loadSummary = async () => {
-  if (!companyId.value) return;
-  loadingSummary.value = true;
-  try {
-    const entries = await fetchInboxSummary(companyId.value);
-    summaryByCourier.value = new Map(entries.map((entry) => [entry.courierId, entry]));
-  } catch {
-    // Tiho - ovo je samo pretpregled uz listu, ne blokira "Istoriju po kuriru"
-    // (koja i dalje radi preko GET .../inbox po kliku) ako summary ruta padne.
-    summaryByCourier.value = new Map();
-  } finally {
-    loadingSummary.value = false;
+const saveTemplateOpen = ref(false);
+const onSaveTemplate = (label: string) => {
+  templates.save(label, drafts.draft);
+  saveTemplateOpen.value = false;
+  alerts.success("Šablon je sačuvan.");
+};
+
+const onDropDraft = () => {
+  drafts.drop();
+  sendError.value = "";
+  composeEl.value?.reset();
+};
+
+// --- Slanje -------------------------------------------------------------------------------------
+
+const sent = useSentMessages(companyId);
+const tracking = useMessageTracking({
+  batches: sent.batches,
+  find: sent.find,
+  update: sent.update,
+});
+
+const tab = ref<"new" | "sent">("new");
+const sentPane = ref<InstanceType<typeof SentMessagesPane> | null>(null);
+const flashId = ref<string | null>(null);
+const confirmOpen = ref(false);
+// Primaoci u času otvaranja potvrde: broj u potvrdi je broj koji stvarno dobija poruku.
+const snap = ref<{ plan: SendPlan; list: RosterCourier[]; label: string } | null>(null);
+
+const trySend = async () => {
+  if (sent.sending.value) return;
+  if (!check.value.valid || roster.state.value !== "ready") {
+    composeEl.value?.showErrors();
+    return;
+  }
+  const list = audience.value.slice();
+  const p = plan.value;
+  snap.value = { plan: p, list, label: audienceLabel(p, effective.value, list) };
+  if (p.confirm) {
+    confirmOpen.value = true;
+    return;
+  }
+  await doSend();
+};
+
+const confirmSend = () => void doSend();
+
+const doSend = async () => {
+  const s = snap.value;
+  if (!s) return;
+  sendError.value = "";
+  const res = await sent.send(s.plan, { ...drafts.draft }, s.label);
+  confirmOpen.value = false;
+  if (!res.ok) {
+    if (res.message) sendError.value = res.message;
+    return;
+  }
+  const text = sentText(res.sent, res.intended);
+  if (text.tone === "ok") alerts.success(text.text);
+  else alerts.warning(text.text);
+  drafts.drop();
+  composeEl.value?.reset();
+  tab.value = "sent";
+  flashId.value = res.batch.id;
+  setTimeout(() => {
+    if (flashId.value === res.batch.id) flashId.value = null;
+  }, 1800);
+  tracking.scheduleAuto(res.batch);
+  await nextTick();
+  sentPane.value?.focusCard(res.batch.id);
+};
+
+// --- Poslato ------------------------------------------------------------------------------------
+
+const onCheck = (id: string) => void tracking.check(id);
+
+const onRemind = async (id: string) => {
+  const batch = sent.find(id);
+  if (!batch) return;
+  const ids = unreadIds(batch);
+  if (!ids.length) return;
+  drafts.startFrom(reminderDraft(batch), { kind: "manual", ids: new Set(ids) });
+  composeEl.value?.reset();
+  tab.value = "new";
+  alerts.info(`Podsjetnik je spreman za ${couriersText(ids.length)}. Pregledaj i pošalji.`);
+  await nextTick();
+  composeEl.value?.focusTitle();
+};
+
+const onRetract = (id: string) => {
+  const batch = sent.find(id);
+  if (batch) tracking.openRetract(batch);
+};
+const retractBatch = computed(() => {
+  const state = tracking.retract.value;
+  return state ? (sent.batches.value.find((b) => b.id === state.batchId) ?? null) : null;
+});
+const onRetractOpen = (open: boolean) => {
+  if (!open) tracking.closeRetract();
+};
+
+// --- Poruke kurira ------------------------------------------------------------------------------
+
+const historyId = ref<number | null>(null);
+const historyCourier = computed(() =>
+  historyId.value == null ? null : (rosterById.value.get(historyId.value) ?? null)
+);
+const openHistory = (id: number) => {
+  historyId.value = id;
+};
+const onHistoryOpen = (open: boolean) => {
+  if (!open) historyId.value = null;
+};
+
+// --- Telefon: ručni izbor je list ---------------------------------------------------------------
+
+const pickOpen = ref(false);
+
+// "Pošalji poruku <ime>": vraća na obrazac sa tim kurirom kao jedinim primaocem.
+const sendToHistoryCourier = async () => {
+  const id = historyId.value;
+  historyId.value = null;
+  pickOpen.value = false;
+  if (id == null) return;
+  drafts.setSelection({ kind: "manual", ids: new Set([id]) });
+  tab.value = "new";
+  await nextTick();
+  composeEl.value?.focusTitle();
+};
+
+// --- Tastatura ----------------------------------------------------------------------------------
+
+const listEl = ref<InstanceType<typeof MessageRecipientList> | null>(null);
+
+const typingIn = (el: EventTarget | null) =>
+  el instanceof HTMLElement && (el.matches("input, textarea, select") || el.isContentEditable);
+
+// Strelice mijenjaju karticu (Nova poruka / Poslato).
+const onTabKey = async (event: KeyboardEvent) => {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const order = ["new", "sent"] as const;
+  const at = order.indexOf(tab.value);
+  const next =
+    event.key === "Home" ? 0 : event.key === "End" ? 1 : (at + (event.key === "ArrowRight" ? 1 : -1) + 2) % 2;
+  tab.value = order[next] as "new" | "sent";
+  await nextTick();
+  document.querySelector<HTMLElement>(`[data-tab="${tab.value}"]`)?.focus();
+};
+
+const onKey = (event: KeyboardEvent) => {
+  if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+  if (document.querySelector(".v-overlay--active")) return;
+  if (event.key === "/" && !typingIn(event.target) && wide.value) {
+    event.preventDefault();
+    listEl.value?.focusSearch();
   }
 };
-const summaryFor = (courierId: number) => summaryByCourier.value.get(courierId) ?? null;
 
-watch(companyId, () => loadSummary(), { immediate: true });
-
-// --- Istorija po kuriru ---
-// Lista kurira (kao na strani Kuriri) - klik otvara njegovu istoriju poslatog
-// u dijalogu (samo pregled, bez slanja - za slanje je "Grupno slanje" gore).
-const historySearch = ref("");
-
-const filteredHistoryCouriers = computed(() => {
-  const query = historySearch.value.trim();
-  if (!query) return couriers.value;
-  return couriers.value.filter((courier) => {
-    const row = rosterById.value.get(courier.courier_id);
-    return row ? matchCourier(row, query) : false;
-  });
+onMounted(() => {
+  mq = window.matchMedia(WIDE_QUERY);
+  syncWide();
+  mq.addEventListener("change", syncWide);
+  window.addEventListener("keydown", onKey);
+  sent.load();
 });
 
-const showHistory = ref(false);
-const historyCourier = ref<CompanyCourier | null>(null);
-const openHistory = (courier: CompanyCourier) => {
-  historyCourier.value = courier;
-  showHistory.value = true;
-};
-// Zatvaranje dijaloga - osveži pretpregled (brisanje poruke u dijalogu mijenja
-// zadnju poruku/broj nepročitanih za tog kurira na listi iza).
-watch(showHistory, (open) => {
-  if (!open) loadSummary();
+onBeforeUnmount(() => {
+  mq?.removeEventListener("change", syncWide);
+  window.removeEventListener("keydown", onKey);
 });
 
-const errorMessage = computed(() => companiesError.value || couriersError.value);
-const clearError = () => {
-  companiesError.value = "";
-  couriersError.value = "";
-};
+// Dugme Nazad dok je list otvoren zatvara list. Nacrt se čuva sam (useMessageDraft), pa upozorenja
+// pri izlasku nema: ništa se ne gubi.
+onBeforeRouteLeave(() => {
+  if (interceptLeaving()) return false;
+});
 </script>
 
 <style scoped>
-.composer {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.mp {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
 }
 
-.composer-foot {
+.mp > * {
+  min-width: 0;
+}
+
+.mp--wide {
+  grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.mp-right {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  min-width: 0;
+  flex-direction: column;
   gap: 12px;
 }
 
-.composer-count {
-  font-size: 0.82rem;
-  color: #6b7685;
+.mp--wide .mp-right {
+  position: sticky;
+  top: 84px;
+  max-height: calc(100vh - 100px);
+  max-height: calc(100dvh - 100px);
 }
 
-.history-courier-list {
-  display: flex;
-  flex-direction: column;
-  max-height: 360px;
-  overflow-y: auto;
+.mp-tabs {
+  display: grid;
+  flex: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 16px;
+  background: #e9ecf1;
 }
 
-.history-courier-row {
-  display: flex;
+.mp-tab {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  width: 100%;
-  padding: 10px 6px;
-  border: none;
-  border-bottom: 1px solid #e7e9ee;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
   background: transparent;
-  color: inherit;
+  color: #5b6676;
   font: inherit;
-  text-align: left;
+  font-size: 0.9rem;
+  font-weight: 800;
   cursor: pointer;
 }
 
-.history-courier-row:last-child {
-  border-bottom: none;
+.mp-tab[aria-selected="true"] {
+  background: #fff;
+  color: #0b1220;
+  box-shadow: 0 1px 3px rgba(11, 18, 32, 0.14);
 }
 
-.history-courier-row:hover {
-  background: #f5f6f8;
+.mp-tab:focus-visible {
+  outline: 3px solid #2f6fed;
+  outline-offset: 1px;
 }
 
-.history-courier-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.history-courier-main {
-  display: flex;
+.mp-tab em {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-}
-
-.history-courier-id {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #9aa4b2;
-}
-
-.history-courier-name {
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.history-courier-tag {
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #dfe3ea;
+  color: #3d4756;
   font-size: 0.72rem;
-  font-weight: 600;
-  color: #d64545;
+  font-style: normal;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
-.history-courier-preview {
-  font-size: 0.78rem;
-  color: #6b7685;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.mp-tab[aria-selected="true"] em {
+  background: #2459c7;
+  color: #fff;
 }
 
-.history-courier-unread {
-  flex-shrink: 0;
+.mp-scroll {
+  min-height: 0;
+  border-radius: 20px;
 }
 
-.history-courier-open {
-  margin-left: 4px;
-  flex-shrink: 0;
-  color: #9aa4b2;
+.mp-scroll.is-card {
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(11, 18, 32, 0.04), 0 12px 28px rgba(11, 18, 32, 0.06);
 }
 
-.history-empty {
-  font-size: 0.82rem;
-  color: #9aa4b2;
+/* Na računaru se skroluje samo desna strana, a dugme Pošalji ostaje uz njeno dno. */
+.mp--wide .mp-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.mp-pick {
+  border-radius: 0;
+  box-shadow: none;
 }
 </style>

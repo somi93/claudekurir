@@ -77,8 +77,8 @@ export const dispatcherNavItems: NavItem[] = [
   },
   {
     to: "/dispatcher/notifications",
-    title: "Obaveštenja",
-    subtitle: "Grupno slanje poruka i istorija po kuriru",
+    title: "Poruke",
+    subtitle: "Poruka kuriru, grupi ili svima, i ko ju je pročitao",
     icon: "mdi-bell-outline",
   },
 ];

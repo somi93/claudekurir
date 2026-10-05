@@ -308,6 +308,8 @@ export async function session(name, { width = 1440, height = 900, dpr = 1, mobil
       return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height };
     })()`);
     if (!r) throw new Error(`click: nema elementa ${sel}${textIncludes ? ` sa tekstom "${textIncludes}"` : ""}`);
+    // Skriven element ima pravougaonik 0x0: klik bi pao na (0,0) i pogodio nešto drugo (npr. vezu u bočnoj traci).
+    if (r.w === 0 && r.h === 0) throw new Error(`click: element nije vidljiv ${sel}${textIncludes ? ` sa tekstom "${textIncludes}"` : ""}`);
     await sleep(40);
     const base = { x: r.x, y: r.y, button: "left", clickCount: 1, pointerType: "mouse" };
     await b.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: r.x, y: r.y });

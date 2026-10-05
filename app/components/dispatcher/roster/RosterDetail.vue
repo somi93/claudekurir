@@ -274,6 +274,16 @@
           <small>{{ relativeTime(m.sentAt, now) }} · {{ m.read ? "pročitano" : "nepročitano" }}</small>
         </li>
       </ul>
+      <DetailRow
+        icon="mdi-history"
+        label="Sve poruke"
+        value="Istorija poslatog ovom kuriru"
+        actionable
+        row="sve-poruke"
+        :aria-label="`Sve poruke kurira ${courier.name}`"
+        end-text="Otvori"
+        @act="emit('allMessages')"
+      />
     </div>
 
     <h3 class="gt">Nalog</h3>
@@ -339,6 +349,7 @@ const emit = defineEmits<{
   close: [];
   sheet: [kind: RosterSheetKind, focus?: string];
   retryMessages: [];
+  allMessages: [];
 }>();
 
 const alerts = useAlertStore();

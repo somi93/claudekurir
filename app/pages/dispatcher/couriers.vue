@@ -121,6 +121,7 @@
             @close="view.close()"
             @sheet="(kind, focus) => openSheet(kind, focus)"
             @retry-messages="recent.reload()"
+            @all-messages="allMessages = true"
           />
           <div v-else class="cp-none">
             <template v-if="roster.state.value === 'ready'">
@@ -234,6 +235,14 @@
       />
     </template>
 
+    <CourierMessagesSheet
+      :open="allMessages && Boolean(selected)"
+      :courier="selected"
+      :now="roster.now.value"
+      :send-label="selected ? `Pošalji poruku ${selected.first}` : undefined"
+      @update:open="allMessages = $event"
+      @send="sendFromAllMessages"
+    />
     <MessageSheet
       :open="active?.kind === 'poruka'"
       :recipients="msg.recipients"
@@ -272,6 +281,7 @@ import { onBeforeRouteLeave, onBeforeRouteUpdate } from "vue-router";
 import GlobalPage from "~/components/common/GlobalPage.vue";
 import PageHeader from "~/components/common/PageHeader.vue";
 import CashSheet from "~/components/dispatcher/roster/CashSheet.vue";
+import CourierMessagesSheet from "~/components/dispatcher/messages/CourierMessagesSheet.vue";
 import ContactSheet from "~/components/dispatcher/roster/ContactSheet.vue";
 import ContractSheet from "~/components/dispatcher/roster/ContractSheet.vue";
 import CreateSheet from "~/components/dispatcher/roster/CreateSheet.vue";
@@ -377,6 +387,13 @@ watch(
   },
   { immediate: true }
 );
+
+// "Sve poruke" u detalju: poruke kurira bez ponuda (isti list kao na ekranu Poruke).
+const allMessages = ref(false);
+const sendFromAllMessages = () => {
+  allMessages.value = false;
+  openSheet("poruka");
+};
 
 const msg = reactive<{ recipients: RosterCourier[]; who: string; everyone: boolean }>({
   recipients: [],
