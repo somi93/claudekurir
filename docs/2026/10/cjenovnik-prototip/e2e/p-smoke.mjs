@@ -196,9 +196,9 @@ const scenario = async (name, o) => {
       "input[data-field=from]", "input[data-field=to]", "[data-pricing=surcharge-impact]", "[data-pricing=surcharge-save]",
       "[data-pricing=surcharge-cancel]", "[data-pricing=surcharge-delete]",
     ]);
-    // Ugovor iz E2E zadatka: grupe izbora imaju data-choice=type|sched i data-value (potrebna izmjena ChoiceGroup).
-    check(`${label} / Editor doplate: [data-choice=type] [data-value=fixed]`, (await vis(s, "[data-choice=type] [data-value=fixed]")) > 0);
-    check(`${label} / Editor doplate: [data-choice=sched] [data-value=auto]`, (await vis(s, "[data-choice=sched] [data-value=auto]")) > 0);
+    // Grupe izbora nose data-choice=type|sched, a svaka opcija (ChoiceGroup) data-choice=<vrijednost>.
+    check(`${label} / Editor doplate: [data-choice=type] [data-choice=fixed]`, (await vis(s, "[data-choice=type] [data-choice=fixed]")) > 0);
+    check(`${label} / Editor doplate: [data-choice=sched] [data-choice=auto]`, (await vis(s, "[data-choice=sched] [data-choice=auto]")) > 0);
     await noHScroll(s, `${label} / Editor doplate`);
     await audit(s, `${label} / Editor doplate`, phone ? ".v-overlay-container" : ".global-page");
     // izmjena -> tačka na tabu, server šalje puno tijelo bez active

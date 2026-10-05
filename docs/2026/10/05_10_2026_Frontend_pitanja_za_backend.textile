@@ -352,3 +352,110 @@ h2. 🟢 27. Provizija: hoće li ikad biti uređiva
 
 @commission_percentage_editable@ stiže, ali PATCH tiho ignoriše provizija. Front je prikazuje kao red sa bravom i tekstom
 "Postavlja Ordera administrator". Ako postane uređiva, red dobija editor. Ništa ne blokira.
+
+---
+
+h1. Dio 4: ekran "Cjenovnik" (@/dispatcher/pricing@)
+
+Isti dan, četvrta tema. Ekran Cjenovnik je prepisan: tri taba (Cijena, Doplate, Vozila i pravila) i *Primjer narudžbe* uz sva tri
+(cijena i preporučeno vozilo za izabranu udaljenost i zonu, sa nacrtom cijene i "šta ako" doplatama). Cijena je nacrt sa trakom
+"Nesačuvane izmjene", doplata i pravilo su redovi sa editorom, nova doplata se dodaje *isključena*, a "Sve ostalo" je zaseban red
+na dnu liste pravila. Sve radi *samo nad postojećim rutama*; nijedno pitanje ne blokira ekran, ali od prvog (28) zavisi
+cijela logika redoslijeda pravila. Nove stavke nastavljaju brojanje iz Dijela 3. Ono što front radi dok odgovor ne stigne piše
+uz svaku stavku.
+
+Šta front sada šalje (informativno):
+
+* Pri otvaranju: @GET .../delivery-companies/{id}/pricing@, @.../surcharges@, @.../vehicle-rules@, @GET /condition-tags@ i
+  @GET /dispatcher/zones?city_id=...@. Primjer narudžbe je uz sva tri taba, pa se @GET .../recommend-vehicle?zone_id&distance_km@
+  zove i na tabovima Cijena i Doplate (ranije samo na Vozila), sa odgodom od 300 ms dok se pomjera klizač udaljenosti. Poziva se
+  samo kad nema nacrta cijene ni "šta ako" doplata (tada se primjer računa u aplikaciji).
+* Cijena: @PUT .../pricing@ sa @{ "base_price", "price_per_km", "currency" }@ kao *brojevi* (ranije je prazno polje moglo poslati @""@).
+* Uključivanje i isključivanje doplate: @PUT .../surcharges/{id}@ sa @{ "active": true|false }@ (kao do sada).
+* Nova doplata: @POST .../surcharges@ sa @name, description, icon, type, value, unit, time_from, time_to, condition_tag_id@ i
+  @active: false@ (do sada je uvijek @true@; dispečer je uključuje prekidačem ili opcijom "Odmah uključi").
+* Izmjena doplate: @PUT .../surcharges/{id}@ sa @name, description, icon, type, value, unit, time_from, time_to@, *bez* @active@
+  i bez @condition_tag_id@ (vidi stavku 29).
+* Brisanje doplate koju koriste pravila: @DELETE .../vehicle-rules/{id}@ za svako takvo pravilo, pa @DELETE .../surcharges/{id}@
+  (vidi stavku 31). Dijalog prije toga navodi pravila koja se brišu.
+* Novo pravilo ide *ispred* "Sve ostalo": prvo @PUT .../vehicle-rules/{id}@ sa @{ "priority" }@ zadanog pravila (pomjera se iza
+  novog), zatim @POST .../vehicle-rules@ sa @priority@ iza zadnjeg pravila. @condition_text@ front sada gradi sam iz uslova
+  ("Zona: Centar", "Doplata: Kiša", "Udaljenost preko 4 km", "Sve ostalo").
+* Pomjeranje pravila: dva @PUT@ sa @{ "priority" }@ (kao do sada); ako su @priority@ vrijednosti dupli ili nedostaju, front ih
+  prenumeriše pa šalje više @PUT@-ova. Pad usred pomjeranja se vraća, a ako ni to ne uspije, lista se učita ponovo.
+
+---
+
+h2. 🔴 28. Kako @recommend-vehicle@ bira pravilo
+
+Front pretpostavlja: *prvo pravilo koje se poklopi, po rastućem @priority@*, a pravilo @condition_type: "default"@ važi tek kad
+nijedno drugo ne pokrije (bez obzira na njegov @priority@). Pitanja: (a) je li to tačno, ili se bira "najbolje" poklapanje
+(npr. zona ispred udaljenosti)? (b) kako se tretira @default@ čiji je @priority@ niži od ostalih? (c) kako radi
+@max_terrain_factor@ (front: pravilo se preskače kad je @terrain_factor@ zone veći od njegovog)? (d) šta je sa pravilom bez
+@priority@? Dok ne stigne: lista pravila piše "Odozgo prema dolje: prvo pravilo koje se poklopi bira vozila", "Sve ostalo" je
+zaseban red na dnu bez strelica i brisanja, novo pravilo ide iznad njega, a upozorenje "Ovo pravilo se nikad ne primjenjuje"
+pokazuje se kad dva pravila imaju isti uslov. Ako odgovor bude drugačiji, mijenja se samo funkcija izbora i rečenica uz listu.
+
+---
+
+h2. 🟠 29. @PUT .../surcharges/{id}@: prima li sva polja i djelimično tijelo
+
+Do sada je front slao samo @{ "active" }@. Izmjena doplate (naziv, tip, iznos, vrijeme, opis) šalje puno tijelo bez @active@.
+Pitanja: (a) prima li PUT ta polja i mijenja ih? (b) smije li tijelo biti bez @active@ (ne smije ga resetovati)? (c) vraća li
+odgovor cijeli red (@data@ sa svim poljima)? Dok ne stigne: ako odgovor vrati vrijednosti koje se razlikuju od poslanih, ekran
+pokazuje upozorenje "Server nije primio sve izmjene" sa nazivima polja; ako odgovor ne nosi red, lista se učita ponovo.
+
+---
+
+h2. 🟠 30. Doplata sa vremenskim prozorom: ručni prekidač i @activated_at@
+
+Šta radi ručni prekidač usred vremenskog prozora (do kraja prozora, do sljedeće promjene, trajno) i šta tačno znači
+@activated_at@ (kada je backend uključio, ili kada je ko uključio)? Dok ne stigne: oznaka "Na snazi 1 h 12 min" se računa iz
+@activated_at@ (bez njega piše samo "Na snazi"), a ako server na prekidač odgovori suprotnim stanjem od traženog, ekran
+pokazuje upozorenje umjesto da prešuti.
+
+---
+
+h2. 🟠 31. Brisanje doplate koju koristi pravilo za vozila
+
+Šta se dešava sa pravilom (@surcharge_id@) kad se obriše doplata: kaskadno brisanje, @surcharge_id: null@ ili 422? Dok ne
+stigne: front prvo briše pravila koja je koriste, pa doplatu, i dijalog to kaže ("Koristi je jedno pravilo za vozila ... se briše
+zajedno sa doplatom"). Ako pad nastupi usred posla, poruka kaže koliko je pravila već obrisano, a ponovni pokušaj nastavlja.
+
+---
+
+h2. 🟡 32. @PUT .../pricing@: granice, oblik greške i zaokruživanje obračuna
+
+Najmanja i najveća vrijednost @base_price@ i @price_per_km@, oblik greške 422 (@errors.base_price@, @errors.price_per_km@) i
+kako se zaokružuje obračun (po stavci ili samo ukupno; front računa po stavci na dvije decimale). Dok ne stigne: ekran
+*upozorava* (ne blokira) kad se iznos promijeni za 50 % ili više ili je cijena po km 3 ili više ("Za 10 km to je 82,50 KM.
+Ako si mislio na manji iznos, provjeri zarez."), a nakon snimanja poredi svoj obračun sa @price@ iz @recommend-vehicle@ za isti
+primjer; ako se razlikuju za više od 0,005, Primjer pokazuje napomenu "Server računa drugačije".
+
+---
+
+h2. 🟡 33. Atomično preuređivanje pravila
+
+Može li @PUT .../vehicle-rules/reorder@ sa @{ "ids": [...] }@ zamijeniti dva @PUT@-a po pomjeranju? Danas pad jednog od dva
+poziva ostavlja dva pravila sa istim @priority@ (front to pokušava vratiti, ali ne može garantovati).
+
+---
+
+h2. 🟡 34. @pricing/calculate@ sa udaljenošću, zonom i vremenom
+
+Može li @POST .../pricing/calculate@ primiti @distance_km@, @zone_id@ i vrijeme (@at@) umjesto koordinata? Primjer narudžbe bi
+tada i "šta bi bilo noću" računao na serveru istom logikom kao pravi obračun. Dok ne stigne: nacrt i "šta ako" računa aplikacija.
+
+---
+
+h2. 🟢 35. @updated_at@ i @updated_by@ na cijeni i doplati
+
+Red "Zadnja izmjena: ko i kada" uz cijenu i doplatu zahtijeva da odgovori nose autora i vrijeme izmjene. Ništa ne blokira.
+
+---
+
+h2. 🟢 36. Valuta: isti izvor kao finance-settings, "KM" ili "BAM"
+
+Je li @pricing.currency@ isti izvor kao @finance-settings.currency@ i je li vrijednost prikazni "KM" ili ISO "BAM"
+(@network-provjera.md@, C.3 je otvoreno)? Dok ne stigne: Cjenovnik valutu samo prikazuje (red "Valuta firme", sa vezom "Mijenja
+se u Firmi") i šalje je nepromijenjenu u @PUT .../pricing@.

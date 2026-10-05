@@ -36,3 +36,22 @@ BOARD=/apsolutna/putanja/board.html OUT=/tmp/out node docs/2026/10/cjenovnik-pro
 - Klizač Vuetify-a se pomjera tasterima na `.v-slider-thumb`, ne na `input`. Prva `.v-slider` na stranici je skriveni kalkulator sa taba Cijena: ciljaj `.v-window-item--active`.
 - `pkill -f` sa portom u istoj komandi ubije i sam shell; Chrome iz prethodne skripte zatvori sa `kill <pid>`.
 - Izmjere važe za probne podatke; ništa nije provjereno nad pravim backendom.
+
+
+## Nova stranica (implementacija)
+
+Pokretanje iz korijena aplikacije (grana `claude/amazing-mayer-uwcb4s`, dev server 3100 sa `NUXT_PUBLIC_GPS_API_BASE=http://localhost:4011`, `CHROME_PATH=/opt/pw-browsers/chromium`, `CDP_PORT=9340`, `MDI_DIR`):
+
+```
+node docs/2026/10/cjenovnik-prototip/e2e/logic-pricing.mjs    # 168 provjera čiste logike (utils/pricing.ts, utils/pricingDrafts.ts), bez browsera
+node docs/2026/10/cjenovnik-prototip/e2e/logic-workspace.mjs  # 19 provjera radnog prostora (usePricingWorkspace i composables) nad lažnim serverom, bez browsera
+node docs/2026/10/cjenovnik-prototip/e2e/p-smoke.mjs          # 471 provjera u pravom Chrome-u: računar 1440x900, telefon 390x844, uzak telefon 320x640
+```
+
+`p-smoke.mjs` za svaku veličinu prozora učita stranicu, obiđe tri taba, otvori editore i prijavi: greške u konzoli (console.error, Vue warn, hydration), `data-pricing` kuke koje fale,
+vodoravni skrol, mete ispod 44 px, kontrast ispod 4,5:1, polja bez imena, PUT/POST/DELETE tijela (cijena, prekidač, izmjena i nova doplata, pomjeranje i novo pravilo, brisanje doplate sa pravilom),
+pitanje pri prelasku taba sa nesačuvanim nacrtom i donje listove na telefonu. `ONLY=...` bira scenarije.
+
+Zamke: `pr-fx.mjs` PUT doplate diže `activated_at` samo kad tijelo nosi `active` (izmjena naziva ili iznosa ga ne dira); širina prelaska na dva stupca je `PRICING_WIDE_QUERY` u `app/composables/usePricingView.ts`
+(rupa 1145 do 1215 px: bočna traka je već stalna, a radna kolona bi bila uža od 480 px, pa tu ostaje jedna kolona sa trakom Primjera).
+Izmjere važe za probne podatke; ništa nije provjereno nad pravim backendom (pitanja 28 do 36 u `05_10_2026_Frontend_pitanja_za_backend.textile`).
