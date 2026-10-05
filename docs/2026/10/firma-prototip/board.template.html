@@ -153,8 +153,9 @@ tr:last-child td{border-bottom:0}
   <span class="eyebrow">Dispečer · Firma · 05.10.2026</span>
   <h1>Dizajn stranice Firma</h1>
   <p class="lede">Dispečer otvara Firmu da odredi koliko gotovine kurir smije držati, kako se dijele narudžbe i sa kojim restoranima radi. Pokrenuo sam aplikaciju (grana <span class="mono">master</span>) u pravom Chrome-u nad lažnim API-jem oblikovanim po tipovima iz koda i izmjerio šta stranica radi. Na telefonu ne piše koja je firma, a dugme Sačuvaj je tek na trećem ekranu. Isključi li se i ponovo uključi limit gotovine, upiše se 0 KM. Poruka o grešci pri čuvanju nastane 196 px iznad onoga što dispečer vidi. Promjena firme u meniju tiho briše unos. Ispod je predlog: stranica kao radni prostor sa istim redovima, listovima i bojama kao Profil, Kuriri i Poruke, uz prototip koji radi.</p>
+  <p class="lede"><b>Stanje 05.10.:</b> Faze 1 i 2 su izgrađene u aplikaciji (grana <span class="mono">claude/blissful-allen-o8ukzb</span>), računar prvo. Snimci stvarne stranice su u sekciji „Implementirano“, odmah ispod. Analiza i prototip ostaju kao obrazloženje.</p>
   <nav class="nav" aria-label="Sadržaj">
-    <a href="#analiza">Analiza</a><a href="#predlog">Predlog</a><a href="#stanja">Stanja</a><a href="#dijelovi">Dijelovi</a><a href="#podaci">Podaci</a><a href="#spec">Specifikacija</a><a href="#odluke">Odluke</a><a href="#izrada">Redosled izrade</a><a href="#backend">Backend</a><a href="#provjera">Provjera</a>
+    <a href="#implementirano">Implementirano</a><a href="#analiza">Analiza</a><a href="#predlog">Predlog</a><a href="#stanja">Stanja</a><a href="#dijelovi">Dijelovi</a><a href="#podaci">Podaci</a><a href="#spec">Specifikacija</a><a href="#odluke">Odluke</a><a href="#izrada">Redosled izrade</a><a href="#backend">Backend</a><a href="#provjera">Provjera</a>
   </nav>
 </header>
 
@@ -164,6 +165,87 @@ tr:last-child td{border-bottom:0}
   <div class="fact"><span class="tag">Kontrast</span><b>2.3 : 1</b><span>imaju opisi i podnaslovi (<span class="mono">#9aa4b2</span>). „Aktivna saradnja“ je 2.55 : 1, „Restoran vas je isključio“ 2.27 : 1. Granica je 4.5 : 1.</span></div>
   <div class="fact"><span class="tag">Lista</span><b>10 527 px</b><span>je visina liste sa 150 restorana (70 px po redu), bez brojeva i straničenja. Svih 150 prekidača nema ime za čitač ekrana. Pretraga: 195 ms pri 4× sporijem procesoru.</span></div>
   <div class="fact"><span class="tag">Valuta</span><b>11 od 12</b><span>restorana dobije upozorenje „Valuta: KM ≠ EUR“ čim se u formi izabere EUR, prije snimanja. Limit ostaje 200, samo se piše „EUR“.</span></div>
+</section>
+
+
+<!-- ============================================ IMPLEMENTIRANO -->
+<section class="sec" id="implementirano">
+  <div class="sec-head">
+    <span class="eyebrow">Implementirano</span>
+    <h2>Stvarna stranica na računaru, pa na telefonu</h2>
+    <p class="small">Snimci su iz aplikacije (ne iz prototipa): <span class="mono">nuxt dev</span>, pravi Chrome, cio prozor 1440×900 sa bočnom trakom. API je lažan (oblici po tipovima iz koda), podaci izmišljeni. Dispečeri rade uglavnom na računaru, pa je računar prvi prikaz, a telefon drugi. Računar: spisak postavki 400 px lijevo, editor izabrane postavke desno (ostaje otvoren poslije snimanja). Telefon: red otvara donji list.</p>
+  </div>
+
+  <div class="shots shots--wide">
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_n-d-1-postavke__" alt="Računar: stranica Firma, postavke kao redovi lijevo, editor limita gotovine desno" width="1440" height="900"></div>
+      <figcaption><b>Postavke, računar</b><span>Naziv firme i grad u zaglavlju, pet grupa redova. Red limita nosi oznaku „1 kurir je preko limita“, a editor računa posljedicu nad stanjem kurira. Sačuvaj je onemogućen dok nema izmjene.</span></figcaption>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_n-d-2-limit-posljedica__" alt="Računar: limit 150, upozorenje da su dva kurira odmah preko limita" width="1440" height="900"></div>
+      <figcaption><b>Limit 150 KM</b><span>Dok dispečer kuca, vidi „2 kurira su odmah preko limita, 1 blizu“ i šta im se tada dešava, sa trakom po kuriru.</span></figcaption>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_n-d-3-limit-nula__" alt="Računar: limit 0 sa crvenim upozorenjem" width="1440" height="900"></div>
+      <figcaption><b>Limit 0 KM</b><span>Crveno upozorenje sa brojem pogođenih („5 od 8 kurira“). Polje se više ne puni nulom samo od sebe.</span></figcaption>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_n-d-4-greska-servera__" alt="Računar: server odbio izmjenu, poruka uz polje i tonirana poruka na vrhu editora" width="1440" height="900"></div>
+      <figcaption><b>Server odbio izmjenu</b><span>Poruka servera stoji uz polje, a tonirana poruka je na vrhu editora, u vidokrugu. Uneseno ostaje u formi.</span></figcaption>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_n-d-5-nesacuvano__" alt="Računar: pitanje Imaš nesačuvane izmjene pri promjeni reda" width="1440" height="900"></div>
+      <figcaption><b>Nesačuvane izmjene</b><span>Isto pitanje pri promjeni reda, taba, firme u ladici i dugmetu Nazad. „Nastavi uređivanje“ ima fokus.</span></figcaption>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_n-d-6-nacin-dodjele__" alt="Računar: način dodjele Prvih N najbližih sa objašnjenjem" width="1440" height="900"></div>
+      <figcaption><b>Način dodjele</b><span>Zavisna polja se pojave tek kad trebaju, uz rečenicu „Šta će se desiti“ koja prati izbor.</span></figcaption>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_n-d-7-restorani__" alt="Računar: restorani, pločice stanja sa brojevima, lista lijevo i detalj suspendovanog restorana desno" width="1440" height="900"></div>
+      <figcaption><b>Restorani, računar</b><span>Pločice stanja sa brojevima, lista sa pretragom i detalj uz nju. Stanje je pilula sa tekstom, ne prekidač. Suspendovan restoran ima crveno upozorenje i radnju „Uključi saradnju“.</span></figcaption>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_n-d-8-ukljuci-saradnju__" alt="Računar: list Uključi saradnju sa upozorenjem o valuti" width="1440" height="900"></div>
+      <figcaption><b>Uključi saradnju</b><span>List sa potvrdom; ako se valute razlikuju, to piše prije uključivanja.</span></figcaption>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_n-d-9-suspenzija__" alt="Računar: list Suspenduj saradnju sa brzim razlozima" width="1440" height="900"></div>
+      <figcaption><b>Suspenzija</b><span>Opasna radnja nije na prvom dodiru: dugme u detalju, pa list sa brzim razlozima i rečenicom šta se dešava sa narudžbama.</span></figcaption>
+    </figure>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Telefon</span><h3>Isti sadržaj, donji list i detalj preko cijele stranice</h3></div>
+  <div class="shots">
+    <figure class="shot"><div class="shot-frame"><img src="__IMG_n-p-1-postavke__" alt="Telefon: postavke kao redovi" width="780" height="1688"></div><figcaption><b>Postavke</b><span>Redovi od najmanje 64 px.</span></figcaption></figure>
+    <figure class="shot"><div class="shot-frame"><img src="__IMG_n-p-2-limit-list__" alt="Telefon: list Limit gotovine sa posljedicom" width="780" height="1688"></div><figcaption><b>Limit u listu</b><span>Sačuvaj je zalijepljen uz dno.</span></figcaption></figure>
+    <figure class="shot"><div class="shot-frame"><img src="__IMG_n-p-3-restorani__" alt="Telefon: lista restorana sa pločicama stanja" width="780" height="1688"></div><figcaption><b>Restorani</b><span>Pločice kližu vodoravno.</span></figcaption></figure>
+    <figure class="shot"><div class="shot-frame"><img src="__IMG_n-p-4-restoran-detalj__" alt="Telefon: detalj restorana" width="780" height="1688"></div><figcaption><b>Detalj restorana</b><span>Zasebna stranica; strelica i dugme Nazad vraćaju na listu.</span></figcaption></figure>
+  </div>
+
+  <div class="cols-2">
+    <div class="verify">
+      <h3>Šta je provjereno (nad lažnim API-jem)</h3>
+      <ul>
+        <li><span class="mono">nuxi typecheck</span>: 0 grešaka. <span class="mono">nuxt build</span>: prolazi.</li>
+        <li>Logika (<span class="mono">logic-firma.mjs</span>): 30 provjera.</li>
+        <li>Računar 1440×900 (<span class="mono">f-desktop.mjs</span>): 111 provjera. Sve postavke, PATCH tijela (svih 11 polja), 422 i 500, nesačuvano, tastatura, restorani, filteri, suspenzija i 403, pad učitavanja, prazna lista, kontrast svakog teksta ≥ 4.5, nijedna meta ispod 44 px, sva polja imaju ime.</li>
+        <li>Telefon 390 i 320 (<span class="mono">f-phone.mjs</span>): 38 provjera, uključujući 150 restorana pri 4× sporijem procesoru i dugme Nazad.</li>
+        <li>Promjena firme u ladici (<span class="mono">f-company-switch.mjs</span>): 11 provjera.</li>
+      </ul>
+    </div>
+    <div class="verify">
+      <h3>Šta se razlikuje od predloga</h3>
+      <ul>
+        <li>Oba taba se učitavaju odmah (broj restorana je uz tab, a upozorenje o valuti i posljedica limita trebaju podatke drugog dijela).</li>
+        <li>Suspenzija i uključivanje čekaju server (nema optimističkog prekidača); greška ostaje u listu uz dugme.</li>
+        <li>Poruka o grešci servera je na vrhu editora, ne ispod polja, da bude u vidokrugu i u dugom listu.</li>
+        <li>Promjena firme u ladici traži malu izmjenu <span class="mono">DispatcherSidebar</span>: ladica pita stranicu prije promjene. Prva verzija (vraćanje izbora) se vrtjela u krug sa izborom u ladici, pa je zamijenjena.</li>
+        <li>Limit: isključi pa uključi u istom editoru vraća posljednji upisani iznos (ne 0). Prazno polje (uz onemogućen Sačuvaj) je kad firma nema sačuvan limit.</li>
+        <li>Pored restorana: broj uz tab i „Druga valuta“ prate SAČUVANU valutu, ne izabranu u editoru.</li>
+      </ul>
+    </div>
+  </div>
 </section>
 
 <!-- ============================================ ANALIZA -->
@@ -352,11 +434,11 @@ tr:last-child td{border-bottom:0}
 
   <div class="proto">
     <div class="ctl" role="group" aria-label="Izbor uređaja i početak">
-      <button type="button" class="bb" id="dev-phone" aria-pressed="true">Telefon</button>
-      <button type="button" class="bb" id="dev-desk" aria-pressed="false">Računar</button>
+      <button type="button" class="bb" id="dev-desk" aria-pressed="true">Računar</button>
+      <button type="button" class="bb" id="dev-phone" aria-pressed="false">Telefon</button>
       <button type="button" class="bb" id="proto-reset">Počni ispočetka</button>
     </div>
-    <div class="stage"><div class="apx proto-frame phone-mode" id="proto"></div></div>
+    <div class="stage"><div class="apx proto-frame desk-mode" id="proto"></div></div>
     <div class="now">
       <h4>Šta probati (podaci su izmišljeni)</h4>
       <ul>
@@ -545,7 +627,7 @@ tr:last-child td{border-bottom:0}
   <div class="sec-head">
     <span class="eyebrow">Odluke</span>
     <h2>Šta treba da odlučite</h2>
-    <p class="small">Za svako pitanje je preporuka uz opis posljedice. D1, D3 i D5 mijenjaju navike dispečera; ako kažete drugačije, prati se vaš izbor.</p>
+    <p class="small">Za svako pitanje je preporuka uz opis posljedice. <b>Izgrađene su sve preporuke (D1 do D8).</b> D1, D3 i D5 mijenjaju navike dispečera; ako kažete drugačije, vraća se vaš izbor (povratak je opisan uz svaku odluku).</p>
   </div>
   <div class="cols-2">
     <div class="card card--rec">
@@ -619,7 +701,7 @@ tr:last-child td{border-bottom:0}
   <div class="sec-head">
     <span class="eyebrow">Redosled izrade</span>
     <h2>Od popravki koje ne mijenjaju izgled do nove stranice</h2>
-    <p class="small">Faza 0 može posebno i odmah, na postojećoj stranici. Faze 1 i 2 grade novi izgled. Svaka faza se mjeri istim mjerilom kao analiza (mete, kontrast, tastatura, telefon, 150 restorana).</p>
+    <p class="small"><b>Stanje 05.10.: izgrađene su Faze 1 i 2, a sve stavke Faze 0 (0.1 do 0.10) su zahvaćene novim izgledom.</b> Faza 0 je mogla posebno i odmah, na postojećoj stranici. Faze 1 i 2 grade novi izgled. Svaka faza se mjeri istim mjerilom kao analiza (mete, kontrast, tastatura, telefon, 150 restorana).</p>
   </div>
   <ol class="phases">
     <li><div><b>Faza 0 · popravke na postojećoj stranici</b><span>Mali, nezavisni popravci. Svaki vrijedi bez nove strukture.</span>
@@ -698,10 +780,10 @@ tr:last-child td{border-bottom:0}
       <h3>Nije provjereno</h3>
       <ul>
         <li>Pravi backend: tačan oblik grešaka (422), šta rade <span class="mono">NOTIFY_ONLY</span>, <span class="mono">daily_handover_time</span> i <span class="mono">payout_period_days</span>.</li>
-        <li>iOS / pravi telefon, čitači ekrana, širina 320 px, produkcijski build.</li>
-        <li>Prototip nije Vue; ne dokazuje ponašanje aplikacije, samo daje tekst, logiku i izgled za portovanje.</li>
+        <li>iOS / pravi telefon i čitači ekrana (širina 320 px i produkcijski build jesu provjereni na stvarnoj stranici).</li>
+        <li>Prototip nije Vue i ne dokazuje ponašanje aplikacije; za to služe provjere stvarne stranice.</li>
         <li>Podaci u prototipu (kuriri, restorani, iznosi) su izmišljeni. Brojevi iz analize važe za probne podatke opisane gore.</li>
-        <li>Mjere na stvarnoj stranici nakon izrade nisu snimljene (ne postoji još).</li>
+        <li>Stvarna stranica je izmjerena samo nad lažnim API-jem (vidi „Implementirano“). Nije provjereno: pravi backend, iOS i čitači ekrana.</li>
       </ul>
     </div>
   </div>
@@ -725,6 +807,7 @@ tr:last-child td{border-bottom:0}
   $("#dev-desk").onclick = function () { mode("desk"); };
   $("#proto-reset").onclick = function () { start(); };
   start();
+  mode("desk");
   /* stanja */
   var P = {
     loading: { loading: true, loadingMs: 0, fixed: true },

@@ -269,3 +269,86 @@ h2. 🟢 19. Zajednički šabloni poruka po firmi (opciono)
 
 Lični šabloni su u pregledaču dispečera (@localStorage@) i ne dijele se među dispečerima. Ako firma želi zajedničke
 (@GET/POST/DELETE .../message-templates@), treba nam to; ništa ne blokira.
+
+---
+
+h1. Dio 3: ekran "Firma" (@/dispatcher/company@)
+
+Isti dan, treća tema. Ekran Firma je prepisan: postavke više nisu jedna duga forma nego redovi (gotovina, dodjela narudžbi,
+cijena za kupca, valuta), svaka sa svojim editorom i svojim dugmetom Sačuvaj; restorani su lista sa stanjem i detaljem, a
+suspenzija je radnja u detalju. Sve radi *samo nad postojećim rutama* i nijedno pitanje ne blokira ekran. Nove stavke
+nastavljaju brojanje iz Dijela 2. Ono što front radi dok odgovor ne stigne piše uz svaku stavku.
+
+Šta front sada šalje (informativno):
+
+* Pri otvaranju: @GET .../delivery-companies/{id}/finance-settings@, @GET /dispatcher/{id}/restaurants@ i
+  @GET .../couriers-balance@ (ovo treće samo da bi editor limita pokazao *koliko kurira je odmah preko limita* prije
+  snimanja). Ako @couriers-balance@ padne, editor to kaže i radi dalje.
+* Čuvanje: @PATCH .../finance-settings@ po postavci. Tijelo i dalje nosi *svih 11 polja* (sačuvano stanje + polja
+  izmijenjene postavke), jer djelimično tijelo nije potvrđeno (stavka 22). @assignment_courier_count@ je @null@ kad način
+  nije "Prvih N". Limit koji se isključi šalje @cash_limit_amount: null@, a limit @0@ se šalje kao @0@.
+* Restorani: @PATCH /dispatcher/restaurant-delivery-company/{id}@ sa @{ "active_restoran": false, "suspension_reason": "..." }@
+  pri suspenziji i @{ "active_restoran": true }@ pri uključivanju. Red se mijenja tek kad server prihvati (nema više
+  optimističkog prekidača u redu).
+
+---
+
+h2. 🔴 20. Šta tačno radi @cash_limit_enforcement: NOTIFY_ONLY@ i ko dobija upozorenje
+
+Stari tekst na ekranu je tvrdio "Samo upozori – kurir prihvata narudžbu, dobija samo upozorenje". Prema dokumentu od 28.09.
+(tracker) upozorenje nikome ne stiže. Zato front od danas piše samo *"Samo obavijesti: kurir i dalje prima narudžbe"* i ne
+obećava nikakvo upozorenje. Pitanje: dobija li kurir (@warning@ u odgovoru @accept()@) ili dispečer ikakvo upozorenje kad se
+pređe limit, i gdje se vidi? Čim potvrdite, vraćamo rečenicu o upozorenju.
+
+---
+
+h2. 🟠 21. Profil firme: telefon, e-pošta, kontakt osoba, JIB, PIB
+
+Stranica se zove Firma, a ne pokazuje nijedan podatak o firmi (ni naziv ni grad nisu bili u zaglavlju, danas jesu iz
+@/dispatcher/my-companies@). Može li @my-companies@ ili @finance-settings@ vratiti i @phone@, @email@, @contact_person@,
+@jib@, @pib@? Dok ne stigne: nema reda "Podaci o firmi".
+
+---
+
+h2. 🟠 22. @PATCH finance-settings@: djelimično tijelo, granice i oblik @errors.polje@
+
+Tri stvari: (a) prima li PATCH djelimično tijelo (samo izmijenjena polja)? (b) granice: najmanja i najveća vrijednost za
+@payout_period_days@ (front danas traži cijeli broj najmanje 1, bez gornje granice) i najveća za @cash_limit_amount@;
+(c) oblik greške 422 za svako od 11 polja (@errors.cash_limit_amount@, @errors.payout_period_days@, ...), jer front tu poruku
+pokazuje uz polje. Dok ne stigne: šalje se svih 11 polja, poruka servera ide uz polje ako postoji, inače u opštu poruku.
+
+---
+
+h2. 🟠 23. Šta pokreću @daily_handover_time@ i @payout_period_days@
+
+Editor mora reći šta postavka radi, a to ne znamo: podsjetnik kuriru, automatska isplata ili samo prikaz? Dok ne stigne,
+tekstovi su neutralni ("Svaki dan u 14:16", "Svake sedmice") i ne obećavaju radnju.
+
+---
+
+h2. 🟡 24. @ALL_ACTIVE@ i kurir koji je već u dostavi
+
+Važi li "Svi aktivni kuriri" samo za automatsku dodjelu, i isključuje li kurira koji je već na drugoj dostavi? (21.09, još
+otvoreno.) Tekst uz izbor ostaje "Bez provjere da su označili 'dostupan za rad'".
+
+---
+
+h2. 🟡 25. Lista restorana: ko je suspendovao, kada i uslovi saradnje
+
+@GET /dispatcher/{id}/restaurants@ ne vraća @suspended_at@ (naša suspenzija), razlog koji je upisao restoran (kad on
+isključi saradnju), broj otvorenih narudžbi, niti uslove saradnje (@settlement_route@, @delivery_fee_payer@, @paying@; oni
+postoje na vezi u admin API-ju). Detalj restorana bi tada rekao ko je i kada suspendovao i šta se gubi. Ništa ne blokira.
+
+---
+
+h2. 🟡 26. Šta znači @record_status: 0@ kod aktivne saradnje
+
+Backend je 01.09. javio da 7 od 12 restorana firme 24 ima @record_status = 0@ iako je saradnja aktivna. Front ga i dalje ne
+koristi ni za prikaz ni za filter. Treba li ga prikazati, ili će se ispraviti u podacima?
+
+---
+
+h2. 🟢 27. Provizija: hoće li ikad biti uređiva
+
+@commission_percentage_editable@ stiže, ali PATCH tiho ignoriše provizija. Front je prikazuje kao red sa bravom i tekstom
+"Postavlja Ordera administrator". Ako postane uređiva, red dobija editor. Ništa ne blokira.
