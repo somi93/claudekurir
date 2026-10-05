@@ -58,6 +58,7 @@ B1 paketi poruka (`message_id` + recipients u odgovoru slanja, lista/primaoci/br
 ## Provjera (obavezno, ne samo typecheck)
 - `nuxi typecheck` (exit 0, `grep -c "error TS"`).
 - E2E u pravom headless Chrome-u nad lažnim API-jem (CDP, Fetch interception API hosta), pisan UPOREDO sa kodom: stanja, grupe, ručni izbor, pretraga, šabloni, slanje sa/bez potvrde, greške slanja i provjere, praćenje, podsjetnik, povlačenje (potpuno/djelimično), istorija kurira, nacrt, 500 kurira; telefon 390 i 320 dodirom; kontrast svakog teksta ≥4.5; mete 44 px; tastatura. Pogledaj snimak svakog stanja očima.
+- Alati za E2E (CDP pokretač, presretanje API-ja, izmišljeni svijet, kontrast) su u `docs/2026/10/poruke-prototip/e2e/`; uputstvo je u `e2e/README.md`. Pokreću se iz korijena repoa, uz dev server sa `NUXT_PUBLIC_GPS_API_BASE=http://localhost:4011`.
 - Na prototipu su prošle 34 logičke, 166 tokova i 52 provjere uređaja/pristupačnosti: to je dokaz za prototip, ne za aplikaciju.
 - Ne tvrdi ništa što nije provjereno. NIJE provjereno: pravi backend (sender ponuda u `/inbox`, značenje unread, rate limit, `all_couriers`, push), iOS/pravi telefon, čitači ekrana, produkcijski build.
 - Ako je izvor teksta nejasan, sve je i u Artifactu "Dizajn dispečerskih poruka" (privatan, korisnik ima link): https://claude.ai/artifact/UExTWXyVFcjrEv7kbecJoz
