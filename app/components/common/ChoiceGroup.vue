@@ -1,7 +1,11 @@
 <template>
   <div
     class="cg"
-    :class="[`cg--${variant}`, columns === 3 ? 'cg--3' : columns === 1 ? 'cg--1' : '']"
+    :class="[
+      `cg--${variant}`,
+      columns === 3 ? 'cg--3' : columns === 1 ? 'cg--1' : '',
+      stackNarrow ? 'cg--stack' : '',
+    ]"
     role="radiogroup"
     :aria-label="label"
     @keydown="onKey"
@@ -59,8 +63,11 @@ const props = withDefaults(
     label: string;
     variant?: "cards" | "pills";
     columns?: 1 | 2 | 3;
+    // Kartice u tri kolone na telefonu postaju jedna kolona (Cjenovnik: "Kad se primjenjuje");
+    // zadano isključeno, pa ostali ekrani ostaju kakvi jesu.
+    stackNarrow?: boolean;
   }>(),
-  { variant: "cards", columns: 2 }
+  { variant: "cards", columns: 2, stackNarrow: false }
 );
 
 const emit = defineEmits<{ "update:modelValue": [value: string | number] }>();
@@ -236,6 +243,26 @@ const onKey = async (event: KeyboardEvent) => {
   border-color: #2f6fed;
   background: #eef4ff;
   color: #2459c7;
+}
+
+@media (max-width: 719px) {
+  .cg--cards.cg--3.cg--stack {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Ikona lijevo od teksta (kao "wide"), a bez ikone tekst zauzme cijeli red. */
+  .cg--cards.cg--3.cg--stack .cg-opt {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-content: center;
+    align-items: center;
+    column-gap: 12px;
+    min-height: 64px;
+    padding-right: 44px;
+  }
+
+  .cg--cards.cg--3.cg--stack .cg-tx:first-child {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 420px) {

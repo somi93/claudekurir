@@ -10,7 +10,18 @@
         closable
         @click:close="dismiss(message.id)"
       >
-        {{ message.text }}
+        <div v-if="message.action" class="global-alert-row">
+          <span class="global-alert-text">{{ message.text }}</span>
+          <button
+            type="button"
+            class="global-alert-action"
+            data-alert-action
+            @click="runAction(message.id)"
+          >
+            {{ message.action.label }}
+          </button>
+        </div>
+        <template v-else>{{ message.text }}</template>
       </v-alert>
     </TransitionGroup>
   </div>
@@ -22,7 +33,7 @@ import { useAlertStore } from "~/stores/alert";
 
 const alertStore = useAlertStore();
 const { messages } = storeToRefs(alertStore);
-const { dismiss } = alertStore;
+const { dismiss, runAction } = alertStore;
 </script>
 
 <style scoped>
@@ -54,6 +65,44 @@ const { dismiss } = alertStore;
 .global-alert-card :deep(.v-alert__underlay) {
   opacity: 1 !important;
   background: #fff !important;
+}
+
+/* Obavijest sa radnjom ("Poništi"): tekst i dugme u istom redu, a na uskom ekranu dugme pređe ispod.
+   Dugme je tamno na bijelom (podloga kartice je bijela), 44 px visine. */
+.global-alert-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.global-alert-text {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.global-alert-action {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1.5px solid #c7ccd4;
+  border-radius: 12px;
+  background: #fff;
+  color: #0b1220;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.global-alert-action:hover {
+  background: #f1f4f9;
+}
+
+.global-alert-action:focus-visible {
+  outline: 3px solid #2f6fed;
+  outline-offset: 2px;
 }
 
 .global-alert-enter-active,

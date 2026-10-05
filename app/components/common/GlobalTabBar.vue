@@ -22,6 +22,9 @@
     >
       <v-icon v-if="tab.icon" :icon="tab.icon" size="20" />
       <span class="tab-pill-label">{{ tab.label }}</span>
+      <span v-if="tab.dot" class="tab-pill-dot" data-tab-dot>
+        <span class="tab-pill-sr">nesačuvane izmjene</span>
+      </span>
       <span
         v-if="tab.badge !== undefined && tab.badge !== null"
         class="tab-pill-badge"
@@ -42,6 +45,8 @@ export interface GlobalTabBarItem<T extends string = string> {
   icon?: string;
   badge?: string | number;
   badgeColor?: string;
+  // Tačka "nesačuvane izmjene" uz naziv (Cjenovnik); čitač dobije isti podatak kao tekst.
+  dot?: boolean;
 }
 
 // Tabovi (role=tablist): samo aktivan tab je u redoslijedu tastera Tab, strelice, Home i End
@@ -151,6 +156,28 @@ const onKey = (event: KeyboardEvent) => {
   font-weight: 700;
 }
 
+/* Tačka za nesačuvano: #e08a14 na bijelom je samo 2.6:1, pa tamni obrub (#5c3305) nosi vidljivost. */
+.tab-pill-dot {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #5c3305;
+  border-radius: 50%;
+  background: #e08a14;
+}
+
+.tab-pill-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .tab-pill:focus-visible {
   outline: 3px solid #2f6fed;
   outline-offset: 2px;
@@ -183,6 +210,10 @@ const onKey = (event: KeyboardEvent) => {
   color: #0b1220;
   font-size: 0.88rem;
   white-space: nowrap;
+}
+
+.global-tab-bar--pills .tab-pill-dot {
+  position: static;
 }
 
 .global-tab-bar--pills .tab-pill:hover {

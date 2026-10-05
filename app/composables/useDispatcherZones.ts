@@ -9,23 +9,48 @@ import { getServerMessage, getValidationMessage, toFriendlyErrorMessage } from "
 import { useAlertStore } from "~/stores/alert";
 import type { DispatcherZone, DispatcherZonePayload } from "~/types/dispatcherZone";
 
+const NO_ANSWER = "Server ne odgovara.";
+
 export const useDispatcherZones = () => {
   const alertStore = useAlertStore();
 
   const zones = ref<DispatcherZone[]>([]);
   const loading = ref(true);
   const saving = ref(false);
+  // Pad učitavanja i kratak razlog uz naslov ("Server ne odgovara." / nema veze), za ekrane koji
+  // pokazuju grešku u svom redu ("Pokušaj ponovo") umjesto zajedničke obavijesti.
+  const loadFailed = ref(false);
+  const loadReason = ref("");
 
-  const load = async (cityId?: number | null) => {
+  // Odgovor za raniji poziv (npr. drugi grad) se odbacuje.
+  let seq = 0;
+  let lastCity: number | null | undefined;
+  let lastSilent = false;
+
+  // options.silent - greška se ne pokazuje kao zajednička obavijest (vidi loadFailed/loadReason).
+  const load = async (cityId?: number | null, options: { silent?: boolean } = {}) => {
+    const mine = ++seq;
+    lastCity = cityId;
+    lastSilent = options.silent ?? false;
     loading.value = true;
+    loadFailed.value = false;
+    loadReason.value = "";
     try {
-      zones.value = await fetchDispatcherZones(cityId);
+      const loaded = await fetchDispatcherZones(cityId);
+      if (mine === seq) zones.value = loaded;
     } catch (error) {
-      alertStore.error(toFriendlyErrorMessage(error, "Ne mogu da učitam zone."));
+      if (mine !== seq) return;
+      loadFailed.value = true;
+      const reason = toFriendlyErrorMessage(error, NO_ANSWER);
+      loadReason.value = reason;
+      if (!lastSilent) alertStore.error(reason === NO_ANSWER ? "Ne mogu da učitam zone." : reason);
     } finally {
-      loading.value = false;
+      if (mine === seq) loading.value = false;
     }
   };
+
+  // Ponovo učitava zone za isti grad kao zadnji put (za "Pokušaj ponovo").
+  const reload = () => load(lastCity, { silent: lastSilent });
 
   const create = async (payload: DispatcherZonePayload): Promise<boolean> => {
     saving.value = true;
@@ -82,5 +107,5 @@ export const useDispatcherZones = () => {
     }
   };
 
-  return { zones, loading, saving, load, create, update, remove };
+  return { zones, loading, saving, loadFailed, loadReason, load, reload, create, update, remove };
 };
