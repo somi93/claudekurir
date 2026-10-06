@@ -32,8 +32,8 @@ export type CompanyCourier = {
   suspended_reason: string | null;
   suspended_at: string | null;
   vehicle: { id: number; type: VehicleKey } | null;
-  // Zadržano radi kompatibilnosti (CourierWalletDetailsDialog i dalje ga
-  // prikazuje) - nova "Izmeni kurira" forma ga VIŠE NE UREĐUJE (13.09,
+  // Zadržano radi kompatibilnosti (ranije ga je
+  // prikazivao stari dijalog) - nova "Izmeni kurira" forma ga VIŠE NE UREĐUJE (13.09,
   // zahtjev backend-a), jer dupla svrhu sa detail.emergency_contact_phone.
   // Koristi emergency_contact_* za novi kod.
   contact_phone: string | null;

@@ -384,7 +384,8 @@ export const useCourierRoster = (options: CourierRosterOptions = {}) => {
     courierId: number,
     amount: number,
     method: string,
-    idempotencyKey: string
+    idempotencyKey: string,
+    note = ""
   ): Promise<ActionResult> =>
     run(async () => {
       const id = companyId.value;
@@ -395,6 +396,7 @@ export const useCourierRoster = (options: CourierRosterOptions = {}) => {
           amount,
           method,
           idempotency_key: idempotencyKey,
+          ...(note.trim() ? { note: note.trim() } : {}),
         });
         void loadBalances();
         return { ok: true, warning: res.warning };

@@ -1,0 +1,79 @@
+  ✔ računar, početno stanje: kontrast svakog teksta ≥ 4.5 (161 tekstova, najslabije 4.55)
+  ✔ računar, početno stanje: nijedna meta ispod 44 px  — []
+  ✔ računar, izabran kurir: kontrast svakog teksta ≥ 4.5 (191 tekstova, najslabije 4.55)
+  ✔ računar, izabran kurir: nijedna meta ispod 44 px  — []
+  ✔ računar, kurir bez signala (crveno upozorenje): kontrast svakog teksta ≥ 4.5 (176 tekstova, najslabije 4.55)
+  ✔ računar, kurir bez signala (crveno upozorenje): nijedna meta ispod 44 px  — []
+  ✔ računar, list za poruku: kontrast svakog teksta ≥ 4.5 (188 tekstova, najslabije 4.55)
+  ✔ računar, list za poruku: nijedna meta ispod 44 px  — []
+  ✔ računar, tab Narudžbe sa 'Traži pažnju': kontrast svakog teksta ≥ 4.5 (173 tekstova, najslabije 4.53)
+  ✔ računar, tab Narudžbe sa 'Traži pažnju': nijedna meta ispod 44 px  — []
+  ✔ računar, izabrana narudžba: kontrast svakog teksta ≥ 4.5 (202 tekstova, najslabije 4.53)
+  ✔ računar, izabrana narudžba: nijedna meta ispod 44 px  — []
+  ✔ računar, otvorena legenda: kontrast svakog teksta ≥ 4.5 (211 tekstova, najslabije 4.53)
+  ✔ računar, otvorena legenda: nijedna meta ispod 44 px  — []
+  ✔ računar, otvoren meni slojeva: kontrast svakog teksta ≥ 4.5 (205 tekstova, najslabije 4.53)
+  ✔ računar, otvoren meni slojeva: nijedna meta ispod 44 px  — []
+  ✔ računar, pad pozicija: kontrast svakog teksta ≥ 4.5 (132 tekstova, najslabije 4.55)
+  ✔ računar, pad pozicija: nijedna meta ispod 44 px  — []
+  ✔ računar, pad spiska: kontrast svakog teksta ≥ 4.5 (17 tekstova, najslabije 5.71)
+  ✔ računar, pad spiska: nijedna meta ispod 44 px  — []
+  ✔ računar, firma bez kurira: kontrast svakog teksta ≥ 4.5 (17 tekstova, najslabije 5.71)
+  ✔ računar, firma bez kurira: nijedna meta ispod 44 px  — []
+  ✔ Tab: spisak kurira je jedno zaustavljanje  — 1
+  ✔ Tab: cijela stranica ima razumno zaustavljanja (do 30), a nijedno nije skriveno  — 25
+raspored računar: {"head":{"y":0,"h":65,"w":1176,"b":65},"strip":{"y":65,"h":126,"w":1176,"b":191},"map":{"y":191,"h":689,"w":700,"b":880},"panel":{"y":191,"h":689,"w":420,"b":880},"body":{"y":319,"h":561,"w":420,"b":880},"rowH":89,"rowsFull":6}
+  ✔ računar: karta zauzima sav prostor ispod trake (do dna ekrana)  — {"y":191,"h":689,"w":700,"b":880}
+  ✔ računar: karta je šira od stare (700 px prema 692)  — 700
+  ✔ telefon: panel je na dnu i visok 100 px (peek)  — {"x":0,"y":744,"w":390,"h":100,"b":844,"r":390}
+  ✔ telefon: nema vodoravnog klizanja stranice
+  ✔ telefon: svi kuriri na terenu su vidljivi iznad donjeg lista  — 18/18
+  ✔ telefon: pločice stanja kližu vodoravno (jedan red)
+  ✔ telefon: dodir na marker bira kurira i list se diže na pola  — {"id":30234,"x":281.79998779296875,"y":366.5062561035156} 30234 half
+  ✔ telefon: izabrani marker je iznad lista, ne ispod njega  — marker do 386.5062561035156, list od 531.4375
+  ✔ telefon: detalj kurira je odmah vidljiv u listu
+  ✔ telefon, izabran kurir (pola): kontrast svakog teksta ≥ 4.5 (184 tekstova, najslabije 4.55)
+  ✔ telefon, izabran kurir (pola): nijedna meta ispod 44 px  — []
+  ✔ telefon: dodir na ručku povećava list (pola -> cijeli)
+  ✔ telefon: sljedeći dodir ga spušta (cijeli -> peek)
+  ✔ telefon: povlačenje ručke prema gore diže list (peek -> pola)  — half
+  ✔ telefon: još jedno povlačenje gore (pola -> cijeli)
+  ✔ telefon: povlačenje dolje spušta (cijeli -> pola)
+  ✔ telefon: povlačenje ručke ne mijenja izbor
+  ✔ telefon: X zatvara detalj
+  ✔ telefon: pretraga u listu ('djuric' nalazi Đuriće bez dijakritika)
+  ✔ telefon, spisak sa pretragom (pola): kontrast svakog teksta ≥ 4.5 (83 tekstova, najslabije 4.55)
+  ✔ telefon, spisak sa pretragom (pola): nijedna meta ispod 44 px  — []
+  ✔ telefon: dodir na tab 'Narudžbe' iz peek-a otvara list i tab
+  ✔ telefon, Narudžbe (pola): kontrast svakog teksta ≥ 4.5 (181 tekstova, najslabije 4.53)
+  ✔ telefon, Narudžbe (pola): nijedna meta ispod 44 px  — []
+  ✔ telefon, Narudžbe (cijeli): kontrast svakog teksta ≥ 4.5 (181 tekstova, najslabije 4.53)
+  ✔ telefon, Narudžbe (cijeli): nijedna meta ispod 44 px  — []
+  ✔ telefon: list za poruku je donji list preko cijele širine  — {"x":0,"y":277.03125,"w":390,"h":566.96875,"b":844,"r":390}
+  ✔ telefon, list za poruku: kontrast svakog teksta ≥ 4.5 (180 tekstova, najslabije 4.55)
+  ✔ telefon, list za poruku: nijedna meta ispod 44 px  — []
+  ✔ telefon, pad pozicija: obavještenje ne preklapa dugmad na karti
+  ✔ telefon, pad pozicija: kontrast svakog teksta ≥ 4.5 (126 tekstova, najslabije 4.55)
+  ✔ telefon, pad pozicija: nijedna meta ispod 44 px  — []
+  ✔ telefon: razmjera i legenda se ne dodiruju ni na jednom zumu (10 do 17)
+  ✔ telefon, pad spiska, pola: poruka na karti je cijela iznad lista  — {"note":{"l":8,"t":215,"r":322,"b":400},"leg":{"l":0,"t":0,"r":0,"b":0},"scale":{"l":0,"t":0,"r":0,"b":0},"panel":{"l":0,"t":477,"r":390,"b":844},"map":{"l":0,"t":138,"r":390,"b":844},"mc":{"l":338,"t":146,"r":382,"b":242}}
+  ✔ telefon, pad spiska, pola: poruka na karti ne preklapa legendu, razmjeru ni kontrole karte  — {"note":{"l":8,"t":215,"r":322,"b":400},"leg":{"l":0,"t":0,"r":0,"b":0},"scale":{"l":0,"t":0,"r":0,"b":0},"panel":{"l":0,"t":477,"r":390,"b":844},"map":{"l":0,"t":138,"r":390,"b":844},"mc":{"l":338,"t":146,"r":382,"b":242}}
+  ✔ telefon, firma bez kurira, peek: poruka na karti je cijela iznad lista  — {"note":{"l":8,"t":348,"r":322,"b":534},"leg":{"l":0,"t":0,"r":0,"b":0},"scale":{"l":0,"t":0,"r":0,"b":0},"panel":{"l":0,"t":744,"r":390,"b":844},"map":{"l":0,"t":138,"r":390,"b":844},"mc":{"l":338,"t":146,"r":382,"b":242}}
+  ✔ telefon, firma bez kurira, peek: poruka na karti ne preklapa legendu, razmjeru ni kontrole karte  — {"note":{"l":8,"t":348,"r":322,"b":534},"leg":{"l":0,"t":0,"r":0,"b":0},"scale":{"l":0,"t":0,"r":0,"b":0},"panel":{"l":0,"t":744,"r":390,"b":844},"map":{"l":0,"t":138,"r":390,"b":844},"mc":{"l":338,"t":146,"r":382,"b":242}}
+  ✔ 375×667, pad spiska, pola: poruka na karti je cijela između vrha karte i lista  — {"note":{"l":8,"t":162,"r":307,"b":368},"leg":{"l":0,"t":0,"r":0,"b":0},"scale":{"l":0,"t":0,"r":0,"b":0},"panel":{"l":0,"t":392,"r":375,"b":667},"map":{"l":0,"t":138,"r":375,"b":667},"mc":{"l":323,"t":146,"r":367,"b":242}}
+  ✔ 375×667, pad spiska, pola: poruka na karti ne preklapa legendu, razmjeru ni kontrole karte  — {"note":{"l":8,"t":162,"r":307,"b":368},"leg":{"l":0,"t":0,"r":0,"b":0},"scale":{"l":0,"t":0,"r":0,"b":0},"panel":{"l":0,"t":392,"r":375,"b":667},"map":{"l":0,"t":138,"r":375,"b":667},"mc":{"l":323,"t":146,"r":367,"b":242}}
+  ✔ 375×667, firma bez kurira, peek: poruka na karti je cijela između vrha karte i lista  — {"note":{"l":8,"t":260,"r":307,"b":445},"leg":{"l":0,"t":0,"r":0,"b":0},"scale":{"l":0,"t":0,"r":0,"b":0},"panel":{"l":0,"t":567,"r":375,"b":667},"map":{"l":0,"t":138,"r":375,"b":667},"mc":{"l":323,"t":146,"r":367,"b":242}}
+  ✔ 375×667, firma bez kurira, peek: poruka na karti ne preklapa legendu, razmjeru ni kontrole karte  — {"note":{"l":8,"t":260,"r":307,"b":445},"leg":{"l":0,"t":0,"r":0,"b":0},"scale":{"l":0,"t":0,"r":0,"b":0},"panel":{"l":0,"t":567,"r":375,"b":667},"map":{"l":0,"t":138,"r":375,"b":667},"mc":{"l":323,"t":146,"r":367,"b":242}}
+  ✔ 360×640, pad spiska, pola: poruka na karti je cijela između vrha karte i lista  — {"note":{"l":8,"t":156,"r":292,"b":361},"leg":{"l":0,"t":0,"r":0,"b":0},"scale":{"l":0,"t":0,"r":0,"b":0},"panel":{"l":0,"t":379,"r":360,"b":640},"map":{"l":0,"t":138,"r":360,"b":640},"mc":{"l":308,"t":146,"r":352,"b":242}}
+  ✔ 360×640, pad spiska, pola: poruka na karti ne preklapa legendu, razmjeru ni kontrole karte  — {"note":{"l":8,"t":156,"r":292,"b":361},"leg":{"l":0,"t":0,"r":0,"b":0},"scale":{"l":0,"t":0,"r":0,"b":0},"panel":{"l":0,"t":379,"r":360,"b":640},"map":{"l":0,"t":138,"r":360,"b":640},"mc":{"l":308,"t":146,"r":352,"b":242}}
+  ✔ 360×640, firma bez kurira, peek: poruka na karti je cijela između vrha karte i lista  — {"note":{"l":8,"t":246,"r":292,"b":432},"leg":{"l":0,"t":0,"r":0,"b":0},"scale":{"l":0,"t":0,"r":0,"b":0},"panel":{"l":0,"t":540,"r":360,"b":640},"map":{"l":0,"t":138,"r":360,"b":640},"mc":{"l":308,"t":146,"r":352,"b":242}}
+  ✔ 360×640, firma bez kurira, peek: poruka na karti ne preklapa legendu, razmjeru ni kontrole karte  — {"note":{"l":8,"t":246,"r":292,"b":432},"leg":{"l":0,"t":0,"r":0,"b":0},"scale":{"l":0,"t":0,"r":0,"b":0},"panel":{"l":0,"t":540,"r":360,"b":640},"map":{"l":0,"t":138,"r":360,"b":640},"mc":{"l":308,"t":146,"r":352,"b":242}}
+  ✔ 320 px: nema vodoravnog klizanja  — 320 > 320
+  ✔ 320 px: dugmad u zaglavlju staju u širinu  — {"right":310,"w":320,"h":67.90625}
+  ✔ 320 px: naslov nije odsječen (h1 vidljiv)
+  ✔ 320 px: kontrast i mete u redu  —  []
+  ✔ 320 px: razmjera i legenda se ne dodiruju ni na jednom zumu (10 do 17)
+
+MJERENJA: {"minC":4.53,"texts":2608,"states":17,"minFont":10.88,"tabStops":25,"lay":{"head":{"y":0,"h":65,"w":1176,"b":65},"strip":{"y":65,"h":126,"w":1176,"b":191},"map":{"y":191,"h":689,"w":700,"b":880},"panel":{"y":191,"h":689,"w":420,"b":880},"body":{"y":319,"h":561,"w":420,"b":880},"rowH":89,"rowsFull":6}}
+
+Ukupno: 74/74 prošlo

@@ -1,0 +1,20 @@
+import { openProto, sleep } from "./lib.mjs";
+const P = await openProto({ name: "dbg", width: 390, height: 844, dpr: 2, mobile: true, url: new URL("phone.html", import.meta.url).href });
+const ev = P.ev;
+const tapAt = async (x, y, wait = 250) => { await P.b.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }] }); await P.b.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }); await sleep(wait); };
+const rect = (sel) => ev(`(() => { const e = document.querySelector(${JSON.stringify('#p ' + sel)}); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; })()`);
+await ev(`fresh('p', { wide: false, pollMs: 60000, ordersMs: 60000, slowMs: 60000 })`); await P.waitFor("A('p').ctx.ready"); await sleep(800);
+await ev(`window.__log = []; for (const t of ['pointerdown','pointerup','click','touchstart','touchend']) document.addEventListener(t, (e) => window.__log.push(t + ':' + (e.target.tagName) + '.' + String(e.target.className && e.target.className.baseVal !== undefined ? e.target.className.baseVal : e.target.className).slice(0, 20)), true);`);
+await ev(`A('p').ctx.selectCourier(30189)`); await sleep(700);
+// isto kao u testu: grip dodir x2, pa povlačenja
+const g = async () => (await rect(".lv-psh")).y + 20;
+await tapAt(195, await g(), 400); await tapAt(195, await g(), 400);
+const drag = async (dy) => { const y0 = await g(); await P.b.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 195, y: y0, id: 1 }] }); for (let i = 1; i <= 6; i++) await P.b.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 195, y: y0 + (dy * i) / 6, id: 1 }] }); await P.b.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }); await sleep(450); };
+await drag(-160); await drag(-160); await drag(160);
+await sleep(1500);
+await ev(`window.__log.length = 0`);
+const x = await rect(".lv-x");
+console.log("x", JSON.stringify(x), "snap", await ev(`A('p').st.snap`));
+await tapAt(x.x + 22, x.y + 22, 500);
+console.log("log", JSON.stringify(await ev(`window.__log`)), "sel", await ev(`A('p').st.selId`));
+await P.close();

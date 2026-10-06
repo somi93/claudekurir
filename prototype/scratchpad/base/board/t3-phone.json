@@ -1,0 +1,157 @@
+{
+ "M": {
+  "cls": 0
+ },
+ "scans": [
+  {
+   "label": "Stanje",
+   "contrastMin": 4.63,
+   "texts": 159,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "List: potvrda predaje",
+   "contrastMin": 4.63,
+   "texts": 169,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "List: potvrda sa razlikom",
+   "contrastMin": 4.63,
+   "texts": 172,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "Detalj kurira",
+   "contrastMin": 4.63,
+   "texts": 49,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "List: uplata",
+   "contrastMin": 4.63,
+   "texts": 57,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "List: isplata sa računom",
+   "contrastMin": 4.63,
+   "texts": 64,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "List: isplata svima",
+   "contrastMin": 4.63,
+   "texts": 193,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "List: isplata svima (transfer, upozorenja o računu)",
+   "contrastMin": 4.63,
+   "texts": 196,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "Promet",
+   "contrastMin": 4.63,
+   "texts": 145,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "List: detalj stavke",
+   "contrastMin": 4.63,
+   "texts": 157,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "List: izbor kurira",
+   "contrastMin": 4.63,
+   "texts": 226,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "Greška: predaje",
+   "contrastMin": 4.63,
+   "texts": 128,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "Greška: stanje kurira",
+   "contrastMin": 4.63,
+   "texts": 47,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "Greška: promet",
+   "contrastMin": 4.63,
+   "texts": 20,
+   "minFont": 11.52,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  },
+  {
+   "label": "Prazno: sve na nuli",
+   "contrastMin": 4.63,
+   "texts": 34,
+   "minFont": 11.84,
+   "bad": [],
+   "small": [],
+   "overflowX": 0,
+   "out": []
+  }
+ ]
+}

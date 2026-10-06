@@ -1,0 +1,31 @@
+{
+ "dev": {
+  "pass": 396,
+  "total": 396
+ },
+ "boardSuites": {
+  "pass": 322,
+  "total": 322
+ },
+ "smoke": {
+  "pass": 42,
+  "total": 42
+ },
+ "leak": {
+  "props": 50600,
+  "states": 9,
+  "diff": 0,
+  "only": 0
+ },
+ "finalSmoke": {
+  "pass": 42,
+  "total": 42
+ },
+ "finalLeak": {
+  "props": 50600,
+  "states": 9,
+  "diff": 0,
+  "only": 0
+ },
+ "failed": null
+}

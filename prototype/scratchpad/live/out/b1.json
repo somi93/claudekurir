@@ -1,0 +1,347 @@
+{
+ "t_firstRows_ms": 1019,
+ "world": {
+  "couriers": 26,
+  "withPosition": 23,
+  "delivering": 6
+ },
+ "map": {
+  "lat": 44.8125,
+  "lng": 20.4612,
+  "zoom": 12,
+  "south": 44.73795445686983,
+  "north": 44.88701247981298,
+  "west": 20.297241210937504,
+  "east": 20.62545776367188
+ },
+ "pills": [
+  "23Ukupno",
+  "6U dostavi",
+  "8Slobodni",
+  "9Offline"
+ ],
+ "rowsRendered": 23,
+ "markers": {
+  "total": 23,
+  "visible": 23,
+  "minW": 0,
+  "maxW": 0
+ },
+ "mapOffKm": 257,
+ "rects": {
+  "header": {
+   "x": 264,
+   "y": 0,
+   "w": 1176,
+   "h": 65,
+   "b": 65
+  },
+  "pills": {
+   "x": 296,
+   "y": 89,
+   "w": 1112,
+   "h": 51,
+   "b": 140
+  },
+  "map": {
+   "x": 296,
+   "y": 160,
+   "w": 692,
+   "h": 612,
+   "b": 772
+  },
+  "side": {
+   "x": 1008,
+   "y": 160,
+   "w": 400,
+   "h": 627,
+   "b": 787
+  },
+  "list": {
+   "x": 1028,
+   "y": 268,
+   "w": 360,
+   "h": 432,
+   "b": 700
+  },
+  "search": {
+   "x": 1028,
+   "y": 220,
+   "w": 360,
+   "h": 40,
+   "b": 260
+  },
+  "hint": {
+   "x": 1028,
+   "y": 716,
+   "w": 360,
+   "h": 37,
+   "b": 754
+  },
+  "grid": {
+   "x": 296,
+   "y": 160,
+   "w": 1112,
+   "h": 627,
+   "b": 787
+  },
+  "scrollH": 900,
+  "innerH": 900
+ },
+ "fold": {
+  "fullyVisibleInList": 4,
+  "rowH": 88,
+  "listH": 432,
+  "viewportRows": 6
+ },
+ "avatar": {
+  "box": 40,
+  "text": "30242",
+  "textW": 41,
+  "overflow": true
+ },
+ "chipClipped": [
+  "Aleksandar-Nemanja Petrović-Njegoš Jovanović Mrkonjić"
+ ],
+ "speedTexts": [
+  {
+   "n": "Senad Marković",
+   "st": "U dostavi",
+   "sub": "#30242· 0658459657.3 m/s · pre 7s"
+  },
+  {
+   "n": "Amir Hodžić",
+   "st": "U dostavi",
+   "sub": "#30189· 062/519-315 · Motor6.1 m/s · pre 9s"
+  },
+  {
+   "n": "Aleksandar-Nemanja Petrović-Njegoš Jovanović Mrkonjić",
+   "st": "U dostavi",
+   "sub": "#30195· 065431483 · Motor4.2 m/s · pre 13s"
+  },
+  {
+   "n": "Luka Lukić",
+   "st": "U dostavi",
+   "sub": "#30259· 060/476-949 · Skuter2.9 m/s · pre 26s"
+  },
+  {
+   "n": "Kenan Džaferović",
+   "st": "U dostavi",
+   "sub": "#30244· 063 453 918 · Automobilstoji · pre 31s"
+  },
+  {
+   "n": "Željko Đurić",
+   "st": "U dostavi",
+   "sub": "#30234· 065/123-456 · Motor5.0 m/s · pre 14 min"
+  },
+  {
+   "n": "Nemanja Mrkonjić",
+   "st": "Slobodan",
+   "sub": "#30249· +387 60 195 988 · Biciklstoji · pre 16s"
+  },
+  {
+   "n": "Kenan Mujić",
+   "st": "Slobodan",
+   "sub": "#30192· +387 63 658 711 · Skuterstoji · pre 21s"
+  },
+  {
+   "n": "Amir Kurtović",
+   "st": "Slobodan",
+   "sub": "#30204· +387 64 823 661 · Biciklstoji · pre 36s"
+  },
+  {
+   "n": "Ismar Radić",
+   "st": "Slobodan",
+   "sub": "#30287· +387 63 522 589 · Automobilstoji · pre 41s"
+  },
+  {
+   "n": "Tarik Radić",
+   "st": "Slobodan",
+   "sub": "#30246· 060/501-980stoji · pre 51s"
+  },
+  {
+   "n": "Marko Marković",
+   "st": "Slobodan",
+   "sub": "#30253· 066127130 · Skuterstoji · pre 1 min"
+  },
+  {
+   "n": "Željko Marković",
+   "st": "Slobodan",
+   "sub": "#30239· +387 66 777 888 · Automobilstoji · pre 2h"
+  },
+  {
+   "n": "Milan Đurić",
+   "st": "Slobodan",
+   "sub": "#30255· 066 795 736 · Motorstoji · pre 6h"
+  },
+  {
+   "n": "Nikola Radić",
+   "st": "Offline",
+   "sub": "#30265· 064663235 · Biciklstoji · pre 12 min"
+  },
+  {
+   "n": "Jasmin Simić",
+   "st": "Offline",
+   "sub": "#30210· 066 983 154 · Motorstoji · pre 25 min"
+  },
+  {
+   "n": "Ćamil Mujić",
+   "st": "Offline",
+   "sub": "#30262· +387 64 380 581 · Motorstoji · pre 41 min"
+  },
+  {
+   "n": "Emir Radić",
+   "st": "Offline",
+   "sub": "#30268· 060 379 943 · Motorstoji · pre 55 min"
+  },
+  {
+   "n": "Amir Džaferović",
+   "st": "Offline",
+   "sub": "#30270· 062/694-787 · Automobil· suspendovanstoji · pre 3h"
+  },
+  {
+   "n": "Nemanja Bajić",
+   "st": "Offline",
+   "sub": "#30198· 064 901 963 · Skuter· suspendovanstoji · pre 5h"
+  },
+  {
+   "n": "Čedomir Vuković",
+   "st": "Offline",
+   "sub": "#30275· +387 63 432 108 · Motorstoji · pre 9h"
+  },
+  {
+   "n": "Alen Pejić",
+   "st": "Offline",
+   "sub": "#30278· 062785155stoji · pre 1 dan"
+  },
+  {
+   "n": "Damir Softić",
+   "st": "Offline",
+   "sub": "#30281· 066 930 404 · Biciklstoji · pre 3 dana"
+  }
+ ],
+ "tabStops": {
+  "stops": 32,
+  "rowStops": 0,
+  "markerFocusable": 0
+ },
+ "contrast": {
+  "count": 178,
+  "min": 1.61,
+  "below45": 71,
+  "worst": [
+   "1.61:1 \"Offline\" 10px",
+   "1.61:1 \"Offline\" 10px",
+   "1.61:1 \"Offline\" 10px",
+   "1.61:1 \"Offline\" 10px",
+   "1.61:1 \"Offline\" 10px",
+   "1.74:1 \"Slobodan\" 10px",
+   "1.74:1 \"Slobodan\" 10px",
+   "1.74:1 \"· suspendovan\" 14px"
+  ]
+ },
+ "targets": {
+  "pills": [
+   148,
+   51
+  ],
+  "headerBtns": [
+   [
+    36,
+    36
+   ],
+   [
+    124,
+    36
+   ],
+   [
+    95,
+    36
+   ]
+  ],
+  "zoom": [
+   [
+    30,
+    30
+   ],
+   [
+    30,
+    30
+   ]
+  ],
+  "rowH": [
+   360,
+   88
+  ],
+  "search": [
+   312,
+   40
+  ],
+  "markerPx": [
+   [
+    0,
+    0
+   ],
+   [
+    0,
+    0
+   ],
+   [
+    0,
+    0
+   ]
+  ]
+ },
+ "cls": {
+  "cls": 0.191,
+  "src": [
+   "DIV",
+   "v-card v-card--flat v-theme--delivery v-card--density-default elevation-0 rounded-lg v-card--variant-elevated map-card",
+   "v-card v-card--flat v-theme--delivery v-card--density-default elevation-0 rounded-lg v-card--variant-elevated sidebar-card",
+   "v-btn__underlay",
+   "v-btn__loader",
+   "v-container v-container--fluid v-locale--is-ltr pa-0 page-content"
+  ],
+  "long": 105
+ },
+ "requests": {
+  "GET /me": 1,
+  "GET /dispatcher/my-companies": 1,
+  "GET /dispatcher/outbox/status": 1,
+  "GET /dispatcher/delivery-companies/:id/cash-handovers/pending": 1,
+  "GET /dispatcher/delivery-companies/:id/courier-locations": 1
+ },
+ "console": [
+  "warning: [intlify] Not found '$vuetify.loading' key in 'sr' locale messages.",
+  "warning: [intlify] Not found '$vuetify.loading' key in 'sr' locale messages.",
+  "warning: [intlify] Not found '$vuetify.loading' key in 'sr' locale messages.",
+  "warning: [intlify] Not found '$vuetify.loading' key in 'sr' locale messages.",
+  "warning: [intlify] Not found '$vuetify.loading' key in 'sr' locale messages.",
+  "warning: [intlify] Not found '$vuetify.input.clear' key in 'sr' locale messages."
+ ],
+ "laptop": {
+  "map": {
+   "y": 160,
+   "h": 490,
+   "b": 650
+  },
+  "side": {
+   "y": 160,
+   "h": 541,
+   "b": 701
+  },
+  "list": {
+   "y": 268,
+   "h": 346,
+   "b": 614
+  },
+  "hint": {
+   "y": 630,
+   "h": 37,
+   "b": 667
+  },
+  "scrollH": 725,
+  "innerH": 720,
+  "rows": 4
+ }
+}

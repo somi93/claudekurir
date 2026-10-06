@@ -1,68 +1,107 @@
 <template>
   <GlobalPage :max-width="1200">
     <template #header>
-      <PageHeader title="Raspored i zone" back-to="/" back-label="Nazad na početnu" />
+      <PageHeader title="Raspored i zone" back-to="/" back-label="Nazad na početnu">
+        <template v-if="selectedCompany" #subtitle>
+          {{ selectedCompany.name }}<template v-if="cityName"> · {{ cityName }}</template>
+        </template>
+      </PageHeader>
     </template>
 
     <PageAlert v-if="companiesError" closable class="mb-4">
       {{ companiesError }}
     </PageAlert>
 
-    <CompanyCitySetupCard
-      v-if="selectedCompany && selectedCompany.cityId === null"
+    <div class="sp">
+      <TintAlert v-if="selectedCompany && selectedCompany.cityId === null" tone="warn" role="status" title="Firma nema grad">
+        Zone i smjene čekaju dok se grad ne postavi.
+        <template #action>
+          <button type="button" data-field="city-top" @click="cityOpen = true">Postavi grad</button>
+        </template>
+      </TintAlert>
+
+      <GlobalTabBar
+        :model-value="view.tab.value"
+        :tabs="tabs"
+        variant="pills"
+        label="Sekcije rasporeda"
+        id-base="sched"
+        panel-id="sched-panel"
+        @update:model-value="view.setTab"
+      />
+
+      <div id="sched-panel" class="sp-panel" role="tabpanel" :aria-labelledby="`sched-tab-${view.tab.value}`">
+        <div v-show="view.tab.value === 'schedule'">
+          <ScheduleTab
+            ref="schedule"
+            :data="data"
+            :view="view"
+            :zones="geoZones"
+            :zones-state="zonesState"
+            :zones-reason="zonesApi.loadReason.value"
+            :now="clock"
+            :wide="wide"
+            :company-id="companyId"
+            @go-zones="view.setTab('zones')"
+            @retry-zones="retryZones"
+          />
+        </div>
+
+        <div v-if="opened.has('now')" v-show="view.tab.value === 'now'">
+          <NowTab
+            :zones="geoZones"
+            :shifts="data.todayShifts.value"
+            :shifts-state="todayState"
+            :now="clock"
+            :live="live"
+            @ask="schedule?.openAsk($event)"
+            @open="openFromNow"
+            @retry-shifts="retryToday"
+          />
+        </div>
+
+        <div v-if="opened.has('zones')" v-show="view.tab.value === 'zones'">
+          <ZonesTab
+            :zones="geoZones"
+            :state="zonesState"
+            :error-reason="zonesApi.loadReason.value"
+            :city="cityName"
+            :city-id="selectedCompany?.cityId ?? null"
+            :company-id="companyId"
+            :saving="zonesApi.saving.value"
+            :now="clock"
+            :shifts="data.shifts.value"
+            :range="data.range.value"
+            :wide="wide"
+            :active="view.tab.value === 'zones'"
+            :save="saveZone"
+            :remove="zonesApi.remove"
+            @retry="retryZones"
+          />
+        </div>
+
+        <div v-if="opened.has('rules')" v-show="view.tab.value === 'rules'">
+          <RulesTab
+            :enforcement="enforcement"
+            :zones="geoZones"
+            :shifts="data.todayShifts.value"
+            :shifts-state="todayState"
+            :now="clock"
+            :has-city="!!selectedCompany && selectedCompany.cityId !== null"
+            :city="cityName"
+            @open-city="cityOpen = true"
+          />
+        </div>
+      </div>
+    </div>
+
+    <CitySheet
+      :open="cityOpen"
+      :company-name="selectedCompany?.name ?? ''"
       :saving="savingCity"
-      @save="onSaveCompanyCity"
+      @update:open="cityOpen = $event"
+      @save="saveCity"
     />
-
-    <GlobalTabBar v-model="activeTab" :tabs="schedulingTabs" class="mb-4" />
-
-    <v-window v-model="activeTab">
-      <!-- TAB: Zone -->
-      <v-window-item value="zones">
-        <ZonesTab
-          v-if="openedTabs.has('zones')"
-          :zones="zones"
-          :loading="zonesLoading"
-          :saving="zonesSaving"
-          :city-options="cityOptions"
-          :default-city-id="selectedCompany?.cityId ?? null"
-          :create="createZone"
-          :update="updateZone"
-          :remove="removeZone"
-          @filter="loadZones"
-        />
-      </v-window-item>
-
-      <!-- TAB: Smjene -->
-      <v-window-item value="shifts">
-        <ShiftsTab
-          v-if="openedTabs.has('shifts')"
-          :company-id="companyId"
-          :zones="zones"
-        />
-      </v-window-item>
-
-      <!-- TAB: Uživo -->
-      <v-window-item value="live">
-        <LiveCoverageBoard
-          v-if="openedTabs.has('live')"
-          :coverage="coverage"
-          :loading="coverageLoading"
-          @refresh="loadCoverage"
-        />
-      </v-window-item>
-
-      <!-- TAB: Podešavanja -->
-      <v-window-item value="settings">
-        <EnforcementPanel
-          v-if="openedTabs.has('settings')"
-          :enabled="enforcementEnabled"
-          :loading="enforcementLoading"
-          :saving="enforcementSaving"
-          @toggle="onToggleEnforcement"
-        />
-      </v-window-item>
-    </v-window>
   </GlobalPage>
 </template>
 
@@ -72,89 +111,148 @@ definePageMeta({ title: "Raspored i zone" });
 import { computed, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import GlobalPage from "~/components/common/GlobalPage.vue";
-import PageHeader from "~/components/common/PageHeader.vue";
 import PageAlert from "~/components/common/PageAlert.vue";
+import PageHeader from "~/components/common/PageHeader.vue";
+import TintAlert from "~/components/common/TintAlert.vue";
 import GlobalTabBar, { type GlobalTabBarItem } from "~/components/common/GlobalTabBar.vue";
-import CompanyCitySetupCard from "~/components/dispatcher/scheduling/CompanyCitySetupCard.vue";
+import CitySheet from "~/components/dispatcher/scheduling/CitySheet.vue";
+import NowTab from "~/components/dispatcher/scheduling/NowTab.vue";
+import RulesTab from "~/components/dispatcher/scheduling/RulesTab.vue";
+import ScheduleTab from "~/components/dispatcher/scheduling/ScheduleTab.vue";
 import ZonesTab from "~/components/dispatcher/scheduling/ZonesTab.vue";
-import ShiftsTab from "~/components/dispatcher/scheduling/ShiftsTab.vue";
-import LiveCoverageBoard from "~/components/dispatcher/scheduling/LiveCoverageBoard.vue";
-import EnforcementPanel from "~/components/dispatcher/scheduling/EnforcementPanel.vue";
-import { useDeliveryCompaniesStore } from "~/stores/deliveryCompanies";
-import { useDispatcherZones } from "~/composables/useDispatcherZones";
-import { useLiveCoverage } from "~/composables/useLiveCoverage";
 import { useAvailabilityEnforcement } from "~/composables/useAvailabilityEnforcement";
+import { useClock } from "~/composables/useClock";
+import { useDispatcherZones } from "~/composables/useDispatcherZones";
+import { useLiveNow } from "~/composables/useLiveNow";
+import { useScheduleData } from "~/composables/useScheduleData";
+import { useScheduleView, type ScheduleTabKey } from "~/composables/useScheduleView";
+import { useWide } from "~/composables/useWide";
+import { useDeliveryCompaniesStore } from "~/stores/deliveryCompanies";
+import { problemList, weekModel } from "~/utils/schedule";
+import { toGeoZone } from "~/utils/zoneGeo";
+import { toLatin } from "~/utils/toLatin";
+import type { DispatcherZonePayload } from "~/types/dispatcherZone";
 
+// Raspored i zone: četiri taba nad jednim zajedničkim stanjem - Raspored (smjene po sedmici), Sada (plan i teren),
+// Zone (spisak uz kartu) i Pravila (provjera dostupnosti, grad firme). Tab, sedmica, filteri i dan žive u adresi.
+// Zone su samo one grada firme; smjene se učitavaju u prozoru od 5 sedmica jednim pozivom.
 const companiesStore = useDeliveryCompaniesStore();
-const { companies, selectedCompanyId, selectedCompany, savingCity, errorMessage: companiesError } =
-  storeToRefs(companiesStore);
+const { selectedCompanyId, selectedCompany, savingCity, errorMessage: companiesError } = storeToRefs(companiesStore);
 companiesStore.ensureLoaded();
 const companyId = computed(() => selectedCompanyId.value);
+const cityName = computed(() => toLatin(selectedCompany.value?.cityName) || "");
 
-const onSaveCompanyCity = async (cityId: number) => {
-  await companiesStore.setCompanyCity(cityId);
+const { clock } = useClock();
+const wide = useWide();
+const view = useScheduleView(() => clock.value.date);
+
+// --- zone grada firme ---
+const zonesApi = useDispatcherZones();
+const mounted = ref(false);
+const cityId = computed(() => selectedCompany.value?.cityId ?? null);
+
+const loadZones = () => {
+  if (!mounted.value || !selectedCompany.value) return;
+  if (cityId.value == null) zonesApi.clear();
+  else void zonesApi.load(cityId.value, { silent: true });
+};
+onMounted(() => {
+  mounted.value = true;
+  loadZones();
+});
+watch([companyId, cityId], loadZones);
+
+const zonesState = computed<"loading" | "error" | "nocity" | "ok">(() => {
+  if (!selectedCompany.value) return "loading";
+  if (cityId.value == null) return "nocity";
+  if (zonesApi.loadFailed.value) return "error";
+  return zonesApi.loading.value ? "loading" : "ok";
+});
+const geoZones = computed(() => zonesApi.zones.value.map(toGeoZone));
+const retryZones = () => void zonesApi.reload();
+
+// --- smjene, uživo, provjera dostupnosti ---
+const data = useScheduleData(companyId, view.weekMon, clock);
+
+const todayState = computed<"loading" | "error" | "ok">(() =>
+  zonesState.value === "loading" || data.todayState.value === "loading"
+    ? "loading"
+    : zonesState.value === "error" || data.todayState.value === "error"
+      ? "error"
+      : "ok"
+);
+const retryToday = () => {
+  if (zonesState.value === "error") retryZones();
+  data.retry();
 };
 
-// Nema posebne "lista gradova" rute - izvodimo je iz gradova firmi za koje je
-// dispečer vezan (svaka sad nosi city_id/city_name, vidi Changelog_13_avgust).
-const cityOptions = computed(() => {
-  const seen = new Map<number, string>();
-  for (const company of companies.value) {
-    if (company.cityId !== null && !seen.has(company.cityId)) {
-      seen.set(company.cityId, toLatin(company.cityName) || `Grad #${company.cityId}`);
-    }
+const opened = ref(new Set<ScheduleTabKey>([view.tab.value]));
+watch(view.tab, (t) => {
+  opened.value = new Set([...opened.value, t]);
+});
+
+const live = useLiveNow(
+  companyId,
+  computed(() => view.tab.value === "now"),
+  { extra: data.refreshQuiet }
+);
+const enforcement = useAvailabilityEnforcement(companyId, {
+  enabled: computed(() => opened.value.has("rules")),
+});
+
+// --- tabovi ---
+const problemCount = computed(() => {
+  if (data.state.value !== "ok") return 0;
+  return problemList(
+    weekModel({ shifts: data.shifts.value, zones: geoZones.value, dates: view.dates.value, now: clock.value })
+  ).length;
+});
+
+const tabs = computed<GlobalTabBarItem<ScheduleTabKey>[]>(() => [
+  {
+    value: "schedule",
+    label: "Raspored",
+    badge: problemCount.value > 0 ? problemCount.value : undefined,
+    badgeColor: "#b42318",
+    badgeSr: problemCount.value > 0 ? `${problemCount.value} smjena ispod minimuma` : undefined,
+  },
+  { value: "now", label: "Sada" },
+  { value: "zones", label: "Zone", badge: zonesState.value === "ok" ? geoZones.value.length : undefined },
+  { value: "rules", label: "Pravila" },
+]);
+
+const schedule = ref<InstanceType<typeof ScheduleTab> | null>(null);
+
+// "Otvori smjenu" iz kartice zone: list se otvara preko taba "Sada" ako je smjena u učitanom prozoru, inače se
+// prikaz rasporeda pomjera na taj dan (smjena iz drugog prozora se ne može mijenjati odavde).
+const openFromNow = (id: number) => {
+  if (data.shifts.value.some((s) => s.id === id)) {
+    schedule.value?.openShift(id);
+    return;
   }
-  return Array.from(seen, ([value, title]) => ({ value, title }));
-});
+  const s = data.todayShifts.value.find((x) => x.id === id);
+  if (s) view.goTo(s.date, !wide.value);
+  view.setTab("schedule");
+};
 
-type SchedulingTab = "zones" | "shifts" | "live" | "settings";
+const saveZone = (id: number | null, payload: DispatcherZonePayload) =>
+  id == null ? zonesApi.create(payload) : zonesApi.update(id, payload);
 
-const schedulingTabs: GlobalTabBarItem<SchedulingTab>[] = [
-  { value: "zones", label: "Zone", icon: "mdi-map-marker-radius-outline" },
-  { value: "shifts", label: "Smjene", icon: "mdi-calendar-clock-outline" },
-  { value: "live", label: "Uživo", icon: "mdi-radar" },
-  { value: "settings", label: "Podešavanja", icon: "mdi-toggle-switch-outline" },
-];
-
-const activeTab = ref<SchedulingTab>("zones");
-
-// Lazy tabovi: panel + njegovi pozivi idu tek kad se tab prvi put otvori. Set
-// pamti otvarane tabove pa povratak na već viđen tab ne remount-uje/refetch-uje.
-const openedTabs = ref(new Set<SchedulingTab>([activeTab.value]));
-watch(activeTab, (tab) => openedTabs.value.add(tab));
-const settingsOpen = computed(() => openedTabs.value.has("settings"));
-
-const {
-  zones,
-  loading: zonesLoading,
-  saving: zonesSaving,
-  load: loadZones,
-  create: createZone,
-  update: updateZone,
-  remove: removeZone,
-} = useDispatcherZones();
-
-// --- Uživo ---
-const { coverage, loading: coverageLoading, load: loadCoverage } = useLiveCoverage(companyId);
-
-// --- Podešavanja ---
-const {
-  enabled: enforcementEnabled,
-  loading: enforcementLoading,
-  saving: enforcementSaving,
-  setEnabled,
-} = useAvailabilityEnforcement(companyId, { enabled: settingsOpen });
-
-const onToggleEnforcement = (value: boolean) => setEnabled(value);
-
-onMounted(loadZones);
-
-// Prekidač za promenu firme brine useAvailabilityEnforcement sam (učitava
-// stvarno stanje sa GET-a) - ovde ostaje samo pokrivenost uživo.
-watch(companyId, () => {
-  if (activeTab.value === "live") loadCoverage();
-});
-watch(activeTab, (tab) => {
-  if (tab === "live") loadCoverage();
-});
+// --- grad firme ---
+const cityOpen = ref(false);
+const saveCity = async (id: number) => {
+  if (await companiesStore.setCompanyCity(id)) cityOpen.value = false;
+};
 </script>
+
+<style scoped>
+.sp {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.sp-panel {
+  min-width: 0;
+}
+</style>

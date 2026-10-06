@@ -1,0 +1,125 @@
+<!-- ============================================ ANALIZA -->
+<section class="sec" id="analiza">
+  <div class="sec-head">
+    <span class="eyebrow">Analiza</span>
+    <h2>Šta stranica danas radi, na stvarnim snimcima</h2>
+    <p class="small">Snimci su iz aplikacije (grana <span class="mono">master</span>, <span class="mono">nuxt dev</span>, računar 1440×900 i telefon 390×844 uz skaliranje 2). API je lažan: oblici tačno po <span class="mono">courierLocationService.ts</span>, <span class="mono">types/courier.ts</span> i <span class="mono">models/*</span>, vrijednosti izmišljene (firma 24 u Banjoj Luci, __M_B_world__ kurira od kojih __M_B_notShown__ nemaju poziciju, __M_A_deliv__ u dostavi, __M_A_free__ slobodnih od kojih __M_A_lostFree__ bez svježeg signala, __M_A_orders__ narudžbi, 7 zona od kojih 6 imaju krug na karti; <b>isti podaci kao u prototipu</b>). Brojevi na slikama odgovaraju spisku ispod slike. Brojevi koji zavise od količine podataka važe za te probne podatke, a ponašanje koje ih izaziva je u kodu. <b>Šta backend zaista vraća (izostavlja li <span class="mono">courier-locations</span> kurire bez pozicije, koliko dugo ostaje „online“ kurir kojem se aplikacija ugasila, nose li redovi narudžbi koordinate) nije u repou potvrđeno i u lažnom API-ju je moja pretpostavka;</b> takvi nalazi vode na pitanja B1 do B8.</p>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Šta stranica radi</span><h3>Jedan poziv, jedna karta, jedan spisak</h3></div>
+  <div class="cols-3">
+    <div class="card"><h3>Izvor</h3><p>Jedan poziv, <span class="mono">GET …/courier-locations</span>, svakih 15 s, i kad je tab skriven (<span class="mono">setInterval</span> u <span class="mono">pages/dispatcher/index.vue</span>, bez provjere vidljivosti). Stanje dolazi sa servera; starost zapisa se koristi samo kad status nije prepoznat (<span class="mono">utils/courierStatus.ts</span>).</p></div>
+    <div class="card"><h3>Dijelovi</h3><p><span class="mono">CourierStatusFilter</span> (četiri pilule), <span class="mono">CourierMap</span> (Leaflet, jedan <span class="mono">LCircleMarker</span> po kuriru), <span class="mono">CourierSidebar</span> sa <span class="mono">CourierListItem</span> i <span class="mono">SelectedCourierCard</span>. Veza <span class="mono">?c=ID</span> sa stranice Kuriri bira kurira i vodi kartu do njega.</p></div>
+    <div class="card"><h3>Šta ne zna</h3><p>Nijednu narudžbu (ni koju vozi kurir, ni koja čeka), gotovinu i limit, zone, poruke, ni ko je u kojoj zoni. U kartici je jedino <span class="mono">tel:</span> veza i „Centriraj na mapi“. Za sve ostalo dispečer otvara Dodelu narudžbi, Kuriri ili Finansije.</p></div>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Cijela stranica</span><h3>Karta ne pokazuje kurire, brojke ne kažu istinu, a greška liči na prazninu</h3></div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Nalaz</th><th>Kako je izmjereno</th><th>Šta to znači dispečeru</th></tr></thead>
+    <tbody>
+      <tr><td><b>Karta počinje na Beogradu</b></td><td data-l="Kako je izmjereno">Centar karte pri otvaranju: 44,8125; 20,4612, zum __M_B_zoom__. Kurira u vidnom polju: __M_B_visible__ od __M_B_total__; centar je <b>__M_B_openKm__ km</b> od centra kurira. U kodu: <span class="mono">defaultCenter = [44.8125, 20.4612]</span> u <span class="mono">index.vue</span>, a <span class="mono">CourierMap</span> čita <span class="mono">props.mapCenter</span> jednom (<span class="mono">initialCenter = ref(props.mapCenter)</span>) u trenutku kad je spisak još prazan; izračunati centar kurira (<span class="mono">mapCenter</span>) nikad ne stigne do karte. Zum je stalno 12. Kurira se vidi tek kad se klikne red u spisku (karta odleti na zum 15) ili kad se karta povuče 250 km.</td><td data-l="Značenje">Prvi pogled je prazna karta druge države. Dispečer ne zna da li nema kurira ili je karta pogrešna, i svaki put pri otvaranju mora da je traži.</td></tr>
+      <tr><td><b>Brojke nisu cijela flota</b></td><td data-l="Kako je izmjereno">„Ukupno“ __M_B_total__, a firma ima __M_B_world__ kurira: <span class="mono">courier-locations</span> se čita kao spisak onih sa pozicijom (dokument 05.10, stavka 8: front kurire koje nema u odgovoru na stranici Kuriri piše kao „Bez signala“). Stanje je ono što server kaže: „Slobodni 8“ uključuje kurire čiji je zadnji signal star 2 h i 6 h, „U dostavi 6“ uključuje kurira čiji je signal star 14 min (čija narudžba kasni 11 min). Jedini znak je tekst „pre 2h“ u redu i to što je red blijeđi (<span class="mono">opacity: .6</span>) kad je signal stariji od sat vremena; kurir u dostavi koji je nestao prije 14 min nema nikakav znak.</td><td data-l="Značenje">Dispečer broji osam slobodnih kurira, a šest se javlja. Kurir u dostavi koji je nestao izgleda isto kao onaj koji vozi.</td></tr>
+      <tr><td><b>Uzrok „duhova“ je na kurirskoj strani</b></td><td data-l="Kako je izmjereno">Pročitano iz koda, ne mjereno. <span class="mono">useCourierLocation.ts</span> šalje „online“ ili „delivering“ sa svakim GPS očitanjem, a „offline“ samo kad se praćenje ugasi u aplikaciji (<span class="mono">stopLocationStreaming</span>, pri odlasku sa ekrana ili isključivanju). U aplikaciji nema rukovaoca za <span class="mono">pagehide</span> ni <span class="mono">beforeunload</span>, ni <span class="mono">sendBeacon</span> ni <span class="mono">keepalive</span> (pretraga po <span class="mono">app/</span>: nula pogodaka), pa zatvaranje taba ili gašenje aplikacije ne šalje ništa. Komentar u <span class="mono">courierStatus.ts</span> kaže da server šalje status i za zapise od prije par dana („ručno prijavljen kao online“).</td><td data-l="Značenje">Kurir koji ugasi telefon ostaje „Slobodan“ na mapi sve dok neko ne pogleda koliko je zapis star. Ispravka je na dva mjesta: server (B1) i kurirska aplikacija.</td></tr>
+      <tr><td><b>Pad liči na prazninu</b></td><td data-l="Kako je izmjereno">Lažni server vraća 500 pri prvom učitavanju: pilule <b>__M_B_failPills__</b>, spisak „Nema kurira u ovoj kategoriji.“, a poruka „Ne mogu da učitam lokacije dostavljača.“ je crvena traka (bijelo na #ef4444, računato 3,76 : 1) koja leži preko dugmeta „+“ na karti. Isti tekst o praznom spisku pokazuju firma bez ijedne pozicije i korisnik koji nema nijednu firmu (nijedan zahtjev osim <span class="mono">my-companies</span>). Kad osvježavanje padne poslije uspjeha, ista traka stoji, pilule i spisak ostaju bez oznake starosti, a „Poslednje osveženo“ stoji na starom vremenu. Poruka nema radnju „Pokušaj ponovo“ (dugme „Osveži“ u zaglavlju radi isto, ali se ne spominje).</td><td data-l="Značenje">Pad izgleda kao „nema kurira“, a to je tvrdnja koja može da navede dispečera da ode na drugi posao. 16.09. su tri izvora vratila 500 i mapa je bila nefunkcionalna (tracker).</td></tr>
+      <tr><td><b>Marker ne kaže ko je</b></td><td data-l="Kako je izmjereno">Svi markeri su jedan krug: __M_B_markerPx__ px (izabrani __M_B_selPx__ px), bez imena, inicijala i smjera, a boja je jedina razlika. Nisu fokusabilni (0 od __M_B_total__ u Tab redoslijedu). Klik otvara popup sa imenom, telefonom (običan tekst, ne veza), vozilom, statusom, brzinom i starošću.</td><td data-l="Značenje">Ko je ko vidi se tek poslije klika, jedan po jedan, a krug od 20 px je ispod najmanje mete od 24 px.</td></tr>
+      <tr><td><b>Osvježavanje poništava ono što dispečer gleda</b></td><td data-l="Kako je izmjereno">Ključ markera je <span class="mono">courierId-updated_at</span>: svaki kurir koji se kreće dobija novi ključ pri svakom krugu, pa Vue uništi i napravi marker iznova (<b>__M_B_recreated__ od __M_B_markersAll__</b> pri jednom osvježavanju). Otvoren popup kurira u dostavi se zatvorio <b>__M_B_popupMs__ s</b> poslije otvaranja, kad je stigao sljedeći krug. Interval je 15 s (zahtjevi na __M_B_pollFirst__. i __M_B_pollSecond__. sekundi).</td><td data-l="Značenje">Popup se ne stigne pročitati, a izbor trepće. Kad su svi kuriri u pokretu, ništa na karti ne ostaje na miru duže od 15 s.</td></tr>
+      <tr><td><b>Popup i kartica se ne slažu</b></td><td data-l="Kako je izmjereno">Isti kurir bez brzine (server šalje <span class="mono">speed: null</span>): popup „Brzina: n/a“, kartica „stoji“. <span class="mono">speedLabel</span> piše „stoji“ i za <span class="mono">null</span>, i za offline kurira. Brzina je u m/s („7.3 m/s“), a dispečer misli u km/h.</td><td data-l="Značenje">Kurir u dostavi kojem uređaj nije javio brzinu piše „stoji“. Nepoznato nije isto što i staje.</td></tr>
+      <tr><td><b>Spisak i kartica</b></td><td data-l="Kako je izmjereno">Avatar sadrži petocifreni ID (tekst __M_B_avatarW__ px u krugu od __M_B_avatarBox__ px, dodiruje rub). Čip „U dostavi“ je odsječen kod dugog imena (1 od __M_B_total__). Lista je __M_B_listH__ px visoka: __M_B_rowsFull__ puna reda od po __M_B_rowH__ px. Kartica izabranog kurira se dodaje <b>ispod</b> liste (__M_B_cardH__ px), pa bočni okvir poraste, a stranica sa __M_B_vh__ na __M_B_docAfterSel__ px; na 1280×720 stranica je __M_B_laptopDoc__ px i već ima klizač.</td><td data-l="Značenje">Ko je ko ne vidi se u redu, a izbor pomjera raspored. Na prijenosnom računaru lista pokazuje __M_B_laptopRows__ kurira.</td></tr>
+      <tr><td><b>Raspored ne koristi ekran</b></td><td data-l="Kako je izmjereno">Sadržaj završava na __M_B_mapEnd__ od __M_B_vh__ px. Karta je __M_B_mapW__×__M_B_mapH__ px (<span class="mono">68vh</span>), pa je na 1280×720 samo __M_B_laptopMapH__ px visoka. <span class="mono">GlobalPage</span> je ograničen na 1480 px.</td><td data-l="Značenje">Ploha koja je glavni dio stranice je manja od praznine ispod nje.</td></tr>
+      <tr><td><b>Kontrast i mete</b></td><td data-l="Kako je izmjereno">Od __M_B_textsC__ tekstova ispod 4,5 : 1 je njih __M_B_badC__; najslabiji su „Offline“ (<b>__M_B_minC__ : 1</b>, 10 px), „Slobodan“ (1,74 : 1, 10 px) i „suspendovan“ (1,74 : 1). Uzroci su boje stanja kao tekst na vlastitoj bledoj podlozi i <span class="mono">opacity: .6</span> na cijelom redu. Mete: dugmad zaglavlja __M_B_hdrBtn__ px, zum kontrole __M_B_zoomBtn__ px, marker __M_B_markerPx__ px.</td><td data-l="Značenje">Najvažnije stanje, offline i bez signala, je najslabije čitljivo.</td></tr>
+      <tr><td><b>Pretraga</b></td><td data-l="Kako je izmjereno">Petnaest realnih upita nad istim kuririma: stara pretraga (<span class="mono">includes</span> nad ID-om, imenom i telefonom) nađe __M_B_searchFound__ („hodžić“, „30189“). Ne nalazi: „hodzic“, „amir hodzic“, „hodzic amir“, „zeljko djuric“, „djuric“, „Жељко“, „zeljko“, „065123456“, „065 123 456“, „+38765123456“, „65123456“, „#30189“ i korisničko ime.</td><td data-l="Značenje">Kurir se ne nalazi kad se kuca onako kako se kuca. Stranica Kuriri već koristi pretragu koja nalazi svih petnaest.</td></tr>
+      <tr><td><b>Osvježava i kad niko ne gleda</b></td><td data-l="Kako je izmjereno">Sa tabom označenim kao skriven (<span class="mono">document.hidden</span> = true) stigla su __M_B_hidden36__ zahtjeva u 36 s; u 8 sati skrivenog taba to je oko __M_B_hidden8h__ zahtjeva. Dugme „Osveži“ pokaže spinner pri svakom automatskom krugu (__M_B_busy__ s u 36 s uz odgovor od 0,7 s).</td><td data-l="Značenje">Nepotreban saobraćaj, a dugme treperi bez radnje dispečera.</td></tr>
+      <tr><td><b>Telefon</b></td><td data-l="Kako je izmjereno">Traka i zaglavlje __M_B_phoneBars__ px, pilule __M_B_pillsPhone__ px (dvije po dvije), mapa __M_B_phoneMapH__ px, spisak počinje ispod prvog ekrana: <b>__M_B_phoneRows0__ kurira</b> u prvom ekranu. Poslije dodira na drugi red mapa je vidljiva __M_B_phoneMapPct__ %, a kartica kurira __M_B_phoneCardPct__ %. Naslov „Kuriri uživo“ se lomi u dva reda. Stranica je __M_B_phoneDoc__ px.</td><td data-l="Značenje">Dodir na red pomjera kartu koju ne vidiš, a kartica je ispod preloma.</td></tr>
+      <tr><td><b>Veza ?c=ID</b></td><td data-l="Kako je izmjereno">Za kurira sa pozicijom (<span class="mono">?c=30189</span>) karta odleti na zum 15 i kurir je izabran. Za kurira bez pozicije (<span class="mono">?c=30201</span>) i za nepoznat ID: ništa, karta ostaje na Beogradu (zum __M_B_linkNoPos__), bez poruke. Dugme „Na mapi“ na stranici Kuriri je onemogućeno kad nema pozicije, pa to ne uđe u uobičajen tok.</td><td data-l="Značenje">Radi tamo gdje je važno; ovo je rubni slučaj (pozicija nestane između dva osvježavanja).</td></tr>
+      <tr><td><b>Skala</b></td><td data-l="Kako je izmjereno">500 kurira (451 sa pozicijom): __M_B_nodes500__ DOM elemenata (26 kurira: __M_B_nodes26__), spisak ograničen na 100 redova uz „Prikazano prvih 100 od 451“, __M_B_markers500__ markera, bez klastera. Kucanje tri slova u pretragu uz procesor 4× sporiji: __M_B_type4_26__ / __M_B_type4_150__ / __M_B_type4_500__ ms (26 / 150 / 500 kurira).</td><td data-l="Značenje">Bez grešaka, ali na velikoj firmi (u kodu je komentar da Glovo ima preko 500) karta je gomila krugova.</td></tr>
+      <tr><td><b>Konzola</b></td><td data-l="Kako je izmjereno">Čista, osim poznatih upozorenja <span class="mono">$vuetify.loading</span> i <span class="mono">$vuetify.input.clear</span> (nedostaju prevodi ugrađenih komponenti) i poruke o registraciji push tokena (nema servisnog radnika u ovom okruženju).</td><td data-l="Značenje">Nema skrivenih padova; problemi su u ponašanju.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Otvaranje, računar</span><h3>Karta je na pogrešnom mjestu, brojke ne broje cijelu flotu, a ispod sadržaja ima praznine</h3></div>
+  <div class="shots shots--wide">
+    <figure class="shot" style="grid-column:1/-1;max-width:1176px">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-open__" alt="Računar: stranica Kuriri uživo pri otvaranju, karta pokazuje Beograd, pločica Ukupno 23, spisak kurira sa četiri reda" width="1176" height="735"></div>
+      <figcaption><b>Kuriri uživo, 1440×900, pri otvaranju</b><span>Mapa je na Beogradu, kuriri su u Banjoj Luci.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Karta na Beogradu.</b> Centar 44,8125; 20,4612 na zumu 12; nijedan od __M_B_total__ markera nije u vidnom polju, a najbliži je __M_B_openKm__ km daleko. Ni jedan znak ne kaže da kuriri postoje.</span></li>
+        <li data-n="2"><span><b>„Ukupno __M_B_total__“</b>, firma ima __M_B_world__. „Slobodni 8“ i „U dostavi 6“ broje i kurire koji se nisu javili.</span></li>
+        <li data-n="3"><span><b>Spisak: __M_B_rowsFull__ puna reda</b> (__M_B_listH__ px), pa red izrezan na dnu. Svaki red je __M_B_rowH__ px; avatar nosi ID umjesto inicijala.</span></li>
+        <li data-n="4"><span><b>Sadržaj završava na __M_B_mapEnd__ px</b> od __M_B_vh__; ispod je prazan prostor. Karta je __M_B_mapW__ px široka od 1176 px na raspolaganju.</span></li>
+        <li data-n="5"><span><b>Dugmad zaglavlja su __M_B_hdrBtn__ px visoka</b>, zum kontrole __M_B_zoomBtn__ px.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-selected__" alt="Računar: izabran Amir Hodžić, karta je odletjela do njega, kartica kurira je ispod spiska" width="1176" height="735"></div>
+      <figcaption><b>Poslije izbora kurira</b><span>Karta odleti na zum 15, kartica se pojavi ispod liste.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Izabran je veći krug (__M_B_selPx__ px)</b>, ostali su isti __M_B_markerPx__ px krugovi bez imena. Ko su ostali, vidi se tek klikom.</span></li>
+        <li data-n="2"><span><b>Kartica je ispod liste</b> (__M_B_cardH__ px) i gura okvir i stranicu na __M_B_docAfterSel__ px; na 900 px visine stranica dobija klizač.</span></li>
+        <li data-n="3"><span><b>ID u avataru</b> i čip „U dostavi“ na svakom redu, bez vozila, bez dostave i bez gotovine.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-popup__" alt="Računar: popup kurira na karti piše Brzina n/a, a kartica ispod liste piše stoji" width="1176" height="735"></div>
+      <figcaption><b>Popup i kartica za istog kurira</b><span>Offline kurir, server nije poslao brzinu.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Popup:</b> „Brzina: n/a“, telefon kao običan tekst, bez dugmeta i bez poruke. Zatvara se na sljedećem osvježavanju ako je kurir u pokretu.</span></li>
+        <li data-n="2"><span><b>Kartica:</b> „stoji“ za istog kurira. Kod kurira u dostavi bez brzine to je tvrdnja koja ne mora biti tačna.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-fail__" alt="Računar: prvo učitavanje je palo, sve pilule pokazuju nulu, spisak piše Nema kurira u ovoj kategoriji, a crvena traka leži preko dugmeta plus" width="1176" height="735"></div>
+      <figcaption><b>Pad prvog učitavanja</b><span>Server vraća 500 za <span class="mono">courier-locations</span>.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>0 / 0 / 0 / 0.</b> Brojke tvrde da firma nema kurira.</span></li>
+        <li data-n="2"><span><b>„Nema kurira u ovoj kategoriji.“</b> Isti tekst vidi i firma sa kuririma bez pozicija i korisnik bez firme.</span></li>
+        <li data-n="3"><span><b>Poruka o padu</b> je crvena traka preko dugmeta „+“; nema „Pokušaj ponovo“, a karta je i dalje na Beogradu.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-rows__" alt="Uvećan isječak spiska: petocifreni ID u avataru, čip U dost odsječen kod dugog imena, brzina u metrima u sekundi" width="1176" height="1117"></div>
+      <figcaption><b>Isječak spiska, uvećano</b><span>Tri reda, jedan izabran.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>ID u krugu od 40 px.</b> Tekst od __M_B_avatarW__ px dodiruje rub; bez inicijala i bez vozila.</span></li>
+        <li data-n="2"><span><b>Čip „U dost“.</b> Dugo ime potiskuje čip pa se odsiječe.</span></li>
+        <li data-n="3"><span><b>„7.3 m/s“.</b> Jedinica koju dispečer ne koristi; „pre 12s“ uz to je jedina oznaka svježine.</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Telefon</span><h3>Prvi ekran je karta druge države, a dodir na red pomjera kartu koja se ne vidi</h3></div>
+  <div class="shots">
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_p-open__" alt="Telefon: prvi ekran, zaglavlje, četiri pilule dvije po dvije, karta sa Beogradom, spisak počinje ispod ekrana" width="585" height="1266"></div>
+      <figcaption><b>Telefon, otvaranje</b><span>390×844, skaliranje 2.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Karta je Beograd</b> i zauzima __M_B_phoneMapH__ px.</span></li>
+        <li data-n="2"><span><b>Spisak počinje ispod prvog ekrana</b> (__M_B_phoneRows0__ kurira u vidu); stranica je __M_B_phoneDoc__ px.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_p-after__" alt="Telefon: poslije dodira na red, karta je skoro cijela izvan ekrana, kartica kurira odsječena pri dnu" width="585" height="1266"></div>
+      <figcaption><b>Telefon, poslije dodira na red</b><span>Karta je poletjela do kurira, ali je skrolovana.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Karta: samo __M_B_phoneMapPct__ % u vidu.</b> Marker izabranog kurira se ne vidi.</span></li>
+        <li data-n="2"><span><b>Kartica kurira: __M_B_phoneCardPct__ % u vidu</b>, odsječena pri dnu ekrana.</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Šta radi dobro i ostaje</span><h3>Ne diram ono što već radi</h3></div>
+  <div class="cols-3">
+    <div class="card"><h3>Lista je jedno zaustavljanje</h3><p>Tab, strelice i Enter na spisku rade (izmjereno: Tab iz pretrage, strelica dolje, Enter bira kurira). <span class="mono">v-list</span> je jedno zaustavljanje; novi spisak koristi isti obrazac (roving tabindex).</p></div>
+    <div class="card"><h3>Boje i nazivi stanja</h3><p>U dostavi plavo, Slobodan zeleno, Offline sivo, isti nazivi kao na stranici Kuriri. Ostaju; mijenja se samo boja teksta (tamnija) i dodaje „Bez signala“.</p></div>
+    <div class="card"><h3>Promjena firme, skeleton, ograničenje</h3><p>Pri promjeni firme brišu se izbor i spisak pa se čitaju iznova; pri prvom učitavanju stoji natpis i skeleton; veza <span class="mono">?c=ID</span> radi; spisak je ograničen na 100 redova. Sve ostaje, a novi spisak daje isto kroz „Prikaži još“.</p></div>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Šta dispečer traži</span><h3>Pet pitanja koja ova stranica treba da zna da odgovori</h3></div>
+  <p class="small">Dokument o procesu (<span class="mono">docs/2026/09/11_09_2026_proces-narudzba-do-dostave.md</span>, korak 6) kaže samo ovo: dispečer ili odmah dodijeli kurira ili otvori rundu ponude, a backend sam ide na sljedećeg kurira dok neko ne prihvati. Pet pitanja ispod su moj zaključak o tome šta dispečer na ovoj stranici mora brzo da vidi; nisu izmjerena i nisu provjerena sa dispečerima. Predlog ih redom pokriva.</p>
+  <div class="cols-3">
+    <div class="card"><h3>Gdje je ko?</h3><p>Cijeli teren u jednom pogledu, sa imenima, bez kopanja po karti druge države.</p></div>
+    <div class="card"><h3>Ko je slobodan i javlja se?</h3><p>Kurir označen kao slobodan, a bez signala već satima, možda nije dostupan. Treba pokazati i stanje (server) i svježinu signala.</p></div>
+    <div class="card"><h3>Šta kasni ili čeka?</h3><p>Narudžba koja čeka kurira, restoran koji ne reaguje, dostava koja kasni; sa brojem restorana ili kurira za poziv.</p></div>
+    <div class="card"><h3>Pozovi ili piši</h3><p>Poziv kuriru ili restoranu i kratka poruka („Gdje si?“) bez napuštanja stranice.</p></div>
+    <div class="card"><h3>Provjeri prije odluke</h3><p>Šta kurir nosi, koliko duguje i koliko je blizu limita, u kojoj je zoni i kojim vozilom vozi.</p></div>
+  </div>
+</section>

@@ -94,6 +94,10 @@ const resolvedIcon = computed(() => props.icon ?? ICONS[props.tone]);
 }
 
 .tint-action :deep(button) {
+  /* meta od 44 px: višak visine se uvlači negativnom marginom, pa razmak oko poruke ostaje isti */
+  min-height: 44px;
+  margin: -6px 0;
+  text-align: left;
   padding: 4px 0;
   border: 0;
   background: none;

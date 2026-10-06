@@ -4,7 +4,7 @@
     :open="open"
     :title="receipt ? 'Evidentiraj uplatu' : 'Isplati zaradu'"
     :subtitle="subtitle"
-    :dirty="Boolean(draft.amount.trim()) && draft.amount !== initialAmount"
+    :dirty="(Boolean(draft.amount.trim()) && draft.amount !== initialAmount) || Boolean(draft.note.trim())"
     focus="amount"
     @update:open="emit('update:open', $event)"
     @submit="submit"
@@ -28,21 +28,44 @@
       </button>
     </div>
 
-    <SheetField
-      v-if="receipt"
-      v-model="draft.note"
-      name="note"
-      label="Napomena"
-      optional
-      @update:model-value="edited"
-    />
     <ChoiceGroup
-      v-else
+      v-if="!receipt"
       :model-value="draft.method"
       :options="METHODS"
       label="Način isplate"
       variant="pills"
       @update:model-value="pickMethod(String($event))"
+    />
+
+    <template v-if="!receipt && draft.method === 'bankovni transfer'">
+      <div v-if="bankRows.length" class="cs-kv">
+        <div v-for="row in bankRows" :key="row.key">
+          <span>
+            <small>{{ row.label }}</small>
+            <b>{{ row.value }}</b>
+          </span>
+          <button
+            type="button"
+            class="cs-cp"
+            :data-sheet="`copy-${row.key}`"
+            :aria-label="`Kopiraj ${row.label.toLowerCase()}`"
+            @click="copy(row)"
+          >
+            <v-icon :icon="copied === row.key ? 'mdi-check' : 'mdi-content-copy'" size="20" />
+          </button>
+        </div>
+      </div>
+      <TintAlert v-else tone="warn" role="status" title="Račun kurira nije upisan">
+        Upiši ga u Kuriri (Ugovor i isplata) ili izaberi gotovinu. Isplata se može evidentirati i bez računa.
+      </TintAlert>
+    </template>
+
+    <SheetField
+      v-model="draft.note"
+      name="note"
+      label="Napomena"
+      optional
+      @update:model-value="edited"
     />
 
     <TintAlert v-if="error" tone="bad" role="alert" :title="receipt ? 'Ne mogu da evidentiram' : 'Ne mogu da isplatim'">
@@ -68,7 +91,9 @@ import TintAlert from "~/components/common/TintAlert.vue";
 import { useSheetDraft } from "~/composables/useSheetDraft";
 import { useSheetSave } from "~/composables/useSheetSave";
 import type { ActionResult } from "~/composables/useCourierRoster";
-import { checkAmount, maskAmount, type RosterCourier } from "~/utils/courierRoster";
+import type { CashParty } from "~/utils/cashDesk";
+import { copyText } from "~/utils/clipboard";
+import { checkAmount, maskAmount } from "~/utils/courierRoster";
 import { formatAmount } from "~/utils/currency";
 import type { FieldMsg } from "~/utils/profileForm";
 
@@ -78,11 +103,11 @@ import type { FieldMsg } from "~/utils/profileForm";
 // sve pokušaje (backend na isti ključ vraća istu transakciju, pa dupli dodir ne isplaćuje dvaput).
 const props = defineProps<{
   open: boolean;
-  courier: RosterCourier;
+  courier: CashParty;
   mode: "receipt" | "payout";
   currency: string;
   receiptSave: (amount: number, note: string) => Promise<ActionResult>;
-  payoutSave: (amount: number, method: string, key: string) => Promise<ActionResult>;
+  payoutSave: (amount: number, method: string, key: string, note: string) => Promise<ActionResult>;
 }>();
 
 const emit = defineEmits<{ "update:open": [value: boolean] }>();
@@ -125,6 +150,22 @@ const serverMessage = computed<FieldMsg | null>(() =>
   serverFields.value.amount ? { tone: "bad", text: serverFields.value.amount } : null
 );
 
+// Žiro račun i IBAN kurira uz bankovni transfer: dispečer ih kopira u banku.
+const bankRows = computed(() =>
+  [
+    props.courier.bank ? { key: "bank", label: "Žiro račun", value: props.courier.bank } : null,
+    props.courier.iban ? { key: "iban", label: "IBAN", value: props.courier.iban } : null,
+  ].filter((r): r is { key: string; label: string; value: string } => r !== null)
+);
+const copied = ref<string | null>(null);
+const copy = async (row: { key: string; value: string }) => {
+  if (!(await copyText(row.value))) return;
+  copied.value = row.key;
+  setTimeout(() => {
+    if (copied.value === row.key) copied.value = null;
+  }, 1600);
+};
+
 const fill = () => {
   draft.amount = initialAmount.value;
   edited();
@@ -146,7 +187,7 @@ const submit = useSheetSave({
   run: () =>
     receipt.value
       ? props.receiptSave(amountCheck.value.amount, draft.note)
-      : props.payoutSave(amountCheck.value.amount, draft.method, idempotencyKey),
+      : props.payoutSave(amountCheck.value.amount, draft.method, idempotencyKey, draft.note),
   success: () => (receipt.value ? "Predaja gotovine je evidentirana." : "Zarada je isplaćena."),
 });
 </script>
@@ -180,6 +221,61 @@ const submit = useSheetSave({
   cursor: pointer;
 }
 
+.cs-kv {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid #eceef2;
+  border-radius: 14px;
+}
+
+.cs-kv > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 56px;
+  padding: 6px 4px 6px 14px;
+}
+
+.cs-kv > div + div {
+  border-top: 1px solid #eceef2;
+}
+
+.cs-kv span {
+  display: grid;
+  min-width: 0;
+}
+
+.cs-kv small {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #5b6676;
+}
+
+.cs-kv b {
+  font-size: 0.9rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.cs-cp {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: #5b6676;
+  cursor: pointer;
+}
+
+.cs-cp:active {
+  background: #f1f4f9;
+}
+
+.cs-cp:focus-visible,
 .cs-chip:focus-visible {
   outline: 3px solid #2f6fed;
   outline-offset: 2px;

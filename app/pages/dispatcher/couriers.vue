@@ -230,7 +230,7 @@
         :mode="active?.kind === 'isplata' ? 'payout' : 'receipt'"
         :currency="roster.currency.value"
         :receipt-save="(amount, note) => roster.receipt(sheetCourier!.id, amount, note)"
-        :payout-save="(amount, method, key) => roster.payout(sheetCourier!.id, amount, method, key)"
+        :payout-save="(amount, method, key, note) => roster.payout(sheetCourier!.id, amount, method, key, note)"
         @update:open="closeSheet(active?.kind ?? 'uplata', $event)"
       />
     </template>

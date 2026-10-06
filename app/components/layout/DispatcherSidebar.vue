@@ -34,7 +34,14 @@
         :title="item.title"
         :subtitle="item.subtitle"
         rounded="lg"
-      />
+      >
+        <template v-if="item.to === FINANCE_PATH && cashBadge > 0" #append>
+          <span class="nav-badge" data-nav-badge="finance" aria-hidden="true">{{ cashBadge }}</span>
+          <span class="nav-badge-sr">
+            {{ cashBadge }} {{ pluralizeSr(cashBadge, "predaja čeka", "predaje čekaju", "predaja čeka") }} potvrdu
+          </span>
+        </template>
+      </v-list-item>
     </v-list>
 
     <template #append>
@@ -75,9 +82,11 @@ import { storeToRefs } from "pinia";
 import { useRoute } from "nuxt/app";
 import { useDisplay } from "vuetify";
 import { interceptCompanyChange } from "~/composables/useSheetGuard";
+import { useCashDeskStore } from "~/stores/cashDesk";
 import { useDeliveryCompaniesStore } from "~/stores/deliveryCompanies";
 import { useSessionStore } from "~/stores/session";
-import { dispatcherNavItems } from "~/utils/navigation";
+import { pluralizeSr } from "~/utils/datetime";
+import { FINANCE_PATH, dispatcherNavItems } from "~/utils/navigation";
 import type { AccountKind } from "~/types/user";
 
 defineProps<{
@@ -105,6 +114,8 @@ watch(
 );
 
 const companiesStore = useDeliveryCompaniesStore();
+// Broj predaja gotovine koje čekaju potvrdu (značka na "Finansije"); nema ga dok se ne zna.
+const { badge: cashBadge } = storeToRefs(useCashDeskStore());
 onMounted(() => companiesStore.ensureLoaded());
 
 // Stranica sa neosnimljenim unosom (Firma) može da zaustavi promjenu firme i pita; inače se firma
@@ -164,6 +175,29 @@ const navItems = dispatcherNavItems;
 
 .sidebar-nav {
   flex: 1;
+}
+
+.nav-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #b42318;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-badge-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .sidebar-user {

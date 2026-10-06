@@ -1,0 +1,4 @@
+[
+ {"name":"d4-promet","mode":"wide","opts":{"tab":"promet"},"wait":1600},
+ {"name":"p3-promet","mode":"phone","opts":{"tab":"promet"},"wait":1600}
+]

@@ -29,9 +29,11 @@
         v-if="tab.badge !== undefined && tab.badge !== null"
         class="tab-pill-badge"
         :style="tab.badgeColor ? { background: tab.badgeColor } : undefined"
+        :aria-hidden="tab.badgeSr ? 'true' : undefined"
       >
         {{ tab.badge }}
       </span>
+      <span v-if="tab.badgeSr" class="tab-pill-sr">{{ tab.badgeSr }}</span>
     </button>
   </div>
 </template>
@@ -45,6 +47,8 @@ export interface GlobalTabBarItem<T extends string = string> {
   icon?: string;
   badge?: string | number;
   badgeColor?: string;
+  // Tekst za čitač ekrana uz broj ("7 smjena ispod minimuma"): broj sam ne kaže na šta se odnosi.
+  badgeSr?: string;
   // Tačka "nesačuvane izmjene" uz naziv (Cjenovnik); čitač dobije isti podatak kao tekst.
   dot?: boolean;
 }

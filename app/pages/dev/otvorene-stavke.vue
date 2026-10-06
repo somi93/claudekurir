@@ -1018,6 +1018,106 @@ const ITEMS: OpenItem[] = [
     priority: "backend",
     source: "05_10_2026_Frontend_pitanja_za_backend.textile",
   },
+  {
+    id: "finansije-evidentirana-uplata-lista",
+    title: "Finansije: evidentirana uplata i isplata u listama",
+    pages: ["/dispatcher/finance"],
+    api: ["POST /dispatcher/couriers/{id}/cash-receipt", "GET .../cash-handovers", "GET .../payouts"],
+    description:
+      "06.10: Pravi li evidentirana uplata (cash-receipt) red u cash-handovers i pojavi li se isplata koju evidentira dispečer uvijek u payouts? Bez toga Promet i zbir 'Potvrđene predaje' ne obuhvataju gotovinu koju je dispečer sam primio (zbir to piše na stranici). Predlog: source 'dispatcher_entry' + entered_by_name. Stavka 1.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "finansije-isplata-ko-i-nacin",
+    title: "Finansije: isplata — ko je isplatio i način isplate kao polje",
+    pages: ["/dispatcher/finance"],
+    api: ["GET .../payouts"],
+    description:
+      "06.10: Red isplate nema ko je isplatio, a način je samo u tekstu napomene. Predlog: paid_by_id, paid_by_name, method 'cash'|'bank_transfer'. Do tada front čita način iz teksta napomene (nestaje bez greške ako se tekst promijeni), a 'Ko je isplatio' piše da server to ne vraća. Stavka 2.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "finansije-stranicenje-redoslijed",
+    title: "Finansije: straničenje, redoslijed i from/to na cash-handovers, payouts, couriers-balance",
+    pages: ["/dispatcher/finance"],
+    api: ["GET .../cash-handovers", "GET .../payouts", "GET .../couriers-balance"],
+    description:
+      "06.10: Sve se vraća odjednom, redoslijed nije dokumentovan, from/to: UTC ili lokalni dan, uključiv? Predlog: page, per_page, meta.total/last_page, najnovije prvo, lokalni dan uključivo. Do tada front sortira u pregledniku i prikazuje 40 stavki + 'Prikaži još'. Veže se na 04.10. stavka 8. Stavka 3.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "finansije-cash-summary",
+    title: "Finansije: zbirni podaci za pločice i značku (cash-summary)",
+    pages: ["/dispatcher/finance"],
+    api: ["GET .../delivery-companies/{id}/cash-summary"],
+    description:
+      "06.10: Pločice i značka računaju se iz cijelih lista (balans svake minute za sve kurire). Predlog: cash_owed_total, wage_owed_total, over_limit_count, pending_count, pending_total, oldest_pending_at. Do tada se računa u pregledniku. Stavka 4.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "finansije-dogadjaj-predaja",
+    title: "Finansije: događaj za dispečera kad kurir prijavi predaju",
+    pages: ["/dispatcher/finance"],
+    api: ["WS kanal dispečera: handover.reported"],
+    description:
+      "06.10: Nema događaja; stranica provjerava pending svakih 30 s, a značka u meniju svake minute. Predlog: događaj { handover_id, courier_id, amount } i/ili push. Veže se na 04.10. stavka 4. Stavka 5.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "finansije-confirm-saldo-warning",
+    title: "Finansije: confirm — novi saldo i warning u odgovoru",
+    pages: ["/dispatcher/finance"],
+    api: ["POST /dispatcher/cash-handovers/{id}/confirm"],
+    description:
+      "06.10: Odgovor je { success, handover } bez salda; ne znamo da li je potvrda većeg iznosa od prijavljenog/duga dozvoljena i vraća li warning. Predlog: cash_owed_to_company + opcioni warning. Do tada front čita balans ponovo, upozorava prije slanja i dopušta. Stavka 6.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "finansije-odbijanje-prijave",
+    title: "Finansije: odbijanje prijave predaje (rejected + razlog)",
+    pages: ["/dispatcher/finance"],
+    api: ["POST .../cash-handovers/{id}/reject (nova)"],
+    description:
+      "06.10: Postoje samo pending i confirmed; dispečer ne može da odbije prijavu, kurir ne može da je povuče (04.10. stavka 5). Do tada nema 'Odbij'; potvrda se ne može poništiti. Stavka 7.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "finansije-rate-limit-receipt-kljuc",
+    title: "Finansije: ograničenje brzine za 'Isplati sve' + idempotency_key za cash-receipt",
+    pages: ["/dispatcher/finance"],
+    api: ["POST /dispatcher/couriers/{id}/payout", "POST /dispatcher/couriers/{id}/cash-receipt"],
+    description:
+      "06.10: 'Isplati sve' šalje do 3 istovremena payout poziva; ograničenje brzine i oblik 429/Retry-After nisu poznati (front: jedna konstanta, može na 1). cash-receipt nema ključ (05.10. stavka 10). Stavka 8.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "finansije-ledger-dispecer",
+    title: "Finansije: šta je iza duga — ledger ili čitanje earnings za dispečera",
+    pages: ["/dispatcher/finance"],
+    api: ["GET /couriers/{id}/earnings"],
+    description:
+      "06.10: Dispečer vidi samo predaje i isplate kurira, ne dostave koje su napravile dug. Predlog: dozvola čitanja za kurire svoje firme ili ledger sa balance_after (04.10. stavka 2). Stavka 9.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "finansije-balance-account-type",
+    title: "Finansije: couriers-balance — account_type i link_active",
+    pages: ["/dispatcher/finance"],
+    api: ["GET .../couriers-balance"],
+    description:
+      "06.10: Odgovor sadrži dispečerske naloge i kurire koji više nisu u firmi, bez oznake. Predlog: account_type i link_active. Do tada se nulti redovi kriju, a 'Nije u firmi' se izvodi iz couriers-status. Stavka 10.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
 ];
 
 const GROUP_ORDER: { key: Priority; label: string }[] = [

@@ -1,0 +1,20 @@
+{
+ "searchFound": 12,
+ "searchTotal": 12,
+ "sumCash": 1332.32,
+ "sumWage": 633.68,
+ "pendingSum": 429.74,
+ "over": 2,
+ "near": 2,
+ "debt": 12,
+ "wageN": 10,
+ "planN": 10,
+ "planTotal": 633.68,
+ "batchMax": 3,
+ "diffN": 12,
+ "confirmedN": 37,
+ "historyN": 41,
+ "payoutN": 22,
+ "dayGroups": 30,
+ "checks": 218
+}

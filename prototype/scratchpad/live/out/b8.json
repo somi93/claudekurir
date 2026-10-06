@@ -1,0 +1,77 @@
+{
+ "sa pozicijom": {
+  "label": "sa pozicijom",
+  "id": 30189,
+  "map": {
+   "lat": 44.774,
+   "lng": 17.1948,
+   "zoom": 15
+  },
+  "card": "Amir Hodžić",
+  "msg": [],
+  "shifts": [
+   {
+    "v": 0.01735491898148148,
+    "t": 3880,
+    "src": [
+     "ljuska:",
+     "stranica:mapa",
+     "stranica:lista",
+     "stranica:zaglavlje",
+     "stranica:zaglavlje"
+    ]
+   },
+   {
+    "v": 0.00003321940104166667,
+    "t": 3953,
+    "src": [
+     "stranica:zaglavlje",
+     "stranica:zaglavlje"
+    ]
+   },
+   {
+    "v": 0.00016259650085198045,
+    "t": 4298,
+    "src": [
+     "stranica:mapa",
+     "stranica:pilule",
+     "stranica:lista",
+     "stranica:pilule",
+     "stranica:pilule"
+    ]
+   }
+  ],
+  "cls": 0.018,
+  "clsBySource": {
+   "ljuska:": 0.003,
+   "stranica:mapa": 0.003,
+   "stranica:lista": 0.003,
+   "stranica:zaglavlje": 0.003,
+   "stranica:pilule": 0
+  },
+  "clsPage": 0.009000000000000001,
+  "clsShell": 0.003
+ },
+ "bez pozicije": {
+  "label": "bez pozicije",
+  "id": 30201,
+  "map": {
+   "lat": 44.8125,
+   "lng": 20.4612,
+   "zoom": 12
+  },
+  "card": null,
+  "msg": []
+ },
+ "nepoznat": {
+  "label": "nepoznat",
+  "id": 99999,
+  "map": {
+   "lat": 44.8125,
+   "lng": 20.4612,
+   "zoom": 12
+  },
+  "card": null,
+  "msg": []
+ }
+}

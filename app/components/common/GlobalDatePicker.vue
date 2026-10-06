@@ -58,7 +58,7 @@ withDefaults(
 );
 
 // Datum se čuva kao "YYYY-MM-DD" string; clearable mod pri brisanju vrati
-// prazno (pozivalac normalizuje u null ako mu treba - vidi CompanyWalletPanel).
+// prazno (pozivalac normalizuje u null ako mu treba).
 const modelValue = defineModel<string>({ required: true });
 const menuOpen = ref(false);
 

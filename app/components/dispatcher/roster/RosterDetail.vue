@@ -130,6 +130,9 @@
         <button type="button" class="btn" data-detail="payout" @click="emit('sheet', 'isplata')">
           <v-icon icon="mdi-cash-minus" size="18" />Isplati zaradu
         </button>
+        <NuxtLink class="btn btn--wide" data-detail="money" :to="`/dispatcher/finance?c=${courier.id}`">
+          <v-icon icon="mdi-cash-register" size="18" />Pogledaj novac
+        </NuxtLink>
       </div>
     </div>
 
@@ -703,6 +706,11 @@ defineExpose({ focusTitle: () => title.value?.focus({ preventScroll: true }) });
 
 .btn:active {
   background: #f1f4f9;
+}
+
+.btn--wide {
+  grid-column: 1 / -1;
+  text-decoration: none;
 }
 
 .ib {

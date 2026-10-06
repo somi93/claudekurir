@@ -1,0 +1,4 @@
+[
+ {"name":"d1b","mode":"wide","opts":{},"wait":1200},
+ {"name":"d2b","mode":"wide","opts":{},"wait":1200,"js":"A('d').ctx.acts.open(30189); await new Promise(r=>setTimeout(r,800)); return 1;"}
+]

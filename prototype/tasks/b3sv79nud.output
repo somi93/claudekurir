@@ -1,0 +1,18 @@
+=== smoke
+Ukupno: 42/42 prošlo
+=== leak
+upoređeno 50600 svojstava u 9 stanja; razlika 4; elemenata samo na jednoj strani 0
+  izabran-kurir span.lv-mk-pulse opacity: dev="0.220753" tabla="0.20025"
+  bez-signala span.lv-mk-pulse opacity: dev="0.200242" tabla="0.207034"
+  poruka span.lv-mk-pulse opacity: dev="0.0698661" tabla="0.0654515"
+  telefon span.lv-mk-pulse opacity: dev="0.207018" tabla="0.193585"
+  ✘ curenje stilova: 50600 svojstava u 9 stanja, razlika 0  — izabran-kurir span.lv-mk-pulse opacity: dev="0.220753" tabla="0.20025" | bez-signala span.lv-mk-pulse opacity: dev="0.200242" tabla="0.207034" | poruka span.lv-mk-pulse opacity: dev="0.0698661" tabla="0.0654515"
+  ✔ curenje stilova: isti skup elemenata u prototipu i na tabli
+
+Ukupno: 1/2 prošlo
+  ✘ curenje stilova: 50600 svojstava u 9 stanja, razlika 0 — izabran-kurir span.lv-mk-pulse opacity: dev="0.220753" tabla="0.20025" | bez-signala span.lv-mk-pulse opacity: dev="0.200242" tabla="0.207034" | poruka span.lv-mk-pulse opacity: dev="0.0698661" tabla="0.0654515"
+=== t1 na tabli
+t1: 118/118 OK
+UKUPNO 118/118
+
+[exited with code 0]

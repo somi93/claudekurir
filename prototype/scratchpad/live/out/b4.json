@@ -1,0 +1,108 @@
+{
+ "firstLoadFail": {
+  "pills": [
+   "0 UKUPNO",
+   "0 U DOSTAVI",
+   "0 SLOBODNI",
+   "0 OFFLINE"
+  ],
+  "sidebarHead": "Kuriri 0",
+  "sidebarBody": "Kuriri 0 Nema kurira u ovoj kategoriji.",
+  "mapAlert": "Ne mogu da učitam lokacije dostavljača.",
+  "overlay": null,
+  "sync": "Poslednje osveženo: —",
+  "rows": 0,
+  "skeleton": 0,
+  "retry": 0
+ },
+ "beforeFail": {
+  "pills": [
+   "23 UKUPNO",
+   "6 U DOSTAVI",
+   "8 SLOBODNI",
+   "9 OFFLINE"
+  ],
+  "sidebarHead": "Kuriri 23",
+  "sidebarBody": "Kuriri 23 30242 Senad Marković U dostavi #30242 · 065845965 7.3 m/s · pre 7s 30189 Amir Hodžić U dostavi #30189 · 062/519-315 · Motor 6.1 m/s · pre 9s 30195 Aleksandar-Nemanja Petrović-Njegoš Jovanović Mrkonjić U dostavi #30195 · 065431483 · Motor 4.2 m/s · pre 13s 30259 Luka Lukić U dostavi #30259 · 060/476-949 · Skuter 2.9 m/s · pre 26s 30244 Kenan Džaferović U dostavi #30244 · 063 453 918 · Automobil stoji · pre 31s 30234 Željko Đurić U dostavi #30234 · 065/123-456 · Motor 5.0 m/s · pre 14 min 30249 Nemanja Mrkonjić Slobodan #30249 · +387 60 195 988 · Bicikl stoji · pre 16s 30192 Kenan Mujić Slobodan #30192 · +387 63 658 711 · Skuter stoji · pre 21s 30204 Amir Kurtović Slobodan #30204 · +387 64 823 661 · Bicikl stoji · pre 36s 30287 Ismar Radić Slobodan #30287 · +387 63 522 589 · Automobil stoji · pre 41s 30246 Tarik Radić Slobodan #30246 · 060/501-980 stoji · pre 51s 30253 Marko Marković Slobodan #30253 · 066127130 · Skuter stoji · pre 1 min 30239 Željko Marković Slobodan #30239 · +387 66 777 888 · Automobil stoji · pre 2h 30255 Milan Đurić Slobodan #30255 · 066 795 736 · Motor stoji · pre 6h 30265 Nikola Radić Offline #30265 · 064663235 · Bicikl stoji · pre 12 min 30210 Jasmin Simić Offline #30210 · 066 983 154 · Motor stoji · pre 25 min 30262 Ćamil Mujić Offline #30262 · +387 64 380 581 · Motor stoji · pre 41 min 30268 Emir Radić Offline #30268 · 060 379 943 · Motor stoji · pre 55 min 30270 Amir Džaferović Offline #30270 · 062/694-787 · Automobil · suspendovan stoji · pre 3h 30198 Nemanja Bajić Offline #30198 · 064 901 963 · Skuter · suspendovan stoji · pre 5h 30275 Čedomir Vuković Offline #30275 · +387 63 432 108 · Motor stoji · pre 9h 30278 Alen Pejić Offline #30278 · 062785155 stoji · pre 1 dan 30281 Damir Softić Offline #30281 · 066 930 404 · Bicikl stoji · pre 3 dana Izaberi kurira sa liste ili mape za detalje.",
+  "mapAlert": null,
+  "overlay": null,
+  "sync": "Poslednje osveženo: 11:54:12",
+  "rows": 23,
+  "skeleton": 0,
+  "retry": 0
+ },
+ "staleFail": {
+  "pills": [
+   "23 UKUPNO",
+   "6 U DOSTAVI",
+   "8 SLOBODNI",
+   "9 OFFLINE"
+  ],
+  "sidebarHead": "Kuriri 23",
+  "sidebarBody": "Kuriri 23 30242 Senad Marković U dostavi #30242 · 065845965 7.3 m/s · pre 27s 30189 Amir Hodžić U dostavi #30189 · 062/519-315 · Motor 6.1 m/s · pre 29s 30195 Aleksandar-Nemanja Petrović-Njegoš Jovanović Mrkonjić U dostavi #30195 · 065431483 · Motor 4.2 m/s · pre 33s 30259 Luka Lukić U dostavi #30259 · 060/476-949 · Skuter 2.9 m/s · pre 46s 30244 Kenan Džaferović U dostavi #30244 · 063 453 918 · Automobil stoji · pre 51s 30234 Željko Đurić U dostavi #30234 · 065/123-456 · Motor 5.0 m/s · pre 14 min 30249 Nemanja Mrkonjić Slobodan #30249 · +387 60 195 988 · Bicikl stoji · pre 36s 30192 Kenan Mujić Slobodan #30192 · +387 63 658 711 · Skuter stoji · pre 41s 30204 Amir Kurtović Slobodan #30204 · +387 64 823 661 · Bicikl stoji · pre 56s 30287 Ismar Radić Slobodan #30287 · +387 63 522 589 · Automobil stoji · pre 1 min 30246 Tarik Radić Slobodan #30246 · 060/501-980 stoji · pre 1 min 30253 Marko Marković Slobodan #30253 · 066127130 · Skuter stoji · pre 2 min 30239 Željko Marković Slobodan #30239 · +387 66 777 888 · Automobil stoji · pre 2h 30255 Milan Đurić Slobodan #30255 · 066 795 736 · Motor stoji · pre 6h 30265 Nikola Radić Offline #30265 · 064663235 · Bicikl stoji · pre 12 min 30210 Jasmin Simić Offline #30210 · 066 983 154 · Motor stoji · pre 25 min 30262 Ćamil Mujić Offline #30262 · +387 64 380 581 · Motor stoji · pre 41 min 30268 Emir Radić Offline #30268 · 060 379 943 · Motor stoji · pre 55 min 30270 Amir Džaferović Offline #30270 · 062/694-787 · Automobil · suspendovan stoji · pre 3h 30198 Nemanja Bajić Offline #30198 · 064 901 963 · Skuter · suspendovan stoji · pre 5h 30275 Čedomir Vuković Offline #30275 · +387 63 432 108 · Motor stoji · pre 9h 30278 Alen Pejić Offline #30278 · 062785155 stoji · pre 1 dan 30281 Damir Softić Offline #30281 · 066 930 404 · Bicikl stoji · pre 3 dana Izaberi kurira sa liste ili mape za detalje.",
+  "mapAlert": "Ne mogu da učitam lokacije dostavljača.",
+  "overlay": null,
+  "sync": "Poslednje osveženo: 11:54:12",
+  "rows": 23,
+  "skeleton": 0,
+  "retry": 0
+ },
+ "noPositions": {
+  "pills": [
+   "0 UKUPNO",
+   "0 U DOSTAVI",
+   "0 SLOBODNI",
+   "0 OFFLINE"
+  ],
+  "sidebarHead": "Kuriri 0",
+  "sidebarBody": "Kuriri 0 Nema kurira u ovoj kategoriji.",
+  "mapAlert": null,
+  "overlay": null,
+  "sync": "Poslednje osveženo: 11:54:36",
+  "rows": 0,
+  "skeleton": 0,
+  "retry": 0
+ },
+ "noCompany": {
+  "pills": [
+   "0 UKUPNO",
+   "0 U DOSTAVI",
+   "0 SLOBODNI",
+   "0 OFFLINE"
+  ],
+  "sidebarHead": "Kuriri 0",
+  "sidebarBody": "Kuriri 0 Nema kurira u ovoj kategoriji.",
+  "mapAlert": null,
+  "overlay": null,
+  "sync": "Poslednje osveženo: —",
+  "rows": 0,
+  "skeleton": 0,
+  "retry": 0,
+  "requests": {
+   "GET /me": 1,
+   "GET /dispatcher/my-companies": 1,
+   "GET /dispatcher/outbox/status": 1
+  }
+ },
+ "slowLoad": {
+  "pills": [
+   "0 UKUPNO",
+   "0 U DOSTAVI",
+   "0 SLOBODNI",
+   "0 OFFLINE"
+  ],
+  "sidebarHead": "Kuriri 0",
+  "sidebarBody": "Kuriri 0",
+  "mapAlert": null,
+  "overlay": "Učitavam mapu i lokacije...",
+  "sync": "Poslednje osveženo: —",
+  "rows": 0,
+  "skeleton": 5,
+  "retry": 0
+ },
+ "stringCoords": {
+  "rows": 23,
+  "exceptions": 0,
+  "paths": 23
+ }
+}

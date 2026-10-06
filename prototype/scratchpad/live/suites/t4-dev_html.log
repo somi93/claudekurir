@@ -1,0 +1,10 @@
+{"n":26,"withPosition":23,"msReady":66,"nodes":647,"rows":12,"markers":19,"clusters":2,"heapMB":3,"scriptMs":1,"layoutMs":6,"zoomStep1x":31.3,"search4x":191,"filter4x":98,"panStep4x":16.7,"zoomStep4x":31.5}
+{"n":150,"withPosition":134,"msReady":110,"nodes":816,"rows":12,"markers":47,"clusters":33,"heapMB":3,"scriptMs":1,"layoutMs":9,"zoomStep1x":31,"search4x":156,"filter4x":79,"panStep4x":16.6,"zoomStep4x":45.6}
+{"n":500,"withPosition":451,"msReady":111,"nodes":978,"rows":12,"markers":62,"clusters":93,"heapMB":4,"scriptMs":1,"layoutMs":9,"zoomStep1x":32.5,"search4x":218,"filter4x":98,"panStep4x":16.7,"zoomStep4x":72.4}
+  ✔ 500 kurira: prikaz za manje od 3 s  — 111 ms
+  ✔ 500 kurira: DOM ispod 3000 čvorova  — 978
+  ✔ 500 kurira, 4x: pomjeranje karte ispod 30 ms po koraku  — 16.7 ms
+  ✔ 500 kurira: zum ispod 40 ms po koraku (običan procesor; 4x sporiji: 72.4 ms)  — 32.5 ms
+  ✔ 500 kurira, 4x: tri slova u pretragu ispod 900 ms  — 218 ms
+
+Ukupno: 5/5 prošlo

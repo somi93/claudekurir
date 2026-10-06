@@ -1,0 +1,62 @@
+{
+ "journal7": {
+  "n": 18,
+  "inSum": 894,
+  "outSum": 478.28,
+  "inN": 9,
+  "outN": 5,
+  "diffN": 1,
+  "diffSum": -5,
+  "pendingN": 4,
+  "days": [
+   "Danas",
+   "Juče",
+   "ned, 4. okt",
+   "sub, 3. okt",
+   "pet, 2. okt",
+   "čet, 1. okt",
+   "sri, 30. sep"
+  ]
+ },
+ "frames": [
+  {
+   "ms": 3,
+   "t": "Čeka potvrdu|skel",
+   "q": "Čeka potvrdu"
+  },
+  {
+   "ms": 323,
+   "t": "Čeka potvrdu 4Najstarija prva. Potvrdi tek kad primiš novac.JS\n          Jasmin SimićPrijavio 70.00 KM · pre 3 dana\n          PotvrdiAK\n          Amir KurtovićPrijavio 50.00 KM · pre 1 danDug kurira 64.30 KM\n          PotvrdiKM\n          Kenan MujićPrijavio 214.50 KM · pre 3hDug kurira 214.50 KM\n          PotvrdiAH\n          Amir HodžićPrijavio 95.24 KM · pre 12 minDug kurira 180.70 KM\n          Potvrdi|list",
+   "q": "Čeka potvrdu 4Najstarija prva. Potvrdi tek kad primiš novac.JS Jasmin SimićPrijavio 70.00 KM · pre 3 dana PotvrdiAK Amir KurtovićPrijavio 50.00 KM · pre 1 danDug kurira 64.30 KM PotvrdiKM Kenan MujićP"
+  }
+ ],
+ "scale": {
+  "cpu1x": {
+   "loadMs": 55,
+   "rows": 12,
+   "nodes": 403,
+   "searchMs": 169,
+   "searchRows": 12,
+   "moreMs": 152,
+   "rowsAfterMore": 36,
+   "journalMs": 93,
+   "journalRows": 40,
+   "journalNodes": 792,
+   "periodMs": 65
+  },
+  "cpu4x": {
+   "loadMs": 111,
+   "rows": 12,
+   "nodes": 403,
+   "searchMs": 250,
+   "searchRows": 12,
+   "moreMs": 172,
+   "rowsAfterMore": 36,
+   "journalMs": 113,
+   "journalRows": 40,
+   "journalNodes": 792,
+   "periodMs": 102
+  }
+ },
+ "scaleWall": 4981
+}

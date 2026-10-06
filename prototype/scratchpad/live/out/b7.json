@@ -1,0 +1,127 @@
+{
+ "total": 15,
+ "old": 2,
+ "neu": 15,
+ "rows": [
+  {
+   "q": "hodžić",
+   "note": "ime sa dijakritikom",
+   "old": true,
+   "neu": true,
+   "oldN": 1,
+   "newN": 1
+  },
+  {
+   "q": "hodzic",
+   "note": "ime bez dijakritika",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 1
+  },
+  {
+   "q": "amir hodzic",
+   "note": "ime i prezime bez dijakritika",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 1
+  },
+  {
+   "q": "hodzic amir",
+   "note": "prezime pa ime",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 1
+  },
+  {
+   "q": "zeljko djuric",
+   "note": "Željko Đurić kucano bez dijakritika",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 1
+  },
+  {
+   "q": "djuric",
+   "note": "Đ kao dj",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 3
+  },
+  {
+   "q": "Жељко",
+   "note": "ćirilica u upitu",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 2
+  },
+  {
+   "q": "zeljko",
+   "note": "dva Željka (jedan upisan ćirilicom)",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 2
+  },
+  {
+   "q": "065123456",
+   "note": "telefon bez razdjelnika (u bazi 065/123-456)",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 1
+  },
+  {
+   "q": "065 123 456",
+   "note": "telefon sa razmacima",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 1
+  },
+  {
+   "q": "+38765123456",
+   "note": "telefon međunarodno",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 1
+  },
+  {
+   "q": "65123456",
+   "note": "telefon bez nule",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 1
+  },
+  {
+   "q": "30189",
+   "note": "ID",
+   "old": true,
+   "neu": true,
+   "oldN": 1,
+   "newN": 1
+  },
+  {
+   "q": "#30189",
+   "note": "ID sa oznakom #",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 1
+  },
+  {
+   "q": "amir.hodzic@ordera",
+   "note": "korisničko ime za prijavu",
+   "old": false,
+   "neu": true,
+   "oldN": 0,
+   "newN": 1
+  }
+ ]
+}

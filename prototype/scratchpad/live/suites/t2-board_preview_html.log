@@ -1,0 +1,51 @@
+  ✔ učitavanje: karta kaže šta radi  — Učitavam kurire i pozicije…
+  ✔ učitavanje: spisak je skeleton (5 redova), bez lažne nule
+  ✔ učitavanje: pločice i oznake se ne crtaju dok se ne zna
+  ✔ učitavanje: pretraga je isključena
+  ✔ učitavanje: podnaslov je prazan (ne tvrdi '0 kurira')
+  ✔ poslije učitavanja: sve je tu
+  ✔ pad spiska: karta i panel kažu grešku, ne 'nema kurira'
+  ✔ pad spiska: objašnjava zašto ne pokazuje prazan spisak
+  ✔ pad spiska: nigdje piše 'Firma još nema kurira'
+  ✔ pad spiska: 'Pokušaj ponovo' postoji
+  ✔ 'Pokušaj ponovo' vraća cijelu stranicu
+  ✔ pad pozicija: pločice stanja kažu '—', ne 0  — ["26","—","—","—"]
+  ✔ pad pozicija: karta objašnjava (crveno) sa 'Pokušaj ponovo'
+  ✔ pad pozicija: spisak kurira radi (26 kurira, 12 redova)
+  ✔ pad pozicija: spisak upozorava da stanje uživo nije pouzdano
+  ✔ pad pozicija: oznaka 'Bez signala' je isključena (ne zna se)
+  ✔ pad pozicija: traka kaže da pozicije nisu stigle
+  ✔ pad pozicija: nijedan kurir nije označen kao offline na karti ni u spisku (stanje se ne tvrdi)  — 0 markera
+  ✔ poslije ponovnog pokušaja stanje uživo se vraća  — ["26","6","8","12"]
+  ✔ zastarjelo: upozorenje 'Pozicije nisu osvježene' sa vremenom i 'Pokušaj ponovo'  — Pozicije nisu osvježenePrikazan je zadnji poznati položaj (14:19:54). Stanje uživo može biti zastarjelo.Pokušaj ponovo
+  ✔ zastarjelo: stari podaci ostaju (pločice i 12 redova)
+  ✔ zastarjelo: traka je crvena i kaže od kada su podaci
+  ✔ zastarjelo: markeri ostaju na karti
+  ✔ poslije oporavka upozorenje nestaje
+  ✔ pad narudžbi: kuriri i karta rade (12 redova, markeri)
+  ✔ pad narudžbi: oznake narudžbi kažu '—' i isključene su
+  ✔ pad narudžbi: nema pinova na karti
+  ✔ pad narudžbi: nema izmišljenog 'Traži pažnju' o narudžbama (samo kuriri)
+  ✔ pad narudžbi: tab Narudžbe kaže grešku i ima 'Pokušaj ponovo'
+  ✔ pad narudžbi: objašnjava zašto ne pokazuje prazan spisak
+  ✔ pad narudžbi: kurir u dostavi kaže da se narudžba ne vidi (ne izmišlja)
+  ✔ pad gotovine: oznaka limita je '—' i isključena
+  ✔ pad gotovine: ostalo radi
+  ✔ pad gotovine: red kurira ne tvrdi dug
+  ✔ pad gotovine: detalj kaže 'Nije dostupno'  —  Stiže za 15 min3.50 KMDo odredišta 290 m (zračna linija)Prikaži narudžbu Brzina26 km/h VoziloPješice ZonaPetrićevac GotovinaNije dostupno Na mapi Prati na mapi
+  ✔ firma bez kurira: karta i panel kažu to i nude 'Dodaj kurira'
+  ✔ firma bez kurira: nema pločica ni oznaka
+  ✔ niko ne šalje poziciju: obavještenje na karti
+  ✔ niko ne šalje poziciju: pločice su brojevi (0 / 0 / 26), ne '—'  — ["26","0","0","26"]
+  ✔ niko ne šalje poziciju: pogled je na zonama firme (ne na praznini ni u Beogradu)  — zones
+  ✔ niko ne šalje poziciju: krugovi zona su na karti
+  ✔ neispravni podaci: stranica ne puca (bez izuzetaka)
+  ✔ neispravni podaci: spisak i dalje ima redove
+  ✔ neispravno vrijeme signala: nije 'izgubljen signal', red piše 'nema lokacije', nigdje NaN
+  ✔ brzina kao tekst i kurir bez imena i telefona: red postoji i ne puca
+  ✔ narudžba sa neispravnim koordinatama se ne crta, a red postoji
+  ✔ 500 kurira, procesor 4x sporiji: tri slova u pretragu za manje od 900 ms  — 292 ms
+  ✔ 500 kurira, 4x: filter stanja za manje od 400 ms  — 35 ms
+  ✔ 500 kurira: DOM ostaje mali (manje od 3000 čvorova u prototipu)  — 976
+
+Ukupno: 49/49 prošlo

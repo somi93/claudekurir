@@ -1,0 +1,123 @@
+<!-- ============================================ ODLUKE -->
+<section class="sec" id="odluke">
+  <div class="sec-head">
+    <span class="eyebrow">Odluke</span>
+    <h2>Šesnaest odluka; tri se mogu vetovati</h2>
+    <p class="small">Preporuka je ono što prototip radi i što se gradi ako ne kažeš drugačije. Tri odluke (<b>VETO</b>) idu dalje od unutrašnjosti ove stranice: mijenjaju meni, mijenjaju raspored stranice ili pomjeraju novac više kurira jednom potvrdom. Za ostale je dovoljno da kažeš „da“.</p>
+  </div>
+  <div class="cols-2">
+    <div class="card card--veto"><h3>D1 · Značka sa predajama u meniju <span class="pill pill--warn">VETO</span></h3><p>„Finansije“ u bočnoj traci i kartica na početnoj dobijaju crvenu značku sa brojem predaja na čekanju, isti broj kao na tabu Stanje. Dispečer na Kuriri uživo ili Dodjeli narudžbi saznaje da neko čeka, a danas nigdje nema signala.</p><p>Cijena: jedan lagan zahtjev (<span class="mono">cash-handovers/pending</span>) na minutu dok je dispečerska ljuska vidljiva; na samoj stranici na 30 s. B5 (događaj za dispečera) to ukida.</p><div class="undo">Ako ne: značka ostaje samo na tabu Stanje; ništa drugo se ne mijenja.</div></div>
+    <div class="card card--veto"><h3>D2 · Dva taba umjesto četiri <span class="pill pill--warn">VETO</span></h3><p><b>Stanje</b> (pločice, red predaja, spisak, detalj) i <b>Promet</b> (predaje i isplate u jednom toku). Zahtjevi, Balansi, Istorija i Isplate kao tabovi nestaju; ruta ostaje <span class="mono">/dispatcher/finance</span>.</p><p>Razlog: predaja mijenja balans, a spor traži obje liste zajedno; četiri taba ne dijele ni filtere ni izbor kurira.</p><div class="undo">Ako ne: Faza 0 (popravke na starom kodu) važi dalje, a nova stranica se ne gradi.</div></div>
+    <div class="card"><h3>D3 · Tri pločice su i filteri</h3><p>Čeka potvrdu, Duguju firmi (sa „2 preko limita“), Za isplatu. Pritisnuta pločica filtrira spisak; druga pritisnuta je gasi. Pločica „Čeka potvrdu“ još i zatvara detalj da se vidi red predaja. Brojevi su iz cijele knjige.</p><div class="undo">Ako ne: pločice ostaju samo kao brojevi.</div></div>
+    <div class="card"><h3>D4 · Red predaja i potvrda u listu</h3><p>Najstarija prva, starija od 24 h crvena, uz dug kurira. „Potvrdi“ otvara list sa iznosom unaprijed upisanim, pregledom duga prije i poslije i Enterom. Na računaru red je u desnom oknu dok nijedan kurir nije izabran (spisak počinje odmah ispod pločica); na telefonu je iznad spiska. <b>Nema skupne potvrde</b>: novac se prima fizički, a potvrda se ne može poništiti.</p><div class="undo">Ako ne: red ostaje iznad spiska i na računaru; spisak počinje ispod njega.</div></div>
+    <div class="card"><h3>D5 · Spisak sa dva računa i mjeračem</h3><p>Gotovina i zarada u svakom redu, nikad zbrojene; mjerač limita; oznake (preko limita, blizu, čeka potvrdu, suspendovan, nije u firmi, firma duguje gotovinu). Filteri Svi, Čeka potvrdu, Duguju, Limit, Za isplatu, Nulti; pretraga kao na Kuriri; četiri redoslijeda; 12 redova i „Prikaži još“; nulti redovi skriveni, a pretraga ih nalazi.</p><div class="undo">Ako ne: spisak ostaje tabela (Faza 0 je popravlja).</div></div>
+    <div class="card"><h3>D6 · Detalj jednog kurira</h3><p>Oba računa, predaja na čekanju sa „Potvrdi“, ugovor, žiro račun i IBAN sa kopiranjem, „Pozovi“ (veza <span class="mono">tel:</span>), „Profil“ i zadnjih 30 dana prometa (dva zahtjeva, keširano 60 s). Na telefonu je to zasebna stranica.</p><div class="undo">Ako ne: detalj ostaje bez prometa; ostalo ne zavisi od njega.</div></div>
+    <div class="card"><h3>D7 · Jedan jezik radnji i listovi umjesto dijaloga</h3><p>„Potvrdi predaju“, „Evidentiraj uplatu“, „Isplati zaradu“ svuda, kao na Kuriri. <span class="mono">CashSheet</span> se dijeli: dobija napomenu uz isplatu i račun kurira uz bankovni transfer, i radi za kurira koji nije u firmi. Stari dijalozi se brišu.</p><div class="undo">Ako ne: dijalozi se samo prepravljaju (Faza 0).</div></div>
+    <div class="card card--veto"><h3>D8 · „Isplati sve“ <span class="pill pill--warn">VETO</span></h3><p>Jedan list za sve sa zaradom: označeni kuriri, način isplate za sve, ukupan iznos u dugmetu. Po kuriru jedan poziv sa vlastitim ključem, najviše 3 istovremeno; rezultat po kuriru; „Pokušaj ponovo“ šalje samo neuspjele sa istim ključevima; zatvaranje je blokirano dok traje.</p><p>Pomjera novac više kurira jednom potvrdom; zato je odvojena odluka. Cijela zarada se isplaćuje onakva kakva je u času otvaranja lista.</p><div class="undo">Ako ne: „Isplati zaradu“ ostaje samo po kuriru (jedno dugme u detalju).</div></div>
+    <div class="card"><h3>D9 · Promet u jednom toku</h3><p>Predaje i isplate zajedno, najnovije prvo, po danima. Period (Danas, 7 dana, Ovaj mjesec, Prošli mjesec, Od–do), vrsta, „Samo razlike“, kurir. Zbirovi: potvrđene predaje, isplate, razlika. Stavka sa svim poljima i referencom koja se čita kuriru.</p><div class="undo">Ako ne: Istorija i Isplate ostaju dvije liste (Faza 0 im dodaje razliku i zbir).</div></div>
+    <div class="card"><h3>D10 · CSV</h3><p>Izvoz vidljivih redova Prometa u pregledniku, za lokalni Excel (razdvajač „;“, decimalni zarez, BOM), sa zaštitom od formula u imenu i napomeni. Server se ne dira.</p><div class="undo">Ako ne: dugme se uklanja; ništa drugo ne zavisi od njega.</div></div>
+    <div class="card"><h3>D11 · Osvježavanje i nova predaja</h3><p>Predaje svakih 30 s, balans i spisak svakih 60 s, pauza kad je kartica sakrivena, dugme „Osvježi“ i zaglavlje „osvježeno pre 12s“. Nova predaja: obavještenje, istaknut red, značka; bez zvuka.</p><div class="undo">Ako ne: osvježavanje samo na dugme (kao danas), značka i obavještenje nestaju.</div></div>
+    <div class="card"><h3>D12 · Greška je greška</h3><p>Pad izvora se piše u mjestu sadržaja sa „Pokušaj ponovo“; „Nema …“ samo kad je učitavanje uspjelo; staro stanje ostaje sa upozorenjem; pločica koja ne zna piše „Nije učitano“; značka nestaje samo kad se zna da je broj nula.</p><div class="undo">Ako ne: Faza 0 ovo ipak radi na starom kodu; preporučujem da se ne preskače.</div></div>
+    <div class="card"><h3>D13 · Adresa nosi stanje</h3><p><span class="mono">?t ?c ?f ?q ?o</span> i <span class="mono">?p ?k ?kc ?d</span> za Promet, plus veza „Pogledaj novac“ iz detalja na Kuriri (<span class="mono">/dispatcher/finance?c=ID</span>). Samo specifikacija, nije u prototipu.</p><div class="undo">Ako ne: stanje ostaje lokalno kao danas.</div></div>
+    <div class="card"><h3>D14 · Zaglavlje sa firmom i valutom, zaštita od trke</h3><p>Podnaslov „Ordera Dostava Banja Luka · KM“. Odgovor firme koja više nije izabrana se odbacuje (brojač kao na Kuriri), a promjena firme prvo prazni podatke. Faza 0 uzima samo brojač.</p><div class="undo">Ako ne: Faza 0 radi samo brojač.</div></div>
+    <div class="card"><h3>D15 · Telefon</h3><p>Jedna kolona; detalj kao stranica; pločice sažete; filteri se klize; listovi do dna; sve mete 44 px, tekst najmanje 11 px, bez vodoravnog klizanja stranice. Dugmad za uplatu i isplatu su uvijek u detalju.</p><div class="undo">Ako ne: telefon dobija raspored računara sa tabelom (loše).</div></div>
+    <div class="card"><h3>D16 · Faza 2 se ne gradi</h3><p>Odbijanje prijave sa razlogom (B7), tok sa stanjem poslije svakog knjiženja (B9), zbirovi sa servera (B4), događaj umjesto provjere (B5) i straničenje (B3) čekaju odgovor backenda. Prototip ih ne crta.</p><div class="undo">Ako ne: reci koji i kakav odgovor očekuješ.</div></div>
+  </div>
+</section>
+
+<!-- ============================================ REDOSLED -->
+<section class="sec" id="izrada">
+  <div class="sec-head">
+    <span class="eyebrow">Redosled izrade</span>
+    <h2>Prvo ono što ne traži novu stranicu</h2>
+    <p class="small">Faza 0 se može pustiti odvojeno i već rješava najgore nalaze. Faza 1 je nova stranica nad postojećim rutama. Faza 2 je samo nacrt.</p>
+  </div>
+  <ol class="phases">
+    <li><div><b>Faza 0: popravke na starom kodu (bez backenda)</b><span>Odvojeno, svaka za sebe.</span>
+      <ul>
+        <li>Pad izvora se piše u kartici sa „Pokušaj ponovo“; „Nema …“ samo poslije uspješnog učitavanja, nikad prije početka učitavanja (nalazi: pad, prvi kadrovi).</li>
+        <li><span class="mono">useCompanyWallet</span> i kartice istorije i isplata: brojač koji odbacuje odgovor firme koja više nije izabrana; promjena firme prazni podatke.</li>
+        <li>Iznosi kroz <span class="mono">toAmount</span>, da oblik teksta ne obara tabelu.</li>
+        <li>Dijalog uplate: dug unaprijed upisan i upozorenje iznad duga prije slanja; greška uplate i isplate u dijalogu, ne iza zatamnjenja; fokus u polje pri otvaranju.</li>
+        <li>Kontrast i mete: <span class="mono">#9aa4b2</span> na tekstu postaje <span class="mono">#657083</span> (zaglavlja kolona, <span class="mono">#ID</span>, podnaslovi, nazivi polja), oznaka „Na čekanju“, dugmad u redu 44 px; ime i <span class="mono">aria-controls</span> na tabovima.</li>
+        <li>Pretraga sa <span class="mono">matchCourier</span>; sortiranje kolone „Kurir“ po imenu.</li>
+        <li>Istorija: kolona razlike i napomene (server već vraća <span class="mono">note</span>), zbir ispod tabele.</li>
+      </ul></div></li>
+    <li><div><b>Faza 1: nova stranica, samo postojeće rute</b><span>Redom:</span>
+      <ul>
+        <li><span class="mono">utils/cashDesk.ts</span> = port <span class="mono">logic.js</span> (običan Node, 218 provjera iz prototipa, uključujući iste upite pretrage i isti plan isplate).</li>
+        <li><span class="mono">useCashDesk</span>, <span class="mono">useCashJournal</span>, <span class="mono">useCourierLedger</span>; <span class="mono">CashSheet</span> se proširuje.</li>
+        <li>Komponente u <span class="mono">components/dispatcher/finance/</span>; stranica se prepisuje; značka u meniju (D1) ako nije vetovana.</li>
+        <li>Stari panel, kartice, dijalozi i <span class="mono">useCompanyWallet</span> se brišu tek kad <span class="mono">grep</span> pokaže da ih niko ne uvozi.</li>
+        <li>E2E se piše uporedo sa kodom (iste provjere kao na prototipu: potvrda, razlika, iznad duga, ključ, isplata svima, Promet, CSV, stanja, osvježavanje, 500 kurira, telefon). Pogledati snimak svakog stanja očima.</li>
+        <li>Pitanja za backend idu u novi dokument sa današnjim datumom (<span class="mono">docs/2026/10/…_Frontend_pitanja_za_backend.textile</span>), uz tracker i <span class="mono">app/pages/dev/otvorene-stavke.vue</span>.</li>
+      </ul></div></li>
+    <li><div><b>Faza 2: samo nacrt, ne gradi se</b><span>Čeka backend.</span>
+      <ul>
+        <li>B7: „Odbij prijavu“ sa razlogom. B9: tok sa stanjem poslije svakog knjiženja. B4: zbirovi sa servera. B5: događaj umjesto provjere. B3: straničenje.</li>
+      </ul></div></li>
+  </ol>
+</section>
+
+<!-- ============================================ BACKEND -->
+<section class="sec" id="backend">
+  <div class="sec-head">
+    <span class="eyebrow">Backend</span>
+    <h2>Pitanja koja front sam ne može da završi</h2>
+    <p class="small">Ništa ne blokira Fazu 1. Šta front radi dok odgovor ne stigne piše uz svako pitanje. Stavke koje već stoje u dokumentima od 04.10. i 05.10. (sa kurirske ili Kuriri strane) su povezane, a ne ponovljene. <b>Najmanje što pomaže odmah: B1, B2 i B4.</b></p>
+  </div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Pitanje</th><th>Šta vidimo i predlog</th><th>Dok ne stigne</th></tr></thead>
+    <tbody>
+      <tr><td><b>B1</b> <span class="pill pill--warn">🟠</span> Evidentirana uplata i isplata u listama</td><td data-l="Šta vidimo">Dugme „Evidentiraj uplatu“ šalje <span class="mono">POST …/cash-receipt</span> koji smanji dug; ne znamo da li se pojavi u <span class="mono">GET …/cash-handovers</span>, ni da li se isplata koju dispečer evidentira uvijek pojavi u <span class="mono">GET …/payouts</span>. Isto pitanje je 04.10. (stavka 3) sa kurirske strane. Predlog: red sa <span class="mono">source: "dispatcher_entry"</span> i <span class="mono">entered_by_name</span>.</td><td data-l="Dok ne stigne">Zbir „Potvrđene predaje“ u Prometu piše šta obuhvata; ništa se ne izmišlja.</td></tr>
+      <tr><td><b>B2</b> <span class="pill pill--warn">🟠</span> Isplata: ko je isplatio i način kao ključ</td><td data-l="Šta vidimo">Red isplate ima <span class="mono">id, amount, note, created_at, transaction_id</span>. Način isplate je u tekstu napomene, a ko je isplatio ne postoji. Predlog: <span class="mono">paid_by_id</span>, <span class="mono">paid_by_name</span> i <span class="mono">method: "cash"|"bank_transfer"</span> uz slobodan tekst.</td><td data-l="Dok ne stigne">Način se čita iz teksta („(gotovina)“, „(bankovni transfer)“); stavka piše „Ko je isplatio: Server to ne vraća“.</td></tr>
+      <tr><td><b>B3</b> <span class="pill pill--warn">🟠</span> Straničenje, redoslijed i <span class="mono">from/to</span></td><td data-l="Šta vidimo"><span class="mono">cash-handovers</span>, <span class="mono">payouts</span> i <span class="mono">couriers-balance</span> vraćaju sve (500 predaja je 505 redova u staroj tabeli). Redoslijed nije dokumentovan. Ne znamo da li je <span class="mono">from/to</span> UTC ili lokalni dan i da li je uključiv. Predlog: <span class="mono">page</span>, <span class="mono">per_page</span>, <span class="mono">meta: { total, last_page }</span>, najnovije prvo, lokalni dan uključivo (kao <span class="mono">/earnings?from=</span>). Veže se na 04.10. (stavka 8).</td><td data-l="Dok ne stigne">Prikazuje se 40 stavki iz svega što stigne, sortirano u pregledniku; period kao lokalni dan.</td></tr>
+      <tr><td><b>B4</b> <span class="pill pill--acc">🟡</span> Zbirni podaci za pločice i značku</td><td data-l="Šta vidimo">Za tri pločice i značku stranica čita cijele liste (balans svake minute za 500 kurira). Predlog: <span class="mono">GET …/cash-summary</span> sa <span class="mono">cash_owed_total, wage_owed_total, over_limit_count, pending_count, pending_total, oldest_pending_at</span>.</td><td data-l="Dok ne stigne">Računa se u pregledniku iz <span class="mono">couriers-balance</span> i <span class="mono">pending</span>.</td></tr>
+      <tr><td><b>B5</b> <span class="pill pill--warn">🟠</span> Događaj za dispečera kad kurir prijavi predaju</td><td data-l="Šta vidimo">Nema ničeg; stranica provjerava svakih 30 s, a značka u meniju svake minute. Predlog: događaj na kanalu dispečera (naziv, <span class="mono">{ handover_id, courier_id, amount }</span>) i/ili push, kao za ponude. Veže se na 04.10. (stavka 4) sa kurirske strane.</td><td data-l="Dok ne stigne">Provjera na 30 s i 60 s.</td></tr>
+      <tr><td><b>B6</b> <span class="pill pill--acc">🟡</span> <span class="mono">confirm</span>: saldo i upozorenje</td><td data-l="Šta vidimo">Odgovor je <span class="mono">{ success, handover }</span>, bez novog salda. Ne znamo da li je potvrda većeg iznosa od prijavljenog ili od duga dozvoljena i da li vraća <span class="mono">warning</span>. Predlog: u odgovoru <span class="mono">cash_owed_to_company</span> i opcioni <span class="mono">warning</span> (običan tekst, kao kod <span class="mono">cash-receipt</span>).</td><td data-l="Dok ne stigne">Poslije potvrde se ponovo čita balans; prije slanja upozorava naša provjera i dopušta.</td></tr>
+      <tr><td><b>B7</b> <span class="pill pill--acc">🟡</span> Odbijanje prijave</td><td data-l="Šta vidimo">Postoje samo <span class="mono">pending</span> i <span class="mono">confirmed</span>; dispečer ne može da odbije prijavu sa razlogom, a kurir ne može da je povuče (04.10., stavka 5). Predlog: status <span class="mono">rejected</span> sa <span class="mono">reject_reason</span> i ruta za odbijanje.</td><td data-l="Dok ne stigne">Nema „Odbij“; predaja se potvrdi pravim iznosom i napomenom.</td></tr>
+      <tr><td><b>B8</b> <span class="pill pill--acc">🟡</span> Ograničenje brzine i ključ za uplatu</td><td data-l="Šta vidimo">Isplata svima šalje do tri istovremena <span class="mono">payout</span> poziva; ne znamo ograničenje brzine ni oblik odgovora (429, <span class="mono">Retry-After</span>). <span class="mono">cash-receipt</span> nema <span class="mono">idempotency_key</span> (05.10., stavka 10).</td><td data-l="Dok ne stigne">Najviše 3 istovremeno; ako smeta, jedna konstanta ga spušta na 1.</td></tr>
+      <tr><td><b>B9</b> <span class="pill pill--mute">🟢</span> Šta je iza duga, za dispečera</td><td data-l="Šta vidimo">Dispečer ne vidi dostave koje su napravile dug. <span class="mono">GET /couriers/{id}/earnings</span> je kurirska ruta; nije provjereno smije li je dispečer čitati za svog kurira. Predlog: ledger sa <span class="mono">balance_after</span> (04.10., stavka 2) za dispečera ili dozvola čitanja za kurire svoje firme.</td><td data-l="Dok ne stigne">Tok jednog kurira pokazuje samo predaje i isplate.</td></tr>
+      <tr><td><b>B10</b> <span class="pill pill--mute">🟢</span> <span class="mono">couriers-balance</span>: tip naloga i veza sa firmom</td><td data-l="Šta vidimo">Odgovor sadrži dispečerske naloge (nulti redovi) i kurire koji više nisu u firmi (namjerno, odgovor od 01.09., stavka 1.2); nema <span class="mono">account_type</span> ni <span class="mono">link_active</span> (dispečerski nalozi u tom odgovoru su poznat nalaz iz ranijih dokumenata).</td><td data-l="Dok ne stigne">Nulti redovi se kriju; „Nije u firmi“ se izvodi iz izostanka kurira iz <span class="mono">couriers-status</span>.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="sub-head"><span class="group-title">Rizici</span><h3>Šta može da pođe po zlu i šta je za to već predviđeno</h3></div>
+  <div class="cols-3">
+    <div class="card"><h3>Zbir ne obuhvata sve</h3><p>Ako evidentirane uplate nisu u <span class="mono">cash-handovers</span> (B1), zbir „Potvrđene predaje“ je manji od stvarno primljenog. Zato se zove tačno tako i na stranici piše šta obuhvata.</p></div>
+    <div class="card"><h3>Isplata svima pomjera novac</h3><p>Ukupan iznos je u dugmetu, svaki kurir ima svoj ključ, zatvaranje je blokirano dok traje, a rezultat je po kuriru. „3 istovremeno“ je pretpostavka (B8).</p></div>
+    <div class="card"><h3>„Kasni“ je pretpostavka</h3><p>24 sata je dnevni ciklus predaje; nije potvrđeno šta pokreće <span class="mono">daily_handover_time</span> (05.10., stavka 23). Granica je jedna konstanta.</p></div>
+    <div class="card"><h3>Način isplate je iz teksta</h3><p>Ako backend promijeni tekst napomene, oznaka načina nestaje bez greške, a CSV kolona ostaje prazna (B2).</p></div>
+    <div class="card"><h3>Potvrda se ne može poništiti</h3><p>Nema rute za poništavanje: zato je iznos u dugmetu, dug poslije potvrde je u listu i nema skupne potvrde.</p></div>
+    <div class="card"><h3>Značka traži provjeru svake minute</h3><p>Ako backend ne voli stalne provjere, D1 se vetuje ili čeka B5. Na stranici Finansije se isti podatak čita na 30 s i ne dupliraju se zahtjevi.</p></div>
+  </div>
+</section>
+
+<!-- ============================================ PROVJERA -->
+<section class="sec" id="provjera">
+  <div class="sec-head">
+    <span class="eyebrow">Provjera</span>
+    <h2>Šta je provjereno, a šta nije</h2>
+  </div>
+  <div class="cols-2">
+    <div class="verify"><h3>Provjereno na prototipu</h3>
+      <ul>
+        <li><b>__M_A_checksLogic__ logičkih provjera</b> običnim Node-om: iznosi, pretraga (12 od 12 upita), knjiga i brojevi, filteri i redoslijed, nivoi limita, provjere potvrde i isplate, plan i izvršilac isplate svima (najviše 3 istovremeno, pad jednog ne zaustavlja ostale), period, spajanje prometa, zbirovi, grupe po danima, CSV (decimalni zarez, injekcija), pravila lažnog servera.</li>
+        <li><b>__M_A_checksFlows__ provjera tokova pravim događajima</b> u Chrome-u (miš, tastatura): pločice i filteri, pretraga, strelice i Enter, potvrda (isti iznos, razlika sa napomenom, iznad duga, nesačuvan unos, greška servera), uplata (cijeli dug, iznad duga), isplata (ključ isti na ponovnom pokušaju, račun, kurir bez računa), isplata svima (označavanje, tok, pad jednog, ponovo, blokirano zatvaranje), Promet (period, vrsta, razlike, kurir, CSV, stavka), stanja (pad, prazno, staro, kadar po kadar), osvježavanje i nova predaja (sakriven tab), iznosi kao tekst, 500 kurira, 4× sporiji procesor.</li>
+        <li><b>__M_A_checksDevice__ provjere uređaja i pristupačnosti</b> na računaru, telefonu 390 px i 320 px (dodir): kontrast <b>svakog</b> teksta u __M_A_states__ stanja (najslabiji __M_A_minC__ : 1, najsitniji tekst __M_A_minFont__ px), mete 44 px, bez vodoravnog klizanja, Tab redoslijed, uloge i imena, fokus pri zatvaranju.</li>
+        <li><b>__M_A_checksSteps__ mjerenja koraka</b> po zadatku (dodiri i znakovi) i položaj spiska na 1440×900.</li>
+        <li><b>__M_A_checksBoard__ provjera same table</b>: telefon 390 px (bez vodoravnog klizanja, okvir telefona odmah, kontrast), komande table (računar/telefon, nova predaja 4 → 5 sa značkom u meniju, dugme „Simuliraj pad servera“ potvrđuje, povratak na početno stanje) i „Izvezi CSV“ prema mogućnosti <span class="mono">downloads</span> (lažna zamjena: prihvaćeno, odbijeno, nedostupno). Uz to je isti niz stanja (potvrda, isplata svima, detalj, uplata, isplata, Promet, stavka, prazna pretraga) vođen u samostalnoj stranici i u tabli, na računaru i na telefonu: <b>__M_A_leakPairs__ parova</b> vrsta elemenata u __M_A_leakStates__ stanja upoređeno po __M_A_leakProps__ svojstava stila, bez ijedne razlike, pa stilovi table ne mijenjaju izgled prototipa.</li>
+        <li>Lažni server radi po istim pravilima kao onaj kojim je mjerena stara stranica (zajednička funkcija), pa su brojevi „prije“ i „poslije“ nad istim svijetom.</li>
+      </ul></div>
+    <div class="verify"><h3>Nije provjereno</h3>
+      <ul>
+        <li><b>Pravi backend.</b> Sve što piše uz B1 do B10, uključujući tekst napomene o razlici, redoslijed istorije, da li evidentirana uplata ima red, ograničenje brzine i odnos <span class="mono">from/to</span>. Takve tvrdnje u tekstu su označene kao pretpostavke.</li>
+        <li><b>Prava aplikacija.</b> Prototip je običan JavaScript sa stilovima po tokenima aplikacije; Vue i Vuetify komponente, <span class="mono">GlobalTabBar</span> i <span class="mono">AppSheet</span> u pravom kodu, produkcijski build i učitavanje ikona sa CDN-a nisu provjereni.</li>
+        <li><b>iOS Safari i pravi telefon</b> (testirani su Chrome sa dodirom, 390 i 320 px), <b>čitači ekrana</b> (provjereni su samo uloge, imena i fokus, ne i izgovor).</li>
+        <li><b>Preuzimanje CSV-a iz table.</b> Datoteka se nudi kroz mogućnost <span class="mono">downloads</span> Artifacta; to je provjereno samo sa lažnom zamjenom, ne u pravom pregledniku Artifacta (tamo gledalac može odbiti ili mogućnost može biti nedostupna, i tada prototip to kaže). U pravoj aplikaciji izvoz ide kao običan izvoz iz preglednika.</li>
+        <li><b>Samo specifikacija:</b> adresa kao stanje, povratak u karticu sa osvježavanjem, brojač pri promjeni firme (prototip ima jednu firmu), značka u pravoj ljusci.</li>
+        <li><b>Stara stranica</b> je mjerena u razvojnom režimu (<span class="mono">nuxt dev</span>) nad lažnim API-jem; trajanja su relativna, a ne produkcijska.</li>
+      </ul></div>
+  </div>
+</section>
+
+</main>

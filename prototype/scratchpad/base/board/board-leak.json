@@ -1,0 +1,176 @@
+{
+ "all": {
+  "wide": [
+   {
+    "okvir": "wide",
+    "stanje": "pocetno",
+    "vrste": 93,
+    "upoređeno": 93,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "wide",
+    "stanje": "potvrda",
+    "vrste": 109,
+    "upoređeno": 109,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "wide",
+    "stanje": "isplata-svima",
+    "vrste": 113,
+    "upoređeno": 113,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "wide",
+    "stanje": "detalj",
+    "vrste": 111,
+    "upoređeno": 111,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "wide",
+    "stanje": "uplata",
+    "vrste": 126,
+    "upoređeno": 126,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "wide",
+    "stanje": "isplata",
+    "vrste": 129,
+    "upoređeno": 129,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "wide",
+    "stanje": "promet",
+    "vrste": 60,
+    "upoređeno": 60,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "wide",
+    "stanje": "stavka",
+    "vrste": 72,
+    "upoređeno": 72,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "wide",
+    "stanje": "pretraga-prazna",
+    "vrste": 74,
+    "upoređeno": 74,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   }
+  ],
+  "phone": [
+   {
+    "okvir": "phone",
+    "stanje": "pocetno",
+    "vrste": 81,
+    "upoređeno": 81,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "phone",
+    "stanje": "potvrda",
+    "vrste": 98,
+    "upoređeno": 98,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "phone",
+    "stanje": "isplata-svima",
+    "vrste": 102,
+    "upoređeno": 102,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "phone",
+    "stanje": "detalj",
+    "vrste": 54,
+    "upoređeno": 54,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "phone",
+    "stanje": "uplata",
+    "vrste": 68,
+    "upoređeno": 68,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "phone",
+    "stanje": "isplata",
+    "vrste": 72,
+    "upoređeno": 72,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "phone",
+    "stanje": "promet",
+    "vrste": 56,
+    "upoređeno": 56,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "phone",
+    "stanje": "stavka",
+    "vrste": 68,
+    "upoređeno": 68,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   },
+   {
+    "okvir": "phone",
+    "stanje": "pretraga-prazna",
+    "vrste": 62,
+    "upoređeno": 62,
+    "samoDev": 0,
+    "samoTabla": 0,
+    "razlika": 0
+   }
+  ]
+ },
+ "totalCompared": 1548,
+ "totalDiffs": 0,
+ "props": 51,
+ "states": 18,
+ "checks": 4,
+ "diffs": []
+}

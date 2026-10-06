@@ -68,6 +68,7 @@ import PasswordReminderBanner from "~/components/common/PasswordReminderBanner.v
 import PushPermissionBanner from "~/components/common/PushPermissionBanner.vue";
 import OutboxStatusBanner from "~/components/dispatcher/OutboxStatusBanner.vue";
 import { useSessionStore } from "~/stores/session";
+import { useCashDeskStore } from "~/stores/cashDesk";
 import { useInboxStore } from "~/stores/inbox";
 import { useDeliveriesStore } from "~/stores/deliveries";
 import { useWalletStore } from "~/stores/wallet";
@@ -93,6 +94,7 @@ const sessionStore = useSessionStore();
 const { role, accountKind, courierId } = storeToRefs(sessionStore);
 const { logout } = sessionStore;
 const inboxStore = useInboxStore();
+const cashDeskStore = useCashDeskStore();
 const deliveriesStore = useDeliveriesStore();
 const walletStore = useWalletStore();
 const profileStore = useProfileStore();
@@ -178,6 +180,17 @@ watch(
       // ili promjene prikaza (učitava ih stranica koja ih prikazuje, vidi stores/deliveries.ts).
       deliveriesStore.stop();
     }
+  },
+  { immediate: true }
+);
+
+// Predaje gotovine koje čekaju potvrdu (značka na "Finansije" u meniju i na početnoj) se provjeravaju
+// dok je dispečerska ljuska prikazana; van nje se gasi i briše stanje (odjava, promjena prikaza).
+watch(
+  activeMode,
+  (mode) => {
+    if (mode === "dispatcher") cashDeskStore.start();
+    else cashDeskStore.stop();
   },
   { immediate: true }
 );

@@ -1,0 +1,12 @@
+import { openProto, sleep } from "./lib.mjs";
+const P = await openProto({ name: "dbg", width: 390, height: 844, dpr: 2, mobile: true, url: new URL("phone.html", import.meta.url).href });
+const ev = P.ev;
+await ev(`fresh('p', { wide: false, pollMs: 60000, ordersMs: 60000, slowMs: 60000 })`); await P.waitFor("A('p').ctx.ready"); await sleep(800);
+await ev(`A('p').ctx.selectCourier(30189)`); await sleep(700);
+const r = await ev(`(() => { const e = document.querySelector('#p .lv-x'); const b = e.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, top: document.elementFromPoint(b.left + 22, b.top + 22).className }; })()`);
+console.log(JSON.stringify(r));
+await P.b.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: r.x + 22, y: r.y + 22, id: 1 }] });
+await P.b.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+await sleep(500);
+console.log(JSON.stringify(await ev(`({ sel: A('p').st.selId, det: !!document.querySelector('#p .lv-det'), snap: A('p').st.snap })`)));
+await P.close();

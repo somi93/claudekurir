@@ -1,0 +1,22 @@
+{
+ "keyboard": {
+  "focusedName": "Amir Hodžić",
+  "selected": true,
+  "cardName": "Amir Hodžić",
+  "before": "Amir Hodžić"
+ },
+ "popupOpen": true,
+ "popupClosedByPollMs": 7075,
+ "poll": {
+  "requestsAtSec": [
+   14.7,
+   29.7
+  ],
+  "busyMs": 1300,
+  "observedMs": 36000
+ },
+ "hidden": {
+  "requestsWhileHidden": 2,
+  "flaggedHidden": true
+ }
+}

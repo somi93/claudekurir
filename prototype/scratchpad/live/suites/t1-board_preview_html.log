@@ -1,0 +1,120 @@
+  ✔ naslov stranice
+  ✔ podnaslov: 26 kurira · 14 uživo  — 26 kurira · 14 uživo · osvježeno upravo sad
+  ✔ pločice: Svi 26 / U dostavi 6 / Slobodni 8 / Offline 12  — ["26","6","8","12"]
+  ✔ oznake pažnje: sedam sa brojevima  — ["Bez signala 3","Blizu limita 4","Suspendovani 2","Kasne 3","Čeka kurira 5","Čeka restoran 3","Predaje čekaju 4"]
+  ✔ mapa se otvara u Banjoj Luci (ne u Beogradu)  — 44.773, 17.204
+  ✔ zum je pogodan za grad (12-15)  — 13.25
+  ✔ svi kuriri na terenu su u vidnom polju odmah  — 18/18
+  ✔ spisak: 12 redova i 'Prikaži još (14)'  — 12 Prikaži još (14)
+  ✔ pri otvaranju svaki izvor tačno jednom (9 poziva)  — {"GET /dispatcher/delivery-companies/:id/couriers-status":1,"GET /dispatcher/delivery-companies/:id/courier-locations":1,"GET /dispatcher/orders/waiting":1,"GET /dispatcher/orders/active-deliveries":1,"GET /dispatcher/orders/pending-restaurant-confirmation":1,"GET /dispatcher/delivery-companies/:id/couriers-balance":1,"GET /dispatcher/delivery-companies/:id/cash-handovers/pending":1,"GET /dispatcher/zones":1,"GET /dispatcher/delivery-companies/:id/finance-settings":1}
+  ✔ konzola čista  — 0
+  ✔ klik na red bira kurira
+  ✔ detalj kurira se pojavljuje iznad spiska
+  ✔ red je označen (aria-selected)
+  ✔ karta je poletjela do kurira (centar unutar 6 px, zum >= 14.5)  — 349,344 z=14.5
+  ✔ marker izabranog kurira je istaknut
+  ✔ detalj: ime, ID, 'Trenutna dostava' sa brojem narudžbe  — Amir HodžićKurir #30189·U dostavi·Signal pre 8 s Pozovi Poruka Detalji Novac Trenutna dostava#4269 · Pizzeria RomaAleja 
+  ✔ detalj: četiri brze radnje (Pozovi, Poruka, Detalji, Novac)
+  ✔ Pozovi je tel: veza sa brojem
+  ✔ detalj: brzina u km/h (ili Stoji / nepoznata)  — Amir HodžićKurir #30189·U dostavi·Signal pre 8 s Pozovi Poruka Detalji Novac Trenutna dostava#4269 · Pizzeria RomaAleja Svetog Save 12U dostavi · Stiže za 9 min3.50 KMDo odredišta 690 m (zračna linija)Prikaži narudžbu Brzina22 km/h VoziloMotor ZonaCentar Duguje firmi180.70 KM Na mapi Prati na mapi
+  ✔ 'Detalji' vodi na stranicu Kuriri (obavještenje u prototipu)  — U aplikaciji: otvara se stranica „Kuriri (kurir 30189)“.
+  ✔ Esc zatvara detalj
+  ✔ fokus se vraća na red  — {"tag":"button","id":"","fk":"row:30189","act":"pick-c","role":"option","text":"Amir Hodžić, kurir 30189, u dostavi, nar","cls":"lv-row"}
+  ✔ klik na marker bira kurira
+  ✔ karta ne skače pri izboru sa karte (centar isti)
+  ✔ pri izboru sa karte tab ostaje Kuriri i detalj je gore
+  ✔ Amir: u dostavi, narudžba #4269, duguje 180.70 KM  — Amir HodžićKurir #30189·U dostavi·Signal pre 8 s Pozovi Poruka Detalji Novac Trenutna dostava#4269 · Pizzeria RomaAleja Svetog Save 12U dostavi · Stiže za 9 min3.50 KMDo odredišta 690 m (zračna linija
+  ✔ linija ka odredištu je nacrtana
+  ✔ odredište narudžbe je označeno na karti
+  ✔ pri odzumiranju postoje klasteri  — 2
+  ✔ klik na klaster približava mapu  — 13.25 -> 17
+  ✔ kuriri bez signala su uvijek pojedinačni markeri (3)  — 3
+  ✔ povlačenje mišem pomjera kartu za pređeni put  — 160px, -80px
+  ✔ povlačenje ne bira kurira
+  ✔ poslije povlačenja automatsko pozicioniranje se gasi
+  ✔ točkić približava za pola nivoa  — 13.25 -> 13.75
+  ✔ zum je oko pokazivača (tačka ispod ostaje)  — 0.00 m
+  ✔ dugme udaljavanja
+  ✔ zum ne prelazi 17  — 17
+  ✔ zum ne pada ispod 10  — 10
+  ✔ 'Prikaži sve' vraća sve kurire u vidno polje  — 18/18
+  ✔ strelica na fokusiranoj karti pomjera kartu udesno
+  ✔ taster + približava
+  ✔ taster 0 prikazuje sve
+  ✔ pločica 'U dostavi': 6 kurira u spisku  — 6 od 26 kurira
+  ✔ pločica je pritisnuta (aria-pressed)
+  ✔ na karti ostaju samo kuriri u dostavi
+  ✔ brojevi na pločicama ostaju stabilni dok se filtrira
+  ✔ 'U dostavi' + 'Bez signala' = Željko Đurić
+  ✔ 'Očisti filtere' je ponuđeno
+  ✔ 'Očisti filtere' vraća sve
+  ✔ taster / fokusira pretragu
+  ✔ pretraga 'zeljko djuric' nalazi Željka Đurića (pravi kod sa stranice Kuriri)  — 1 od 26 kurira
+  ✔ pretraga je i na karti (jedan marker)  — 1
+  ✔ pretraga telefona bez razdjelnika (u bazi 065/123-456)
+  ✔ pretraga ćirilicom nalazi oba Željka
+  ✔ bez rezultata: poruka u spisku i na karti  — Nijedan kurir ne odgovara filteruOčisti filtere
+  ✔ 'Očisti filtere' iz praznog stanja
+  ✔ redoslijed 'Najduže bez signala': tri kurira bez signala prva  — ["Milan Đurić","Željko Marković","Željko Đurić"]
+  ✔ 'Prikaži još' dodaje 12 redova
+  ✔ oznaka 'Kasne' otvara Narudžbe sa filterom 'kasne'
+  ✔ kasne narudžbe: #4262, #4265, #4277  — ["4262","4265","4277"]
+  ✔ oznaka je pritisnuta
+  ✔ drugi klik skida filter
+  ✔ 'Traži pažnju': prve četiri stavke, prva je Željko Đurić  — ["Željko Đurić: bez signala 14 min","#4277 Pizzeria Roma: Kasni 3 min","#4278 Trattoria Lido: Čeka kurira 18 min","#4265 Trattoria Lido: Kasni 6 min"]
+  ✔ druga je #4277 koja kasni (nema kurira)
+  ✔ 'Prikaži sve (7)'
+  ✔ prikazuje svih sedam
+  ✔ stavka sa kurirom ima 'Pozovi' sa tel:
+  ✔ restoran koji ne reaguje nosi broj restorana
+  ✔ klik na stavku o kuriru: tab Kuriri, izabran Željko, karta na njemu
+  ✔ detalj duha: crveno upozorenje sa radnjom 'Pošalji Gdje si?'
+  ✔ detalj duha: dostava #4262 kasni 11 min
+  ✔ klik na narudžbu otvara detalj  — Trattoria LidoNarudžba #4278·Čeka kurira Restoran Kurir Dodijeli StanjeČeka kurira 18 minHrana se još sprema. IsporukaGundulićeva 7ZonaLaušUdaljenost3,1 kmCijen
+  ✔ detalj narudžbe: adresa, zona, udaljenost
+  ✔ pin izabrane narudžbe je istaknut
+  ✔ 'Dodijeli' vodi u Dodelu narudžbi
+  ✔ kurir bez narudžbe: poziv kuriru je onemogućen (aria-disabled)
+  ✔ narudžba u dostavi: kurir je naveden i veza ka njemu postoji
+  ✔ linija kurir -> odredište nacrtana
+  ✔ filter 'Čeka restoran': 4 narudžbe  — 4
+  ✔ restoran: poziv ima broj
+  ✔ narudžba bez koordinata (#4150) nije na karti i to piše
+  ✔ Željko (bez signala) je izabran
+  ✔ list se otvara sa tekstom 'Gdje si?'
+  ✔ naslov lista nosi ime kurira
+  ✔ fokus je u listu
+  ✔ Esc sa unesenim tekstom pita 'Imaš nesačuvan unos'
+  ✔ 'Nastavi unos' vraća u polje
+  ✔ pad servera: list ostaje, tekst ostaje, piše greška  — Pošalji porukuNe mogu da pošaljem poruku. Pokušaj ponovo; tekst je ostao u listu.
+  ✔ slanje: list se zatvara i stiže obavještenje  — Poruka je poslata: Željko.
+  ✔ poslat je tačan zahtjev: /couriers/30234/inbox sa vrstom, naslovom i tekstom  — [{"path":"/couriers/30234/inbox","body":{"category":"announcement","title":"Gdje si?","body":"Izgubili smo tvoj signal. Otvori aplikaciju i uključi lokaciju, ili se javi dispečeru."}},{"path":"/couriers/30234/inbox","body":{"category":"announcement","title":"Gdje si?","body":"Izgubili smo tvoj signal. Otvori aplikaciju i uključi lokaciju, ili se javi dispečeru."}}]
+  ✔ fokus se vraća na stranicu
+  ✔ bez naslova i teksta 'Pošalji' je isključeno i piše zašto
+  ✔ pozicije se osvježavaju na zadati interval (3 s, bar dva kruga u 7 s)  — 2
+  ✔ marker kurira postoji i poslije osvježavanja (ključ je courierId, ne updated_at)  — {"same":true,"moved":true,"sel":true}
+  ✔ marker je pomjeren na novu poziciju  — {"same":true,"moved":true,"sel":true}
+  ✔ izbor i detalj prežive osvježavanje
+  ✔ dok je tab skriven nema novih zahtjeva za pozicije  — 0
+  ✔ po povratku u tab osvježava se odmah
+  ✔ 'Osvježi' prikazuje stanje zauzeto dok traje
+  ✔ 'Osvježi' čita sve izvore ponovo i vraća dugme
+  ✔ 'Prati na mapi' uključeno
+  ✔ karta prati kurira dok se pomjera  — 349,344
+  ✔ ručno pomjeranje karte gasi praćenje
+  ✔ pinovi narudžbi i oznake zona su uključeni  — 9 pinova, 6 zona
+  ✔ meni slojeva ima tri prekidača
+  ✔ 'Narudžbe na karti' isključeno: nema pinova
+  ✔ 'Zone' isključeno: nema oznaka zona ni krugova
+  ✔ Esc zatvara meni
+  ✔ legenda objašnjava isprekidani prsten (bez signala)
+  ✔ 'Proširi mapu' skriva panel i širi kartu  — 1134
+  ✔ izbor u proširenom prikazu vraća panel
+  ✔ spisak kurira je jedno zaustavljanje tastera Tab (roving)  — 1 od 4
+  ✔ strelica dolje pomjera fokus po redovima
+  ✔ Enter bira kurira
+  ✔ Home vraća na prvi red
+  ✔ Esc poslije izbora zatvara detalj
+  ✔ strelica desno na tabu prelazi na Narudžbe
+
+Ukupno: 118/118 prošlo

@@ -1,0 +1,90 @@
+<!-- ============================================ PREDLOG -->
+<section class="sec" id="predlog">
+  <div class="sec-head">
+    <span class="eyebrow">Predlog</span>
+    <h2>Karta u pravom gradu, brojke koje ne lažu i posao na jedan dodir</h2>
+    <p class="small">Isti jezik kao Kuriri, Finansije i Raspored: zaglavlje sa podnaslovom, pilule stanja (kao <span class="mono">RosterFilters</span>), tonirane poruke (<span class="mono">TintAlert</span>), donji listovi (<span class="mono">AppSheet</span>) sa zaštitom nesačuvanog unosa i dugmad od 44 do 52 px. Nijedna nova ruta: sve radi nad onim što stranice Kuriri, Dodela narudžbi i Raspored već zovu (<span class="mono">couriers-status</span>, <span class="mono">courier-locations</span>, <span class="mono">couriers-balance</span>, <span class="mono">finance-settings</span>, <span class="mono">orders/waiting</span>, <span class="mono">orders/active-deliveries</span>, <span class="mono">orders/pending-restaurant-confirmation</span>, <span class="mono">zones</span>, <span class="mono">cash-handovers/pending</span>) i jednim upisom (<span class="mono">POST /couriers/{id}/inbox</span>, isti kao poruka na stranici Kuriri). Šest ideja vodi cijeli ekran:</p>
+  </div>
+  <div class="cols-3">
+    <div class="card"><h3>1. Karta počinje tamo gdje su kuriri</h3><p>Početni pogled uzima kurire na terenu (ili viđene u zadnjih 60 min), pa sve sa pozicijom, pa zone firme, pa tek tada pregled regije; nikad Beograd. „Prikaži sve“ vraća pogled, a osvježavanje ga ne pomjera dok dispečer sam ne počne da vuče ili zumira. „Prati na mapi“ drži jednog kurira u sredini.</p></div>
+    <div class="card"><h3>2. Brojke su cijela flota</h3><p>Pločice broje sve kurire firme (<span class="mono">couriers-status</span> + <span class="mono">courier-locations</span> + <span class="mono">couriers-balance</span>), kao stranica Kuriri; „Offline“ uključuje one bez pozicije. Dok se ne zna, piše „—“, ne 0. Oznake pažnje se vide samo kad im je broj veći od nule ili su uključene.</p></div>
+    <div class="card"><h3>3. Signal je posebna oznaka</h3><p>Stanje ostaje ono što kaže server (odluka iz <span class="mono">courierStatus.ts</span> se ne mijenja), a svježina signala je zasebna: do 90 s svjež, do 5 min slab, preko toga „Bez signala“ (isprekidan prsten, uzvičnik, crvena oznaka sa starošću). Takav kurir se nikad ne skriva u klasteru i prvi je u „Traži pažnju“ ako vozi narudžbu koja kasni.</p></div>
+    <div class="card"><h3>4. Jedan dodir do posla</h3><p>Izbor kurira (sa karte ili iz spiska) otvara detalj iznad spiska: Pozovi, Poruka, Detalji, Novac, trenutna dostava (restoran, adresa, rok, udaljenost do odredišta), gotovina sa mjeračem limita, brzina u km/h, vozilo i zona. Poruka je donji list sa tri gotova teksta, među njima „Gdje si?“.</p></div>
+    <div class="card"><h3>5. Šta traži pažnju</h3><p>Oznake „Kasne“, „Čeka kurira“, „Čeka restoran“ i „Predaje čekaju“ otvaraju tab Narudžbe sa rangiranim spiskom i dugmetom Pozovi uz restoran ili kurira. Odredišta koja traže pažnju su na karti, ako red nosi koordinate. Dodjela kurira i prihvatanje restorana ostaju u Dodeli narudžbi; ovdje je veza ka njoj.</p></div>
+    <div class="card"><h3>6. Greška je greška</h3><p>Svaki izvor pada posebno: bez pozicija spisak radi i piše da stanje nije pouzdano, bez narudžbi rade kuriri, bez novca nestaju samo oznake limita. Stari podaci ostaju uz vrijeme zadnjeg uspjeha i „Pokušaj ponovo“. Nikad „Nema kurira u ovoj kategoriji.“ kad je server pao.</p></div>
+  </div>
+  <div class="cols-3">
+    <div class="card"><h3>Računar</h3><p>Stranica se ne klizi: traka sa pločicama pa karta (cijela visina ekrana, __M_A_mapW__×__M_A_mapH__ px na 1440×900) uz panel od 420 px sa tabovima Kuriri i Narudžbe. Detalj je iznad spiska, pa izbor ne gura stranicu. Stranica koristi punu širinu umjesto 1480 px.</p></div>
+    <div class="card"><h3>Telefon</h3><p>Karta puni ekran, a spisak je donji list sa tri visine (__M_A_phonePeek__ px, pola, cijeli): dodir na marker ili red diže list na pola i pomjera kartu iznad njega, ručka se dodiruje ili povlači. Pločice i oznake kližu u jednom redu.</p></div>
+    <div class="card"><h3>Isti izvor kao Kuriri</h3><p>Spisak, stanje, pretraga, filteri, gotovina i poruka dolaze iz iste logike (<span class="mono">useCourierRoster</span>, <span class="mono">utils/courierRoster.ts</span>), pa se brojke na dvije stranice ne razilaze. Nova je samo logika koja nije bila nigdje: svježina signala, pažnja, geometrija karte.</p></div>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Radni tok</span><h3>Ko šta radi kad otvori stranicu</h3></div>
+  <div class="flow">
+    <div><b>Tokom dana</b>Karta pokazuje teren, pločice i oznake brojke. Nešto novo (kasni, čeka, nestao signal) se vidi bez klika; automatski se osvježava dok je tab vidljiv.</div>
+    <i>→</i>
+    <div><b>Kad kurir nestane</b>„Bez signala“ otvara one koji se ne javljaju. Detalj: Pozovi ili „Pošalji Gdje si?“ (dva dodira i Enter).</div>
+    <i>→</i>
+    <div><b>Kad narudžba čeka</b>„Kasne“ ili „Čeka kurira“ otvaraju Narudžbe: odredište je na karti i vide se slobodni kuriri oko njega, a „Dodijeli“ vodi u Dodelu narudžbi sa izabranom narudžbom.</div>
+    <i>→</i>
+    <div><b>Kad treba reći nešto</b>Poruka jednom kuriru iz detalja, bez odlaska na Kuriri; grupna poruka ostaje na stranici Poruke.</div>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Prototip</span><h3>Radi na računaru i na telefonu</h3></div>
+  <div class="proto">
+    <div class="now">
+      <p class="small">Podaci su izmišljeni (isti kao u mjerenjima: firma u Banjoj Luci, __M_B_world__ kurira, __M_A_orders__ narudžbi, 7 zona od kojih 6 imaju krug na karti), a <b>sat je zaključan na utorak 6. oktobar, 14:20</b>, da brojke u tekstu ostanu iste pri svakom otvaranju. Karta je shematska (u aplikaciji je OpenStreetMap), ali razmjera, zum, povlačenje i klasteri rade. Svaki poziv ka serveru je lažan i broji se; u aplikaciji su to rute iz poglavlja „Podaci“. Osvježavanje je ubrzano: pozicije svakih 8 s (u aplikaciji 15 s), narudžbe 12 s (30 s). Poziv (<span class="mono">tel:</span>) ne bira broj nego ga ispiše.</p>
+      <ol class="try">
+        <li><span><b>Izaberi kurira:</b> klikni marker na karti ili red u spisku. Detalj se otvara iznad spiska, „Trenutna dostava“ kaže šta nosi, „Pozovi“ pokazuje broj.</span></li>
+        <li><span><b>Kurir bez signala:</b> Željko Đurić (u dostavi, narudžba kasni 11 min) je prvi u „Traži pažnju“ na tabu Narudžbe; u detalju „Pošalji Gdje si?“ otvara list. Enter šalje; Esc sa unesenim tekstom pita prije odbacivanja.</span></li>
+        <li><span><b>Oznake pažnje:</b> „Kasne 3“ otvara Narudžbe sa filterom; izabrana narudžba koju neko vozi crta liniju kurir → odredište.</span></li>
+        <li><span><b>Komande ispod:</b> „Pomjeri kurire“, „Kuriru se ugasi aplikacija“ (poslije toga mu se pojavi isprekidan prsten i oznaka), „Nova narudžba“, „Simuliraj pad servera“ i „Sat +10 min“.</span></li>
+        <li><span><b>Karta:</b> točkić zumira oko pokazivača, povlačenje pomjera, klaster se klikom raspada, „Slojevi“ gase zone i narudžbe, „Proširi mapu“ skriva panel.</span></li>
+        <li><span><b>Tastatura:</b> <span class="kbd">/</span> traži, strelice mijenjaju red, <span class="kbd">Enter</span> otvara, <span class="kbd">Esc</span> zatvara; na karti strelice pomjeraju, <span class="kbd">+</span> <span class="kbd">−</span> zumiraju, <span class="kbd">0</span> prikazuje sve.</span></li>
+      </ol>
+    </div>
+    <div class="stage">
+      <div class="ctl" role="group" aria-label="Prikaz prototipa">
+        <button type="button" class="bb" data-mode="desk" aria-pressed="true">Računar</button>
+        <button type="button" class="bb" data-mode="phone" aria-pressed="false">Telefon</button>
+        <button type="button" class="bb" data-sim="move">Pomjeri kurire</button>
+        <button type="button" class="bb" data-sim="lose">Kuriru se ugasi aplikacija</button>
+        <button type="button" class="bb" data-sim="order">Nova narudžba</button>
+        <button type="button" class="bb" data-sim="fail">Simuliraj pad servera</button>
+        <button type="button" class="bb" data-sim="clock">Sat +10 min</button>
+        <button type="button" class="bb" data-sim="reset">Vrati početno stanje</button>
+      </div>
+      <div class="deskwrap" id="deskwrap"><div class="dsk" id="d" data-fx="wide" data-poll="8000" data-orders="12000" data-slow="20000"></div></div>
+      <div class="phone-one" id="p" data-fx="phone" data-poll="8000" data-orders="12000" data-slow="20000" hidden></div>
+      <p class="hint">„Simuliraj pad servera“ obara sljedeća dva čitanja. Nijedan upis ne izlazi iz stranice.</p>
+    </div>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Prije i poslije</span><h3>Isti zadaci, ista probna firma</h3></div>
+  <p class="small">Prvi stupac je mjeren na staroj stranici (isti alat, ista firma), drugi na prototipu skriptom koja koristi prave događaje (miš, tastatura, dodir). „Dodir“ je jedan klik ili dodir. Brojke o gotovini, narudžbama i zonama su iz probnih podataka.</p>
+  <div class="ba" role="table" aria-label="Prije i poslije">
+    <div class="h" role="columnheader">Zadatak</div><div class="h" role="columnheader">Prije</div><div class="h" role="columnheader">Poslije</div>
+    <div class="k" role="rowheader">Prvi pogled: koliko kurira je u vidnom polju karte</div><div>__M_B_visible__ od __M_B_total__ (Beograd, __M_B_openKm__ km od kurira)</div><div><b>__M_A_visible__ od __M_A_recent__</b> koji su na terenu ili viđeni u zadnjih 60 min (centar __M_A_openKm__ km od sredine kurira, zum __M_A_zoom__); sa pozicijom ih je __M_A_withPos__, u vidu __M_A_visibleAll__</div>
+    <div class="k" role="rowheader">Koliko kurira ima firma</div><div>__M_B_total__ (samo oni sa pozicijom)</div><div><b>__M_A_svi__</b>: __M_A_deliv__ u dostavi, __M_A_free__ slobodnih, __M_A_off__ offline (od toga __M_A_none__ bez pozicije)</div>
+    <div class="k" role="rowheader">Ko se ne javlja a vodi se kao slobodan ili u dostavi</div><div>Ne vidi se; samo tekst „pre 2h“ i blijeđi red</div><div><b>__M_A_lost__ kurira</b> sa oznakom „Bez signala“ (__M_A_lostDeliv__ u dostavi, __M_A_lostFree__ slobodna); jedan dodir na oznaku daje spisak</div>
+    <div class="k" role="rowheader">Šta kasni, šta čeka kurira, šta restoran nije prihvatio</div><div>Nije na ovoj stranici (Dodela narudžbi)</div><div>Oznake „Kasne __M_A_late__“, „Čeka kurira __M_A_wait__“, „Čeka restoran __M_A_rest__“; „Traži pažnju“ sa __M_A_items__ stavki, najhitnija prva</div>
+    <div class="k" role="rowheader">Pozvati restoran koji ne reaguje</div><div>Druga stranica, pa traženje narudžbe</div><div><b>1 dodir</b> (Pozovi u stavci „Traži pažnju“ ili u detalju narudžbe)</div>
+    <div class="k" role="rowheader">Šta nosi izabrani kurir</div><div>Nije na ovoj stranici</div><div>U detalju: narudžba, restoran, adresa, rok, udaljenost do odredišta, zona, gotovina</div>
+    <div class="k" role="rowheader">Poslati poruku „Gdje si?“ kuriru bez signala</div><div>Nije moguće sa ove stranice</div><div><b>3 dodira</b> (izbor kurira, „Pošalji Gdje si?“, „Pošalji poruku“), tekst je već upisan</div>
+    <div class="k" role="rowheader">Naći kurira kucanjem</div><div>__M_B_searchFound__ od __M_B_searchTotal__ realnih upita</div><div><b>__M_A_searchFound__ od __M_B_searchTotal__</b> (pretraga sa stranice Kuriri)</div>
+    <div class="k" role="rowheader">Popup i izbor poslije osvježavanja</div><div>Popup se zatvori za __M_B_popupMs__ s; __M_B_recreated__ od __M_B_markersAll__ markera se pravi iznova</div><div><b>Marker je isti element</b> (ključ je ID kurira); izbor i detalj ostaju</div>
+    <div class="k" role="rowheader">Brzina kurira</div><div>m/s; nepoznata brzina piše „stoji“ (popup „n/a“)</div><div>km/h; „Brzina nepoznata“ kad je nema; isti tekst svuda</div>
+    <div class="k" role="rowheader">Pad servera pri otvaranju</div><div>__M_B_failPills__ i „Nema kurira u ovoj kategoriji.“</div><div>„—“ i poruka šta ne radi, sa „Pokušaj ponovo“; stari podaci ostaju uz vrijeme</div>
+    <div class="k" role="rowheader">Karta, računar 1440×900</div><div>__M_B_mapW__×__M_B_mapH__ px; sadržaj završava na __M_B_mapEnd__ od __M_B_vh__ px</div><div><b>__M_A_mapW__×__M_A_mapH__ px</b>, do dna ekrana</div>
+    <div class="k" role="rowheader">Redova u spisku bez klizanja (računar 900 px)</div><div>__M_B_rowsFull__ (red __M_B_rowH__ px); izbor gura stranicu na __M_B_docAfterSel__ px</div><div><b>__M_A_rowsFull__</b> (red __M_A_rowH__ px, lista __M_A_listH__ px); detalj je iznad spiska, stranica se ne pomjera</div>
+    <div class="k" role="rowheader">Marker</div><div>__M_B_markerPx__ px, bez imena, ne može se fokusirati</div><div><b>__M_A_markerPx__ px</b> sa inicijalima (zona dodira __M_A_hitPx__ px), strelica smjera, ime na zumu 14,5 i više</div>
+    <div class="k" role="rowheader">Najslabiji kontrast teksta</div><div>__M_B_minC__ : 1 (__M_B_badC__ od __M_B_textsC__ tekstova ispod 4,5)</div><div><b>__M_A_minC__ : 1</b> (svaki tekst u __M_A_states__ stanja, __M_A_texts__ tekstova; najmanji font __M_A_minFont__ px)</div>
+    <div class="k" role="rowheader">Mete ispod 44 px</div><div>Dugmad zaglavlja __M_B_hdrBtn__, zum __M_B_zoomBtn__, marker __M_B_markerPx__ px</div><div><b>0</b> u svim stanjima, računar i telefon</div>
+    <div class="k" role="rowheader">Tab zaustavljanja cijele stranice</div><div>__M_B_stops__ (zaglavlje 3, pilule 4, karta 1, zum 2, pretraga 1, spisak 1)</div><div>__M_A_stops__ (spisak je i dalje jedno). <b>Više je</b> jer su dodate oznake pažnje, kontrole karte i radnje detalja</div>
+    <div class="k" role="rowheader">Skriven tab</div><div>__M_B_hidden36__ zahtjeva u 36 s</div><div><b>0</b>; po povratku odmah osvježava</div>
+    <div class="k" role="rowheader">500 kurira: elementi i kucanje (procesor 4× sporiji)</div><div>__M_B_nodes500__ elemenata; __M_B_type4_500__ ms za tri slova</div><div><b>__M_A_nodes500__</b> elemenata; <b>__M_A_type4_500__ ms</b>; na karti __M_A_markers500__ markera i __M_A_clusters500__ klastera, zum __M_A_zoom1_500__ ms po koraku</div>
+    <div class="k" role="rowheader">Telefon: prvi ekran i izbor</div><div>__M_B_phoneRows0__ kurira u prvom ekranu; poslije dodira na red mapa u vidu __M_B_phoneMapPct__ %</div><div>Karta puni ekran, spisak je donji list; poslije izbora je marker iznad lista, a detalj odmah vidljiv</div>
+    <div class="k" role="rowheader">Zahtjevi pri otvaranju</div><div>__M_B_reqOpen__ (stranica zove jedan, ostalo ljuska aplikacije)</div><div>9 u prototipu: stranica dodaje 8 (spisak, pozicije, novac, postavke, zone, tri za narudžbe); predaje već čita ljuska</div>
+    <div class="k" role="rowheader">Zahtjevi u minuti, dok je tab vidljiv</div><div>4 (pozicije) i 1 koji ljuska radi za značku Finansija</div><div>11 (pozicije 4, narudžbe 6, novac 1) i isti 1 iz ljuske; cijena novih podataka</div>
+  </div>
+</section>

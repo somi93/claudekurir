@@ -1,0 +1,123 @@
+<!-- ============================================ ODLUKE -->
+<section class="sec" id="odluke">
+  <div class="sec-head">
+    <span class="eyebrow">Odluke</span>
+    <h2>Preporuke su izabrane unaprijed; tri mogu da se ospore prije izrade</h2>
+    <p class="small">Šesnaest odluka, svaka sa preporukom. Ako ništa ne ospori, gradi se preporuka. Tri su označene kao <b>VETO</b> jer mijenjaju obim ili navigaciju cijele aplikacije: <b>D1</b> (narudžbe na ovoj stranici), <b>D12</b> (telefon: karta je prvo) i <b>D13</b> (početna dispečera). Svaka odluka kaže i kako se poništava.</p>
+  </div>
+  <div class="cols-2">
+    <div class="card card--veto"><h3>D1 · Narudžbe na ovoj stranici <span class="pill pill--warn">VETO</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> tab Narudžbe i oznake pažnje (Kasne, Čeka kurira, Čeka restoran). Čita tri postojeća servisa na 30 s: 6 zahtjeva u minuti više. Dodjela i prihvatanje ostaju u Dodeli narudžbi.</span></li><li><i>B</i><span>Samo kuriri: Faza 0 i dio Faze 1 bez narudžbi.</span></li><li><i>C</i><span>Narudžbe tek kad backend potvrdi koordinate (B3).</span></li></ul><p class="undo">Poništavanje: tab i oznake se sakriju jednom zastavom; kuriri rade bez njih.</p></div>
+    <div class="card card--rec"><h3>D2 · Cijela flota je izvor <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> kao Kuriri (<span class="mono">couriers-status</span> + <span class="mono">courier-locations</span> + <span class="mono">couriers-balance</span>): „Svi __M_A_svi__“, „Offline“ uključuje kurire bez pozicije, „—“ dok se ne zna.</span></li><li><i>B</i><span>Ostati na <span class="mono">courier-locations</span> (samo kuriri sa pozicijom).</span></li></ul><p class="undo">Poništavanje: izvor se isključi; brojke se vraćaju na broj kurira sa pozicijom.</p></div>
+    <div class="card card--rec"><h3>D3 · Svježina signala je zasebna oznaka <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> stanje ostaje po serveru, uz oznaku „Bez signala“ iznad 5 min (svjež do 90 s). Odluka u <span class="mono">courierStatus.ts</span> da server ne smije biti pregažen ostaje.</span></li><li><i>B</i><span>Stanje računati iz starosti (to je ranije odbačeno).</span></li><li><i>C</i><span>Ne mijenjati.</span></li></ul><p class="undo">Poništavanje: pragovi su dvije konstante; oznaka se gasi nulom.</p></div>
+    <div class="card card--rec"><h3>D4 · Početni pogled iz podataka <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> kuriri na terenu → svi sa pozicijom → zone → grad firme → region, plus „Prikaži sve“. Nikad Beograd. Ulazi i u Fazu 0.</span></li><li><i>B</i><span>Zapamtiti zadnji pogled po firmi u pregledaču (ne rješava prvo otvaranje).</span></li></ul><p class="undo">Poništavanje: jedna funkcija.</p></div>
+    <div class="card card--rec"><h3>D5 · Markeri sa inicijalima i klasteri <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> 40 px sa inicijalima, strelica smjera, ime na zumu 14,5+, klasteri ispod zuma 15; kuriri bez signala i izabrani nikad u klasteru.</span></li><li><i>B</i><span>Zadržati krugove, samo ispraviti ključ i veličinu (Faza 0).</span></li></ul><p class="undo">Poništavanje: vraća se <span class="mono">LCircleMarker</span>.</p></div>
+    <div class="card card--rec"><h3>D6 · Detalj iznad spiska <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> kartica iznad spiska sa Pozovi, Poruka, Detalji, Novac, trenutnom dostavom i gotovinom; na telefonu u donjem listu.</span></li><li><i>B</i><span>Zasebna stranica detalja (kao Kuriri na telefonu).</span></li></ul><p class="undo">Poništavanje: kartica se zamijeni vezom ka stranici Kuriri.</p></div>
+    <div class="card card--rec"><h3>D7 · Jedinice i tekstovi <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> km/h; „Stoji“ ispod 0,5 m/s; bez podatka „Brzina nepoznata“; isti tekst u popupu, kartici i spisku.</span></li></ul><p class="undo">Poništavanje: jedna funkcija.</p></div>
+    <div class="card card--rec"><h3>D8 · Osvježavanje <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> pozicije 15 s, narudžbe 30 s, novac 60 s; pauza dok je tab skriven, odmah po povratku; samo „Osvježi“ prikazuje zauzeto. 11 zahtjeva u minuti (danas 4).</span></li><li><i>B</i><span>Narudžbe 60 s (8 u minuti).</span></li></ul><p class="undo">Poništavanje: konstante.</p></div>
+    <div class="card card--rec"><h3>D9 · Adresa čuva stanje <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> <span class="mono">?c ?o ?t ?f ?q ?l</span>; veza <span class="mono">?c=ID</span> ostaje; za kurira bez pozicije piše poruku.</span></li></ul><p class="undo">Poništavanje: stanje ostaje lokalno.</p></div>
+    <div class="card card--rec"><h3>D10 · Zone na karti sa brojevima <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> krugovi zone grada firme sa brojem u dostavi, slobodnih i bez signala, računato iz pozicija koje se već vide (bez posebnog poziva). „Slojevi“ ih gase.</span></li><li><i>B</i><span>Bez zona na ovoj stranici (zone su na stranici Raspored).</span></li></ul><p class="undo">Poništavanje: sloj.</p></div>
+    <div class="card card--rec"><h3>D11 · Cijela širina i visina <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> bez ograničenja od 1480 px, karta do dna ekrana, panel 420 px; stranica se ne klizi na računaru.</span></li></ul><p class="undo">Poništavanje: širina i visina su dva broja.</p></div>
+    <div class="card card--veto"><h3>D12 · Telefon: karta je prvo <span class="pill pill--warn">VETO</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> karta puni ekran, spisak je donji list sa tri visine (__M_A_phonePeek__ px, pola, cijeli); izbor diže list na pola i pomjera kartu iznad njega.</span></li><li><i>B</i><span>Staro slaganje: karta pa spisak ispod, sa pločicama 2×2.</span></li></ul><p class="undo">Poništavanje: samo raspored na telefonu.</p></div>
+    <div class="card card--veto"><h3>D13 · Početna dispečera <span class="pill pill--warn">VETO</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> ne mijenjati sada; početna (<span class="mono">/</span>) ostaje sa karticama, a ova stranica se otvara iz menija.</span></li><li><i>B</i><span>Kartica „Kuriri uživo“ na početnoj dobija brojke uživo (čitanje i na početnoj).</span></li><li><i>C</i><span>Ova stranica postaje početna dispečera.</span></li></ul><p class="undo">Ne radim bez odluke: mijenja navigaciju cijele aplikacije.</p></div>
+    <div class="card card--rec"><h3>D14 · Faza 0 odmah i odvojeno <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> popravke koje ne zavise od redizajna idu prvo (pogled, ključ markera, greške i prazna stanja, km/h, avatar, kontrast i mete, pauza skrivenog taba, pretraga iz <span class="mono">matchCourier</span>, poruka za <span class="mono">?c</span>). Mogu stići i ako se redizajn odloži.</span></li></ul><p class="undo">Poništavanje: svaka popravka je zasebna.</p></div>
+    <div class="card card--rec"><h3>D15 · „Dodijeli“ vodi na pravu narudžbu <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> <span class="mono">assignment.vue</span> čita <span class="mono">?o=ID</span> i poziva <span class="mono">selectOrder</span>. Mala izmjena van ove stranice.</span></li><li><i>B</i><span>Otvarati Dodelu narudžbi bez izbora.</span></li></ul><p class="undo">Poništavanje: veza bez parametra.</p></div>
+    <div class="card card--rec"><h3>D16 · Gotove poruke <span class="pill pill--acc">preporuka</span></h3><ul class="opts"><li class="rec"><i>A</i><span><b>Preporuka:</b> tri teksta u kodu („Gdje si?“, „Javi se dispečeru“, „Narudžba te čeka“); kasnije iz šablona sa stranice Poruke.</span></li><li><i>B</i><span>Bez gotovih tekstova.</span></li></ul><p class="undo">Poništavanje: lista tekstova.</p></div>
+  </div>
+</section>
+
+<!-- ============================================ REDOSLED IZRADE -->
+<section class="sec" id="izrada">
+  <div class="sec-head">
+    <span class="eyebrow">Redosled izrade</span>
+    <h2>Faza 0 se može isporučiti odmah, Faza 1 ne traži backend, Faza 2 traži</h2>
+    <p class="small">Ništa se ne briše dok pretraga po <span class="mono">app/</span> ne pokaže da stari dijelovi nemaju uvoza. Kuriri i Finansije se ne diraju osim što MessageSheet dobija gotove tekstove.</p>
+  </div>
+  <ol class="phases">
+    <li><div><b>Faza 0 · popravke na staroj stranici <span class="pill pill--good">bez redizajna</span></b><span>Ne zavisi od ostalog i vrijedi i ako se ostalo odloži.</span><ul>
+      <li>Početni pogled iz podataka i dugme „Prikaži sve“; bez Beograda (D4).</li>
+      <li>Marker po <span class="mono">courierId</span> (ne po vremenu signala): popup i izbor ostaju pri osvježavanju.</li>
+      <li>Pad piše grešku sa „Pokušaj ponovo“, nikad „Nema kurira u ovoj kategoriji.“; „—“ dok se ne zna; poruka za firmu bez firme; poruka za <span class="mono">?c</span> bez pozicije.</li>
+      <li>km/h i „Brzina nepoznata“ (isti tekst u popupu i kartici); inicijali umjesto ID-a u avataru; čip se ne odsijeca.</li>
+      <li>Tamniji tekst stanja i bez <span class="mono">opacity: .6</span> na redu; dugmad zaglavlja i zum od 44 px; marker od 40 px.</li>
+      <li>Osvježavanje pauzirano dok je tab skriven i odmah po povratku; spinner samo za ručno „Osvježi“.</li>
+      <li>Pretraga iz <span class="mono">matchCourier</span> (dijakritici, ćirilica, telefon, #ID).</li>
+    </ul></div></li>
+    <li><div><b>Faza 0b · kurirska aplikacija <span class="pill pill--good">mala izmjena</span></b><span>Kurir koji ugasi aplikaciju ostaje „Slobodan“ jer niko ne šalje „offline“.</span><ul>
+      <li><span class="mono">useCourierLocation.ts</span>: na <span class="mono">pagehide</span> poslati „offline“ kroz <span class="mono">fetch</span> sa <span class="mono">keepalive</span> (zaglavlje Authorization ne ide kroz <span class="mono">sendBeacon</span>). Server (B1) je mreža kad ni to ne stigne.</li>
+    </ul></div></li>
+    <li><div><b>Faza 1 · nova stranica nad postojećim rutama <span class="pill pill--acc">glavna izrada</span></b><span>Redom, da se svaki korak može provjeriti prije sljedećeg.</span><ul>
+      <li><span class="mono">utils/liveBoard.ts</span> kao 1:1 port <span class="mono">logic.js</span>; __M_A_chkLogic__ provjera u običnom Node-u (već napisane).</li>
+      <li><span class="mono">useLiveOrders</span> i <span class="mono">useLiveView</span>; spisak, pozicije i novac iz <span class="mono">useCourierRoster</span>.</li>
+      <li><span class="mono">LiveMap</span> (divIcon markeri, klasteri, zone, slojevi, praćenje), pa traka, panel i detalji.</li>
+      <li>Gotove poruke u <span class="mono">MessageSheet</span>; <span class="mono">?o=ID</span> u <span class="mono">assignment.vue</span>; razmjera i širina stranice.</li>
+      <li>E2E sa lažnim API-jem u pravom Chrome-u (isti pristup kao za Kuriri i Finansije), pa tek onda brisanje starih dijelova.</li>
+    </ul></div></li>
+    <li><div><b>Faza 2 · traži backend <span class="pill pill--warn">samo nacrtano</span></b><span>Prototip pokazuje šta bi dobili, a ne gradi se dok ne stignu odgovori.</span><ul>
+      <li>Pinovi i linije kad redovi nose koordinate (B3); dodjela sa karte: ponuda najbližem slobodnom kuriru iz panela, postojećim tokom <span class="mono">CandidateCouriersPanel</span>.</li>
+      <li>Trag kretanja (B6), baterija i trenutna narudžba u pozicijama (B2), centar grada firme (B4).</li>
+      <li>Događaji umjesto čitanja na 15 i 30 s (B5), stanje ponude uz narudžbu (B7).</li>
+    </ul></div></li>
+  </ol>
+</section>
+
+<!-- ============================================ BACKEND -->
+<section class="sec" id="backend">
+  <div class="sec-head">
+    <span class="eyebrow">Backend</span>
+    <h2>Sedam pitanja; stranica radi i bez odgovora na sva</h2>
+    <p class="small">Stavka 8 iz dokumenta od 05.10. (kurir bez pozicije i <span class="mono">last_seen</span>) je već poslata i ovdje se ne ponavlja; B1 je njen nastavak. Pitanja idu u novi dokument sa današnjim datumom, uz oznaku u trackeru i na stranici <span class="mono">/dev/otvorene-stavke</span>, kad se krene sa izradom.</p>
+  </div>
+  <div class="scroll-x"><table class="wide">
+    <thead><tr><th>#</th><th>Pitanje</th><th>Zašto je potrebno</th><th>Šta front radi dok nema odgovora</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill pill--warn">🟠 B1</span></td><td>Koliko dugo <span class="mono">courier-locations</span> vraća „online“ ili „delivering“ za kurira koji se više ne javlja? Predlog: status „offline“ (ili <span class="mono">stale: true</span>) poslije 5 min bez signala, uz <span class="mono">last_seen_at</span>.</td><td>Kurir koji ugasi aplikaciju ostaje „Slobodan“ dok ne bude pregažen; to je uzrok oznake „Bez signala“.</td><td>Svježina se računa iz <span class="mono">updated_at</span> (prag 5 min); stanje ostaje po serveru.</td></tr>
+      <tr><td><span class="pill pill--mute">🟡 B2</span></td><td>Dodatna polja u <span class="mono">courier-locations</span>: <span class="mono">battery</span>, <span class="mono">accuracy</span>, <span class="mono">current_order_id</span>, <span class="mono">zone_id</span> / <span class="mono">zone_name</span>.</td><td>Baterija, trenutna narudžba i zona bez drugog poziva i bez računanja na frontu. Kurirska aplikacija danas šalje <span class="mono">battery: null</span>.</td><td>Narudžba iz <span class="mono">active-deliveries</span> (po <span class="mono">courier.id</span>), zona iz krugova; baterije nema.</td></tr>
+      <tr><td><span class="pill pill--warn">🟠 B3</span></td><td>Nose li <span class="mono">orders/waiting</span>, <span class="mono">active-deliveries</span> i <span class="mono">pending-restaurant-confirmation</span> <span class="mono">location.coordination</span>, i može li se dodati lokacija restorana? Potvrđeno je samo za ponudu (dokument od 03.10.).</td><td>Pinovi, linije i udaljenost do odredišta; bez toga se narudžbe vide samo u spisku.</td><td>Bez koordinata nema pinova ni linija; red kaže „Odredište nema koordinate“.</td></tr>
+      <tr><td><span class="pill pill--mute">🟡 B4</span></td><td><span class="mono">my-companies</span>: koordinate centra grada firme (<span class="mono">city_lat</span>, <span class="mono">city_lng</span>).</td><td>Karta se otvara na pravom gradu i kad firma nema kurira ni zone.</td><td>Pregled regije.</td></tr>
+      <tr><td><span class="pill pill--mute">🟡 B5</span></td><td>Događaji umjesto čitanja: Reverb kanal firme sa grupisanim promjenama pozicija i događajima „narudžba kasni“ i „narudžba čeka“; ili jedan <span class="mono">GET …/live-summary</span>.</td><td>11 zahtjeva u minuti po otvorenoj stranici (danas 4) i 500+ kurira na velikim firmama.</td><td>Čitanje na 15, 30 i 60 s.</td></tr>
+      <tr><td><span class="pill pill--good">🟢 B6</span></td><td>Istorija pozicija kurira: <span class="mono">GET /couriers/{id}/locations?from&amp;to</span>.</td><td>Trag kretanja izabranog kurira (gdje je bio u zadnjih 30 min).</td><td>Trag od otvaranja stranice (prototip ga crta).</td></tr>
+      <tr><td><span class="pill pill--mute">🟡 B7</span></td><td>Stanje ponude uz narudžbu na <span class="mono">orders/waiting</span>: <span class="mono">offer_round_status</span> i <span class="mono">offered_courier_ids</span>.</td><td>Da se vidi da je ponuda već u toku i da se ne šalje duplo (dodjela sa karte, Faza 2).</td><td>Dodjela ostaje u Dodeli narudžbi.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================ PROVJERA -->
+<section class="sec" id="provjera">
+  <div class="sec-head">
+    <span class="eyebrow">Provjera</span>
+    <h2>Šta je provjereno, a šta nije</h2>
+    <p class="small">Prototip i stara stranica provjereni su u pravom Chrome-u. Nijedna linija koda aplikacije (<span class="mono">app/</span>) nije izmijenjena niti je ijedan fajl pod verzionisanjem dirnut: sav rad je u privremenom direktorijumu sesije, izvan repozitorijuma.</p>
+  </div>
+  <div class="cols-2">
+    <div class="verify"><h3>Provjereno na prototipu (__M_A_chkTotal__ provjera, sve prolaze)</h3><ul>
+      <li><b>Logika, __M_A_chkLogic__:</b> običan Node, nad pravim kodom aplikacije (<span class="mono">courierRoster</span>, <span class="mono">dispatchBoard</span>, <span class="mono">zoneGeo</span>, modeli narudžbi): signal, pažnja, narudžbe, zone, geometrija, klasteri, adresa, tekstovi.</li>
+      <li><b>Tok, __M_A_chkFlows__:</b> pravi događaji (miš, tipke, točkić): izbor sa spiska i karte, klaster, povlačenje i zum oko pokazivača, granice zuma, filteri, pretraga, pažnja, narudžbe, poruka (uključujući pad servera), osvježavanje, skriven tab, praćenje, slojevi, tastatura.</li>
+      <li><b>Stanja, __M_A_chkStates__:</b> učitavanje, pad svakog izvora posebno, zastarjeli podaci, prazna stanja, neispravni podaci (ime, telefon, vrijeme, brzina i koordinate kao tekst), 500 kurira uz procesor 4× sporiji.</li>
+      <li><b>Uređaji, __M_A_chkDevice__:</b> telefon 390 px sa dodirom (donji list, povlačenje ručke, izbor markera) i 320 px; kontrast svakog teksta (najslabiji __M_A_minC__ : 1 u __M_A_states__ stanja, __M_A_texts__ tekstova), mete od 44 px, Tab redoslijed.</li>
+      <li><b>Skala, __M_A_chkScale__:</b> 26, 150 i 500 kurira: __M_A_nodes500__ elemenata sa 500 kurira, zum __M_A_zoom1_500__ ms po koraku na običnom procesoru.</li>
+      <li>Isti paketi pokrenuti su i nad sklopljenom tablom (<span class="mono">board.preview.html</span>), osim telefonske faze koja traži cijeli prozor: logika, tok, stanja i skala, ukupno __M_A_chkBoard__. Uz to provjere same table (telefon 390 px, dugmad za simulacije, deset okvira stanja, slike, sidra): __M_A_chkBoardOwn__. Poređenje izračunatih stilova prototipa na tabli i samostalno: __M_A_leakProps__ svojstava u __M_A_leakStates__ stanja, razlika 0 (stilovi table ne cure u prototip).</li>
+    </ul></div>
+    <div class="verify"><h3>Provjereno na staroj stranici (osam mjerenja)</h3><ul>
+      <li>Otvaranje, raspored i kontrast (računar 1440×900 i 1280×720), mete i Tab zaustavljanja.</li>
+      <li>Izbor sa liste i sa karte, popup, kartica, tastatura u spisku.</li>
+      <li>Osvježavanje: interval, popup kurira u pokretu, skriven tab, treptanje dugmeta.</li>
+      <li>Kvarovi: prvo učitavanje, pad poslije uspjeha, firma bez pozicija, korisnik bez firme, spor odgovor, koordinate kao tekst.</li>
+      <li>Skala 26, 150 i 500 kurira; telefon 390 px; veza <span class="mono">?c=ID</span>; kvalitet pretrage nad istim kuririma (stara i nova, 15 upita).</li>
+    </ul></div>
+    <div class="verify"><h3>Nije provjereno</h3><ul>
+      <li><b>Pravi backend:</b> izostavlja li <span class="mono">courier-locations</span> kurire bez pozicije, koliko dugo ostaje „online“, nose li redovi narudžbi koordinate (B1 do B3). Podaci su izmišljeni.</li>
+      <li><b>Pravi Leaflet:</b> prototip crta shematsku SVG kartu; <span class="mono">divIcon</span> markeri, <span class="mono">fitBounds</span>, <span class="mono">setLatLng</span>, klasteri i zum sa pločicama OpenStreetMap, i performanse sa 500 markera, nisu probani.</li>
+      <li><b>iOS Safari i pravi telefon:</b> donji list, dodir, sigurna zona, tastatura preko lista. Provjera je u Chrome-u sa emulacijom dodira.</li>
+      <li><b>Čitač ekrana</b> (govor), <b>produkcijski build</b>, tamna tema (aplikacija je samo svijetla).</li>
+      <li>Ponovno čitanje spiska kurira pri povratku u tab (to radi <span class="mono">useCourierRoster</span>; prototip ga ne ponavlja) i promjena firme u toku.</li>
+      <li>Pragovi 90 s i 5 min na stvarnim podacima: kurirska aplikacija u pozadini telefona može da prestane da javlja i dok je kurir na terenu, pa bi takav bio lažno „Bez signala“. Prag je jedna konstanta, a prvu sedmicu treba posmatrati.</li>
+    </ul></div>
+    <div class="verify"><h3>Kriterijumi prihvatanja</h3><ul>
+      <li><b>Faza 0:</b> pri otvaranju je svaki kurir na terenu u vidnom polju (probna firma van Beograda); popup preživi tri osvježavanja; pad prvog učitavanja ne piše „Nema kurira“; nijedan tekst ispod 4,5 : 1; nula zahtjeva dok je tab skriven.</li>
+      <li><b>Faza 1:</b> __M_A_chkLogic__ provjera logike prolazi u Node-u; „Svi“ je isti broj kao na stranici Kuriri; <span class="mono">?c=ID</span> i dalje radi; oznake pažnje se slažu sa Dodelom narudžbi (isti pragovi); svaki izvor padne posebno bez lažne nule.</li>
+      <li><b>Faza 2:</b> dogovoreno sa backendom (B3, B5); dodjela sa karte koristi postojeći tok ponude.</li>
+    </ul></div>
+  </div>
+</section>
+
+</main>

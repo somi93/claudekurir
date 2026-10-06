@@ -1,0 +1,53 @@
+{
+ "n26": {
+  "n": 26,
+  "withPosition": 23,
+  "msReady": 93,
+  "nodes": 647,
+  "rows": 12,
+  "markers": 19,
+  "clusters": 2,
+  "heapMB": 4,
+  "scriptMs": 2,
+  "layoutMs": 10,
+  "zoomStep1x": 16.4,
+  "search4x": 214,
+  "filter4x": 191,
+  "panStep4x": 16.6,
+  "zoomStep4x": 56.3
+ },
+ "n150": {
+  "n": 150,
+  "withPosition": 134,
+  "msReady": 99,
+  "nodes": 814,
+  "rows": 12,
+  "markers": 46,
+  "clusters": 34,
+  "heapMB": 4,
+  "scriptMs": 1,
+  "layoutMs": 10,
+  "zoomStep1x": 32.2,
+  "search4x": 173,
+  "filter4x": 198,
+  "panStep4x": 17.1,
+  "zoomStep4x": 66.7
+ },
+ "n500": {
+  "n": 500,
+  "withPosition": 451,
+  "msReady": 150,
+  "nodes": 976,
+  "rows": 12,
+  "markers": 61,
+  "clusters": 94,
+  "heapMB": 8,
+  "scriptMs": 0,
+  "layoutMs": 11,
+  "zoomStep1x": 34.6,
+  "search4x": 231,
+  "filter4x": 270,
+  "panStep4x": 17.7,
+  "zoomStep4x": 100.4
+ }
+}

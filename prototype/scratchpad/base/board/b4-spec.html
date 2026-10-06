@@ -1,0 +1,167 @@
+<!-- ============================================ STANJA -->
+<section class="sec" id="stanja">
+  <div class="sec-head">
+    <span class="eyebrow">Stanja</span>
+    <h2>Svako stanje je nacrtano, uključujući ono kad nešto ne radi</h2>
+    <p class="small">Dvanaest okvira, svaki je pravi prototip u traženom stanju (telefon 390 px). Radi se isto kao gore: dodiri su stvarni, pozivi ka serveru su lažni. Okviri ne obavještavaju o novim predajama, pa se u njima ništa ne mijenja samo od sebe.</p>
+  </div>
+  <div class="row-phones">
+    <div class="pw"><div class="phone phone--tall" data-fx="phone" data-poll="3600000" data-slow="3600000"></div><div class="cap"><b>Stanje</b><span>Pločice, red predaja, spisak. Značka na tabu je broj predaja koje čekaju.</span></div></div>
+    <div class="pw"><div class="phone phone--tall" data-fx="phone" data-sel="30189" data-poll="3600000" data-slow="3600000"></div><div class="cap"><b>Detalj kurira (stranica)</b><span>Dva računa, predaja na čekanju sa „Potvrdi“, mjerač limita, račun za kopiranje. Nazad zatvara.</span></div></div>
+    <div class="pw"><div class="phone phone--tall" data-fx="phone" data-sheet="confirm:903" data-type="90" data-poll="3600000" data-slow="3600000"></div><div class="cap"><b>Potvrda sa razlikom</b><span>Razlika sa predznakom, dug prije i poslije, napomena se pojavi samo kad ima razlike.</span></div></div>
+    <div class="pw"><div class="phone phone--tall" data-fx="phone" data-sel="30239" data-script="over" data-poll="3600000" data-slow="3600000"></div><div class="cap"><b>Uplata iznad duga</b><span>Upozorenje prije slanja; dugme ostaje aktivno jer server dopušta.</span></div></div>
+    <div class="pw"><div class="phone phone--tall" data-fx="phone" data-sel="30189" data-script="bank" data-poll="3600000" data-slow="3600000"></div><div class="cap"><b>Isplata transferom</b><span>Žiro račun i IBAN sa kopiranjem; bez računa list kaže da ga nema, a isplata je i dalje moguća.</span></div></div>
+    <div class="pw"><div class="phone phone--tall" data-fx="phone" data-script="batch-partial" data-poll="3600000" data-slow="3600000"></div><div class="cap"><b>Isplata svima, jedan nije prošao</b><span>Rezultat po kuriru, razlog uz red, „Pokušaj ponovo (1)“ koristi isti ključ.</span></div></div>
+    <div class="pw"><div class="phone phone--tall" data-fx="phone" data-tab="promet" data-poll="3600000" data-slow="3600000"></div><div class="cap"><b>Promet</b><span>Period, vrsta, razlike i kurir u pilulama; zbirovi; stavke po danima.</span></div></div>
+    <div class="pw"><div class="phone phone--tall" data-fx="phone" data-tab="promet" data-script="jentry" data-poll="3600000" data-slow="3600000"></div><div class="cap"><b>Stavka prometa</b><span>Predaja 97.79 → 92.79 KM: razlika, ko je potvrdio i referenca koja se čita kuriru.</span></div></div>
+    <div class="pw"><div class="phone phone--tall" data-fx="phone" data-fail="pending" data-poll="3600000" data-slow="3600000"></div><div class="cap"><b>Predaje se nisu učitale</b><span>Poruka u mjestu reda, pločica „Nije učitano“, nema značke. Nikad „Nema predaja“.</span></div></div>
+    <div class="pw"><div class="phone phone--tall" data-fx="phone" data-fail="balances" data-poll="3600000" data-slow="3600000"></div><div class="cap"><b>Stanje kurira se nije učitalo</b><span>Red predaja radi, pločice 2 i 3 i spisak kažu šta ne znaju.</span></div></div>
+    <div class="pw"><div class="phone phone--tall" data-fx="phone" data-script="stale" data-poll="3600000" data-slow="3600000"></div><div class="cap"><b>Osvježavanje nije uspjelo</b><span>Podaci ostaju, uz upozorenje i „Pokušaj ponovo“.</span></div></div>
+    <div class="pw"><div class="phone phone--tall" data-fx="phone" data-empty="pending" data-poll="3600000" data-slow="3600000"></div><div class="cap"><b>Sve potvrđeno</b><span>„Nema predaja koje čekaju potvrdu“ piše tek poslije uspješnog učitavanja.</span></div></div>
+  </div>
+</section>
+
+<!-- ============================================ DIJELOVI -->
+<section class="sec" id="dijelovi">
+  <div class="sec-head">
+    <span class="eyebrow">Dijelovi</span>
+    <h2>Šta se dijeli sa ostalim ekranima, šta je novo i šta se briše</h2>
+    <p class="small">Prototip nije Vue kod: ponašanje i tekstovi su izvor, a markup se piše iznova od komponenti koje aplikacija već ima.</p>
+  </div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Dio</th><th>Šta radi</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td><span class="mono">AppSheet</span>, <span class="mono">AppButton</span>, <span class="mono">ChoiceGroup</span>, <span class="mono">TintAlert</span>, <span class="mono">SheetField</span>, <span class="mono">SheetTextarea</span></td><td data-l="Šta radi">Svi listovi (potvrda, uplata, isplata, isplata svima, stavka prometa, izbor kurira) i poruke u njima.</td><td data-l="Status"><span class="pill pill--good">dijeli se</span></td></tr>
+      <tr><td><span class="mono">GlobalTabBar variant="pills"</span>, <span class="mono">PageHeader</span>, <span class="mono">GlobalPage</span></td><td data-l="Šta radi">Dva taba sa imenom i vezom sa panelom (<span class="mono">label</span>, <span class="mono">id-base</span>, <span class="mono">panel-id</span>, kao Firma); zaglavlje sa podnaslovom „firma · valuta“.</td><td data-l="Status"><span class="pill pill--good">dijeli se</span></td></tr>
+      <tr><td><span class="mono">CashSheet</span> (<span class="mono">components/dispatcher/roster</span>)</td><td data-l="Šta radi">List „Evidentiraj uplatu“ i „Isplati zaradu“ koji Kuriri već ima. Dobija: napomenu uz isplatu, račun kurira uz „Bankovni transfer“, osobu bez zapisa u spisku (kurir koji nije u firmi). Ulaz postaje <span class="mono">{ id, name, cash, wage }</span> umjesto <span class="mono">RosterCourier</span>.</td><td data-l="Status"><span class="pill pill--acc">proširuje se</span></td></tr>
+      <tr><td><span class="mono">matchCourier</span>, <span class="mono">cashLevel</span>, <span class="mono">summarizeCashLimit</span>, <span class="mono">checkAmount</span> (<span class="mono">utils/courierRoster.ts</span>, <span class="mono">cashLimit.ts</span>)</td><td data-l="Šta radi">Pretraga, nivo limita, mjerač i provjera iznosa; isto pravilo kao Kuriri. <span class="mono">summarizeCashLimit</span> ima „KM“ u tekstu; prototip piše tekst sam, sa valutom firme.</td><td data-l="Status"><span class="pill pill--good">dijeli se</span></td></tr>
+      <tr><td><span class="mono">utils/cashDesk.ts</span></td><td data-l="Šta radi">Čista logika, port prototipa (<span class="mono">logic.js</span>): knjiga, brojevi, filteri, redoslijed, provjere potvrde i isplate, plan isplate svima i izvršilac sa najviše 3 istovremeno, promet, zbirovi, grupe po danima, CSV. Provjerava se običnim Node-om.</td><td data-l="Status"><span class="pill pill--acc">novo</span></td></tr>
+      <tr><td><span class="mono">composables/useCashDesk.ts</span></td><td data-l="Šta radi">Četiri izvora (<span class="mono">couriers-balance</span>, <span class="mono">cash-handovers/pending</span>, <span class="mono">couriers-status</span>, <span class="mono">finance-settings</span>), osvježavanje dok je tab vidljiv, brojač koji odbacuje odgovore stare firme, radnje (potvrda, uplata, isplata, isplata svima) kao <span class="mono">ActionResult</span> (kao <span class="mono">useCourierRoster</span>).</td><td data-l="Status"><span class="pill pill--acc">novo</span></td></tr>
+      <tr><td><span class="mono">composables/useCashJournal.ts</span>, <span class="mono">useCourierLedger.ts</span></td><td data-l="Šta radi">Promet: dva čitanja po promjeni perioda ili kurira, spajanje, zbirovi, CSV. Tok jednog kurira: ista dva čitanja sa <span class="mono">courier_id</span>, keširano 60 s.</td><td data-l="Status"><span class="pill pill--acc">novo</span></td></tr>
+      <tr><td><span class="mono">components/dispatcher/finance/*</span></td><td data-l="Šta radi">Pločice, red predaja, spisak i red, detalj i račun, tok kurira, tab Promet i red prometa, listovi potvrde, isplate svima i stavke.</td><td data-l="Status"><span class="pill pill--acc">novo</span></td></tr>
+      <tr><td><span class="mono">stores/cashDesk.ts</span> + <span class="mono">DispatcherSidebar</span>, <span class="mono">DispatcherHome</span></td><td data-l="Šta radi">Značka sa brojem predaja na čekanju u meniju i na kartici početne; provjera svake minute dok je dispečerska ljuska vidljiva (na stranici Finansije svakih 30 s, isti podatak).</td><td data-l="Status"><span class="pill pill--warn">odluka D1</span></td></tr>
+      <tr><td><span class="mono">CompanyWalletPanel</span>, <span class="mono">wallet/*</span> (pet fajlova), <span class="mono">useCompanyWallet.ts</span></td><td data-l="Šta radi">Stari panel, kartice, dijalozi i composable. Briše se tek kad <span class="mono">grep</span> pokaže da ih niko ne uvozi (<span class="mono">useCashBalances</span> je zasebno i ostaje).</td><td data-l="Status"><span class="pill pill--bad">briše se</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================ PODACI -->
+<section class="sec" id="podaci">
+  <div class="sec-head">
+    <span class="eyebrow">Podaci</span>
+    <h2>Samo postojeće rute, i koliko ih stranica zove</h2>
+    <p class="small">Stranica danas ne zove ništa osim jednom pri otvaranju taba. Predlog zove više, ali samo dok je kartica vidljiva, i jedan zahtjev na 30 s je jedini koji se ponavlja često.</p>
+  </div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Ruta</th><th>Kad se zove</th><th>Šta stranica sa tim radi</th></tr></thead>
+    <tbody>
+      <tr><td><span class="mono">GET …/delivery-companies/{id}/cash-handovers/pending</span></td><td data-l="Kad">Pri otvaranju; svakih 30 s dok je kartica vidljiva; poslije potvrde</td><td data-l="Šta radi">Red predaja, pločica 1, značka na tabu i u meniju, „Čeka“ u redu kurira. Nova predaja: obavještenje i istaknut red.</td></tr>
+      <tr><td><span class="mono">GET …/couriers-balance</span></td><td data-l="Kad">Pri otvaranju; svakih 60 s; poslije uplate, isplate i potvrde</td><td data-l="Šta radi">Spisak, pločice 2 i 3, filteri i brojevi, dug i zarada u detalju.</td></tr>
+      <tr><td><span class="mono">GET …/couriers-status</span></td><td data-l="Kad">Pri otvaranju; svakih 60 s</td><td data-l="Šta radi">Ime, telefon, suspenzija, žiro račun, IBAN, ugovor. Kurir koji nije u odgovoru je „Nije u firmi“ (ime i telefon iz balansa).</td></tr>
+      <tr><td><span class="mono">GET …/finance-settings</span></td><td data-l="Kad">Pri otvaranju i na dugme „Osvježi“</td><td data-l="Šta radi">Valuta i limit gotovine (<span class="mono">cash_limit_amount</span>, <span class="mono">null</span> = bez limita, <span class="mono">0</span> je stroga vrijednost).</td></tr>
+      <tr><td><span class="mono">GET …/cash-handovers?courier_id=&from=</span> i <span class="mono">GET …/payouts?courier_id=&from=</span></td><td data-l="Kad">Kad se otvori detalj kurira (30 dana); 60 s keš</td><td data-l="Šta radi">Zadnjih 30 dana prometa jednog kurira.</td></tr>
+      <tr><td><span class="mono">GET …/cash-handovers?from=&to=&courier_id=</span> i <span class="mono">GET …/payouts?from=&to=&courier_id=</span></td><td data-l="Kad">Kad se otvori Promet i na svaku promjenu perioda ili kurira</td><td data-l="Šta radi">Tok, zbirovi, CSV. Vrsta i „Samo razlike“ se filtriraju u pregledniku. Prikazuje se 40 stavki, „Prikaži još“ dodaje 40.</td></tr>
+      <tr><td><span class="mono">POST /dispatcher/cash-handovers/{id}/confirm</span></td><td data-l="Kad">„Potvrdi“ u listu</td><td data-l="Šta radi">Tijelo <span class="mono">{ confirmed_amount, note? }</span>; napomena se šalje samo kad postoji razlika i dispečer je upisao.</td></tr>
+      <tr><td><span class="mono">POST /dispatcher/couriers/{id}/cash-receipt</span></td><td data-l="Kad">„Evidentiraj uplatu“</td><td data-l="Šta radi">Tijelo <span class="mono">{ delivery_company_id, amount, note? }</span>. Ključ idempotentnosti ne postoji (stavka 10 u dokumentu od 05.10.).</td></tr>
+      <tr><td><span class="mono">POST /dispatcher/couriers/{id}/payout</span></td><td data-l="Kad">„Isplati zaradu“; „Isplati sve“ (jedan poziv po kuriru, najviše 3 istovremeno)</td><td data-l="Šta radi">Tijelo <span class="mono">{ delivery_company_id, amount, method, idempotency_key, note? }</span>. Ključ se pravi pri otvaranju lista (isplata svima: po kuriru, pri otvaranju) i isti je na ponovnom pokušaju.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="cols-3">
+    <div class="card"><h3>Pri otvaranju: 4 čitanja</h3><p>Stranica danas pri otvaranju čita tri izvora (postavke, spisak kurira, predaje), a balans, istoriju i isplate tek kad se otvori njihov tab, i to svaki put iznova. Predlog čita četiri izvora odjednom, jer ih pločice i spisak traže istovremeno.</p></div>
+    <div class="card"><h3>Svakih 30 s: 1 čitanje</h3><p>Samo predaje na čekanju. Pauzira se kad je tab sakriven. Dok server ne dobije događaj za dispečera (B5), ovo je cijena značke i obavještenja.</p></div>
+    <div class="card"><h3>Akcija: 1 upis i 2 čitanja</h3><p>Poslije potvrde, uplate ili isplate stranica ponovo čita balans i predaje, jer server ne vraća novi saldo. Isplata svima: jedan upis po kuriru i ista dva čitanja na kraju.</p></div>
+  </div>
+</section>
+
+<!-- ============================================ SPECIFIKACIJA -->
+<section class="sec" id="spec">
+  <div class="sec-head">
+    <span class="eyebrow">Specifikacija</span>
+    <h2>Pravila i tekstovi, onako kako ih prototip primjenjuje</h2>
+    <p class="small">Sve ispod je u <span class="mono">logic.js</span> prototipa i provjereno je običnim Node-om (218 provjera). Prelazi u <span class="mono">utils/cashDesk.ts</span>. Pretpostavke o backendu su označene.</p>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Spisak i pločice</span><h3>Knjiga, brojevi, filteri, pretraga</h3></div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Pravilo</th><th>Opis</th></tr></thead>
+    <tbody>
+      <tr><td><b>Knjiga</b></td><td data-l="Opis">Redovi su svi iz <span class="mono">couriers-balance</span>, spojeni po <span class="mono">courier_id</span> sa <span class="mono">couriers-status</span> (ime, telefon, računi, ugovor, suspenzija) i <span class="mono">cash-handovers/pending</span> (predaje). Predaja kurira kojeg nema u balansu se ne gubi. Iznosi idu kroz <span class="mono">toAmount</span> (broj ili tekst, zarez, prazno = 0); ime iz ćirilice u latinicu.</td></tr>
+      <tr><td><b>Nulti redovi</b></td><td data-l="Opis">„Svi“ krije kurire bez duga, zarade i predaje (šum, uključuje dispečerske naloge); filter „Nulti“ ih pokazuje, a pretraga ih nalazi bez obzira na filter. Kurir koji nije u firmi ostaje u spisku dok ima dug, zaradu ili predaju, sa oznakom.</td></tr>
+      <tr><td><b>Pločice</b></td><td data-l="Opis">Čeka potvrdu: zbir i broj predaja, najstarija (crveno kad je starija od 24 h). Duguju firmi: zbir pozitivne gotovine, broj kurira, „preko limita“, „blizu“. Za isplatu: zbir i broj kurira, „Isplati sve“. Brojevi su iz cijele knjige, ne iz filtriranog dijela. Pločica 1 uključuje filter „Čeka potvrdu“ i zatvara detalj da se vidi red predaja.</td></tr>
+      <tr><td><b>Filteri</b></td><td data-l="Opis">Svi, Čeka potvrdu, Duguju (gotovina &gt; 0), Limit (blizu ili preko), Za isplatu (zarada &gt; 0), Nulti. Filter i pretraga se sabiraju. Izbor „Čeka potvrdu“ prebacuje redoslijed na „Najstarija predaja“.</td></tr>
+      <tr><td><b>Pretraga</b></td><td data-l="Opis">Ista funkcija kao na Kuriri (<span class="mono">matchCourier</span>): ime sa i bez dijakritika i ćirilica, bilo koji redoslijed riječi, <span class="mono">#ID</span>, telefon u bilo kom zapisu. Upit koji počinje sa 0 ili + je početak broja.</td></tr>
+      <tr><td><b>Redoslijed</b></td><td data-l="Opis">Najviše duguje (zadano), najviše zarade, najstarija predaja, ime A–Z (bez dijakritika, „sr“). Sortiranje ne mijenja ulaz.</td></tr>
+      <tr><td><b>Prikaz</b></td><td data-l="Opis">12 redova, „Prikaži još“ dodaje 24. Red je jedno zaustavljanje Tab tastera (strelice, Home, End), Enter otvara detalj.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Limit i starost</span><h3>Nivoi i oznake</h3></div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Stanje</th><th>Pravilo</th><th>Prikaz</th></tr></thead>
+    <tbody>
+      <tr><td><b>Bez limita</b></td><td data-l="Pravilo"><span class="mono">cash_limit_amount = null</span>: nema mjerača ni oznaka. Limit 0 je strog: svaka gotovina je „preko“.</td><td data-l="Prikaz">Bez mjerača; pločica ne piše „preko limita“.</td></tr>
+      <tr><td><b>U redu</b></td><td data-l="Pravilo">Gotovina &gt; 0 i ispod 80 % limita.</td><td data-l="Prikaz">Zeleni mjerač, procenat.</td></tr>
+      <tr><td><b>Blizu limita</b></td><td data-l="Pravilo">Od 80 % do ispod 100 % (kao <span class="mono">NEAR_RATIO</span> u aplikaciji).</td><td data-l="Prikaz">Narandžast mjerač, oznaka „Blizu limita“, broj gotovine narandžast.</td></tr>
+      <tr><td><b>Preko limita</b></td><td data-l="Pravilo">100 % i više (<span class="mono">counted ≥ limit</span>).</td><td data-l="Prikaz">Crven mjerač, oznaka, broj crven; procenat može biti i preko 100 (traka staje na 100).</td></tr>
+      <tr><td><b>Negativna gotovina</b></td><td data-l="Pravilo">Kurir je predao više nego što je dugovao: ne puni limit.</td><td data-l="Prikaz">Zelena oznaka „Firma duguje gotovinu“; u detalju „Firma duguje kuriru (gotovina)“.</td></tr>
+      <tr><td><b>Predaja kasni</b></td><td data-l="Pravilo">Starija od 24 h <b>[PRETPOSTAVKA]</b>: predaja je dnevni ciklus; nije potvrđeno šta pokreće <span class="mono">daily_handover_time</span> (dokument od 05.10., stavka 23).</td><td data-l="Prikaz">Crvena starost u redu i pločici, crven krug sa inicijalima, u detalju „kasni“.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Potvrda, uplata, isplata</span><h3>Provjere prije slanja i tekstovi</h3></div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Slučaj</th><th>Tekst u listu</th><th>Dugme</th></tr></thead>
+    <tbody>
+      <tr><td><b>Potvrda: isti iznos</b></td><td data-l="Tekst"><span class="mono">Isto kao prijava.</span> Dug sada i dug poslije potvrde (<span class="mono">180.70 → 85.46 KM</span>).</td><td data-l="Dugme">Potvrdi 95.24 KM</td></tr>
+      <tr><td><b>Potvrda: drugi iznos</b></td><td data-l="Tekst"><span class="mono">Razlika od prijave: −5.24 KM. Sistem sam upiše napomenu o razlici; možeš dodati svoju.</span> Pojavi se polje „Napomena o razlici (opciono)“; šalje se samo ako je upisana. Chip „Isto kao prijava 95.24 KM“ vraća iznos.</td><td data-l="Dugme">Potvrdi 90.00 KM</td></tr>
+      <tr><td><b>Potvrda: iznad duga</b></td><td data-l="Tekst"><span class="mono">Veće je od duga (64.30 KM) za 35.70 KM. Sistem dopušta, ali provjeri.</span> „Firma će dugovati kuriru (gotovina)“ uz iznos poslije.</td><td data-l="Dugme">aktivno</td></tr>
+      <tr><td><b>Uplata</b></td><td data-l="Tekst">Iznos unaprijed popunjen cijelim dugom. <span class="mono">Dug se zatvara.</span> / <span class="mono">Ostaje dug 80.70 KM.</span> / <span class="mono">Veće je od duga za 7.60 KM. Sistem dopušta, ali provjeri.</span> Chip „Cijeli iznos“. Napomena (opciono).</td><td data-l="Dugme">Evidentiraj uplatu</td></tr>
+      <tr><td><b>Isplata</b></td><td data-l="Tekst">Iznos unaprijed popunjen cijelom zaradom. <span class="mono">Zarada se isplaćuje u cijelosti.</span> / <span class="mono">Ostaje 4.00 KM.</span> / <span class="mono">Veće je od dugovanja za …</span>. Način: Gotovina ili Bankovni transfer; uz transfer žiro račun i IBAN sa kopiranjem ili „Račun kurira nije upisan“ (ne blokira). Napomena (opciono).</td><td data-l="Dugme">Isplati zaradu</td></tr>
+      <tr><td><b>Nevažeći iznos</b></td><td data-l="Tekst">Prazno ili 0: „Upiši iznos veći od 0.“; više od dvije decimale: „Najviše dvije decimale.“ <b>[PRETPOSTAVKA]</b> da server ne prima tri decimale. Slova se ne upisuju, tačka i zarez prolaze.</td><td data-l="Dugme">onemogućeno + razlog ispod</td></tr>
+      <tr><td><b>Greška servera</b></td><td data-l="Tekst">Crveni <span class="mono">TintAlert</span> sa <span class="mono">role="alert"</span> u listu, poruka servera ako je ima (<span class="mono">errors.polje</span> ili <span class="mono">message</span>); unos ostaje; dugme je opet aktivno. Isplata: isti ključ na ponovnom pokušaju.</td><td data-l="Dugme">isto dugme</td></tr>
+      <tr><td><b>Zatvaranje</b></td><td data-l="Tekst">Unos koji se razlikuje od početnog pita „Imaš nesačuvan unos“ (Nastavi / Odbaci). Poslije uspjeha: obavještenje sa imenom i iznosom, fokus ide na sljedeće „Potvrdi“ (ili naslov stranice).</td><td data-l="Dugme">—</td></tr>
+      <tr><td><b>Upozorenje servera</b></td><td data-l="Tekst">Ako uspješan odgovor nosi <span class="mono">warning</span> (običan tekst, dokument od 05.10., stavka 10), dodaje se obavještenju (7 s).</td><td data-l="Dugme">—</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Isplata svima</span><h3>Jedan list, jedna potvrda, po kuriru jedan ključ</h3></div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Pravilo</th><th>Opis</th></tr></thead>
+    <tbody>
+      <tr><td><b>Ko je u listu</b></td><td data-l="Opis">Svi sa zaradom &gt; 0 (abecedno), svi označeni; „Označi sve / Poništi sve“. Način isplate je jedan za sve označene. Uz transfer redovi bez računa dobiju „Račun nije upisan“. Iznos je cijela zarada u času otvaranja lista; ne uređuje se.</td></tr>
+      <tr><td><b>Potvrda</b></td><td data-l="Opis">Dugme nosi broj i ukupno („Isplati 10 zarada (633.68 KM)“). Dok se izvršava: dugme zaključano, napredak „Obrađeno 4 od 10“, <span class="mono">Esc</span> i zatvaranje daju obavještenje „Isplata je u toku“.</td></tr>
+      <tr><td><b>Izvršavanje</b></td><td data-l="Opis">Jedan <span class="mono">POST payout</span> po kuriru, najviše 3 istovremeno, svaki sa ključem napravljenim pri otvaranju lista. Pad jednog ne zaustavlja ostale. Izuzetak mreže postaje neuspjeh sa porukom.</td></tr>
+      <tr><td><b>Rezultat</b></td><td data-l="Opis">Po redu: kvačica, „Isplaćeno“ ili poruka servera; zbirna poruka („Isplaćeno 9, nije uspjelo 1“). „Pokušaj ponovo (n)“ šalje samo neuspjele, sa istim ključevima. Na kraju se ponovo čitaju balans i predaje.</td></tr>
+      <tr><td><b>Zašto ne i skupna potvrda predaja</b></td><td data-l="Opis">Gotovina se prima fizički, po kuriru, pa svaka predaja traži vlastiti iznos. Skupna potvrda „svega prijavljenog“ izgleda kao prečica, a potvrda se ne može poništiti (nema rute).</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Promet</span><h3>Tok predaja i isplata</h3></div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Pravilo</th><th>Opis</th></tr></thead>
+    <tbody>
+      <tr><td><b>Period</b></td><td data-l="Opis">Danas; 7 dana (danas i šest prethodnih); Ovaj mjesec; Prošli mjesec; Od–do (dva datuma, obrnut raspon se ispravlja). Zahtjev nosi <span class="mono">from</span> i <span class="mono">to</span> kao <span class="mono">YYYY-MM-DD</span>. <b>[PRETPOSTAVKA]</b> dan je lokalni i uključen (B3).</td></tr>
+      <tr><td><b>Spajanje</b></td><td data-l="Opis">Predaje i isplate u jednom nizu, najnovije prvo; vrijeme reda je trenutak potvrde (na čekanju: prijave). Grupe po danima: Danas, Juče, pa „ned, 4. okt“, sa zbirom predaja i isplata za dan.</td></tr>
+      <tr><td><b>Filteri</b></td><td data-l="Opis">Vrsta (Sve, Predaje, Isplate), „Samo razlike“ (potvrđene predaje gdje se potvrđeno razlikuje od prijavljenog), kurir (list sa pretragom; ✕ vraća sve).</td></tr>
+      <tr><td><b>Zbirovi</b></td><td data-l="Opis">Potvrđene predaje (zbir potvrđenih iznosa, broj, koliko je na čekanju), Isplate zarade (zbir, broj), Razlika prijava i potvrda (zbir razlika sa predznakom, broj predaja). Piše „Zbir je za predaje i isplate koje server vraća“: direktno evidentirane uplate su u njemu samo ako ih server vraća kao predaje (B1).</td></tr>
+      <tr><td><b>Red</b></td><td data-l="Opis">Ikona vrste, ime, „Predaja gotovine · 14:02“ ili „Isplata zarade · 16:58“, iznos (uz razliku: „prijavljeno 97.79 · razlika −5.00 KM“), status, ko je potvrdio ili način isplate (čita se iz teksta napomene <b>[PRETPOSTAVKA]</b>, B2).</td></tr>
+      <tr><td><b>Stavka</b></td><td data-l="Opis">List sa svim poljima i referencom za kopiranje („Predaja #699“ ili ID transakcije), uz „Otvori kurira“. Za isplatu piše „Ko je isplatio: Server to ne vraća“.</td></tr>
+      <tr><td><b>CSV</b></td><td data-l="Opis">Vidljivi redovi (poslije filtera). Razdvajač „;“, zarez kao decimalni znak (lokalni Excel), BOM, kraj reda CRLF. Kolone: Datum, Vrijeme, Vrsta, Kurir, ID kurira, Prijavljeno, Potvrđeno ili isplaćeno, Razlika, Status, Potvrdio, Način isplate, Napomena, Referenca. Tekst koji počinje sa <span class="mono">= + - @</span> dobija <span class="mono">'</span> ispred (CSV injekcija iz napomene). Naziv <span class="mono">finansije-2026-10-06.csv</span>. Dugme je onemogućeno kad nema redova.</td></tr>
+      <tr><td><b>Prikaz</b></td><td data-l="Opis">40 stavki, „Prikaži još“ dodaje 40 (server ne straniči, B3). Prazno: „Nema prometa“ + „Poništi filtere“. Pad: crveni <span class="mono">TintAlert</span> sa „Pokušaj ponovo“, bez zbirova.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Osvježavanje, adresa, tastatura</span><h3>Ponašanje koje se ne vidi na slici</h3></div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Tema</th><th>Pravilo</th></tr></thead>
+    <tbody>
+      <tr><td><b>Osvježavanje</b></td><td data-l="Pravilo">Predaje svakih 30 s, balans i spisak kurira svakih 60 s, samo dok je kartica vidljiva (<span class="mono">document.hidden</span>). Ručno: dugme u zaglavlju čita sve (i postavke). Zaglavlje piše „osvježeno pre 12s“. <b>[SAMO SPECIFIKACIJA, nije u prototipu]</b> Povratak u karticu: ako je stanje starije od 60 s, sve se čita iznova (kao Kuriri). Brojač (<span class="mono">epoch</span>) odbacuje odgovore za firmu koja više nije izabrana, a promjena firme prvo prazni podatke; prototip ima jednu firmu.</td></tr>
+      <tr><td><b>Nova predaja</b></td><td data-l="Pravilo">Obavještenje „Nova predaja: Ime prijavio 58.30 KM“ (5 s), red je istaknut 2 s, značka raste. Bez zvuka. Prva provjera ne obavještava.</td></tr>
+      <tr><td><b>Pad osvježavanja</b></td><td data-l="Pravilo">Podaci ostaju; iznad njih upozorenje „Osvježavanje nije uspjelo / Stanje je staro 3 min“ sa „Pokušaj ponovo“. Pad prvog čitanja: poruka u mjestu sadržaja, pločica „Nije učitano“.</td></tr>
+      <tr><td><b>Adresa</b></td><td data-l="Pravilo"><b>[SAMO SPECIFIKACIJA, nije u prototipu]</b> <span class="mono">?t=stanje|promet</span>, <span class="mono">?c=ID</span> (kurir; veza „Pogledaj novac“ iz Kuriri), <span class="mono">?f=</span>, <span class="mono">?q=</span>, <span class="mono">?o=</span>; Promet: <span class="mono">?p=</span> (period), <span class="mono">?k=</span> (vrsta), <span class="mono">?kc=</span> (kurir), <span class="mono">?d=1</span> (samo razlike). Nepoznata vrijednost = zadano. Stanje lista nije u adresi; Nazad sa otvorenim listom zatvara list.</td></tr>
+      <tr><td><b>Tastatura</b></td><td data-l="Pravilo"><span class="kbd">/</span> traži (računar, i kad fokus nije u stranici), <span class="kbd">↑ ↓ Home End</span> mijenjaju red, <span class="kbd">Enter</span> otvara, <span class="kbd">Esc</span> zatvara detalj ili list; u polju iznosa Enter šalje. Tab u listu ostaje u listu. Poslije zatvaranja fokus se vraća na dugme koje je otvorilo list, a ako je nestalo, na sljedeće „Potvrdi“ ili naslov.</td></tr>
+      <tr><td><b>Pristupačnost</b></td><td data-l="Pravilo">Tablist ima ime i panel; list je <span class="mono">role="dialog"</span> sa <span class="mono">aria-modal</span> i imenom; red ima kompletnu rečenicu za čitač („Amir Hodžić. Gotovina 180.70 KM, zarada 6.00 KM. Blizu limita. Čeka potvrdu 95.24 KM.“); mjerač ima <span class="mono">role="img"</span> sa procentom; greške u listu su <span class="mono">role="alert"</span>; napredak isplate je <span class="mono">role="progressbar"</span>. Svi tekstovi ≥ 4.5 : 1 i ≥ 11 px, mete ≥ 44 px.</td></tr>
+      <tr><td><b>Telefon</b></td><td data-l="Pravilo">Jedna kolona; detalj je stranica (zaglavlje: ime i #ID, Nazad zatvara); pločice su sažete (iznos i broj, bez starosti); filteri se klize vodoravno; listovi do dna ekrana; bez vodoravnog klizanja stranice.</td></tr>
+    </tbody>
+  </table></div>
+</section>

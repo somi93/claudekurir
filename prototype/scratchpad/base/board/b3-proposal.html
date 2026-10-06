@@ -1,0 +1,75 @@
+<!-- ============================================ PREDLOG -->
+<section class="sec" id="predlog">
+  <div class="sec-head">
+    <span class="eyebrow">Predlog</span>
+    <h2>Posao je prvi, dva računa nisu zbrojena, a svaka radnja pokazuje posljedicu prije slanja</h2>
+    <p class="small">Isti jezik kao Kuriri, Firma, Cjenovnik i Poruke: zaglavlje sa podnaslovom, pilule za tabove (<span class="mono">GlobalTabBar</span> sa <span class="mono">variant="pills"</span>, imenom i vezom sa panelom), spisak uz detalj, donji listovi (<span class="mono">AppSheet</span>) sa zaštitom nesačuvanog unosa, tonirane poruke (<span class="mono">TintAlert</span>) i dugmad od 44 do 52 px. Nijedna nova ruta: sve radi nad onim što stranica danas zove (<span class="mono">couriers-balance</span>, <span class="mono">cash-handovers</span>, <span class="mono">payouts</span>, <span class="mono">couriers-status</span>, <span class="mono">finance-settings</span> i tri upisa). Šest ideja vodi cijeli ekran:</p>
+  </div>
+  <div class="cols-3">
+    <div class="card"><h3>1. Posao je prvi</h3><p>Tri pločice pokazuju šta čeka (predaje), ko duguje (uz broj onih preko limita) i šta se duguje kuriru (zarada); svaka je i filter. Predaje koje čekaju potvrdu stoje u redu sa „Potvrdi“, najstarija prva, a ona starija od dana je crvena.</p></div>
+    <div class="card"><h3>2. Dva računa, nikad zbrojena</h3><p>Gotovina je dug kurira firmi, zarada je dug firme kuriru. Kurir predaje cijelu gotovinu, a firma mu zaradu isplaćuje posebno (odluka od 30.09.), pa nigdje nema „neto“ iznosa. Negativna gotovina se piše riječima: „Firma duguje kuriru (gotovina)“.</p></div>
+    <div class="card"><h3>3. Limit je vidljiv</h3><p>Svaki kurir sa dugom ima mjerač (zeleno, od 80 % narandžasto, od 100 % crveno), a filter „Limit“ skuplja one blizu i preko limita. Prototip ne tvrdi šta limit radi; samo ga prikazuje.</p></div>
+    <div class="card"><h3>4. Jedan kurir na jednom mjestu</h3><p>Detalj ima oba računa, predaju na čekanju sa „Potvrdi“, ugovor, žiro račun i IBAN sa kopiranjem i zadnjih 30 dana prometa (predaje i isplate zajedno, razlike uz iznos). Dva zahtjeva, ne dva taba.</p></div>
+    <div class="card"><h3>5. Posljedica prije radnje</h3><p>List za potvrdu piše dug prije i poslije. Uplata iznad duga upozorava prije slanja, razlika od prijave ima predznak. Isplata transferom pokazuje račun ili kaže da ga nema. Greška servera je u listu, ne iza zatamnjenja.</p></div>
+    <div class="card"><h3>6. Greška je greška</h3><p>Pad izvora se piše u mjestu sadržaja sa „Pokušaj ponovo“ i nikad kao „Nema …“. Stare podatke prati upozorenje sa starošću. Pločica koja ne zna kaže „Nije učitano“, a značka nestaje samo kad se zna da je broj nula.</p></div>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Radni tok</span><h3>Ko šta radi kad otvori stranicu</h3></div>
+  <div class="flow">
+    <div><b>Tokom dana</b>Značka u meniju kaže da neko čeka. Red predaja: „Potvrdi“, list sa unaprijed upisanim iznosom, Enter. Nova predaja stiže sama u roku od 30 s.</div>
+    <i>→</i>
+    <div><b>Kad kurir dođe</b>Izaberi kurira (ili pretraži), „Evidentiraj uplatu“: cijeli dug je već upisan. Ko je preko limita vidi se jednim dodirom na filter.</div>
+    <i>→</i>
+    <div><b>Dan isplate</b>Pločica „Za isplatu“, „Isplati sve“: jedan list, jedna potvrda sa ukupnim iznosom, rezultat po kuriru, ponovo samo neuspjeli.</div>
+    <i>→</i>
+    <div><b>Kad se iznos ne slaže</b>Promet, „Samo razlike“, stavka sa referencom koja se čita kuriru. Zbir za period i CSV za knjigovođu.</div>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Prototip</span><h3>Radi na računaru i na telefonu</h3></div>
+  <div class="proto">
+    <div class="now">
+      <p class="small">Podaci su izmišljeni (isti kao u mjerenjima: firma u Banjoj Luci, 24 kurira, dugovi i zarade poput onih iz dokumenata od 30.09. i 04.10.), a <b>sat je zaključan na ponedjeljak 6. oktobar, 14:20</b>, da brojke u tekstu ostanu iste pri svakom otvaranju. Svaki poziv ka serveru je lažan i broji se; u aplikaciji su to rute iz poglavlja „Podaci“. Provjera predaja je ovdje ubrzana na 8 s (u aplikaciji 30 s).</p>
+      <ol class="try">
+        <li><span><b>Potvrdi predaju:</b> u desnom oknu „Potvrdi“ kod Amira Hodžića, upiši 90 i pogledaj razliku, dug poslije i napomenu; Enter potvrđuje.</span></li>
+        <li><span><b>Uplata iznad duga:</b> izaberi kurira sa dugom, „Evidentiraj uplatu“, upiši veći iznos: upozorenje se pojavi prije slanja.</span></li>
+        <li><span><b>Nova predaja:</b> dugme „Simuliraj novu predaju“; u roku od 8 s se pojavi red, obavještenje, značka na tabu i u meniju.</span></li>
+        <li><span><b>Isplata svima:</b> „Isplati sve“ u trećoj pločici; dugme „Simuliraj pad servera“ prije potvrde pokazuje neuspjele redove i „Pokušaj ponovo“.</span></li>
+        <li><span><b>Promet:</b> „Samo razlike“, pa red sa 97.79 → 92.79; „Izvezi CSV“ nudi datoteku na čuvanje (pregledač traži tvoju potvrdu; obavještenje sa imenom datoteke stiže tek kad prihvatiš).</span></li>
+        <li><span><b>Tastatura:</b> <span class="kbd">/</span> traži, strelice mijenjaju kurira, <span class="kbd">Enter</span> otvara, <span class="kbd">Esc</span> zatvara.</span></li>
+      </ol>
+    </div>
+    <div class="stage">
+      <div class="ctl" role="group" aria-label="Prikaz prototipa">
+        <button type="button" class="bb" data-mode="desk" aria-pressed="true">Računar</button>
+        <button type="button" class="bb" data-mode="phone" aria-pressed="false">Telefon</button>
+        <button type="button" class="bb" data-sim="pending">Simuliraj novu predaju</button>
+        <button type="button" class="bb" data-sim="fail">Simuliraj pad servera</button>
+        <button type="button" class="bb" data-sim="reset">Vrati početno stanje</button>
+      </div>
+      <div class="deskwrap" id="deskwrap"><div class="dsk" id="proto-d" data-fx="wide" data-poll="8000" data-slow="16000"></div></div>
+      <div class="phone-one" id="proto-p" data-fx="phone" data-poll="8000" data-slow="16000" hidden></div>
+      <p class="hint">Dugme „Simuliraj pad servera“ obara sljedeća dva poziva ka serveru. Nijedan upis ne izlazi iz stranice.</p>
+    </div>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Prije i poslije</span><h3>Isti zadaci, ista probna firma</h3></div>
+  <p class="small">„Dodir“ je jedan klik ili dodir; unos znakova je posebno. Prvi stupac je mjeren na staroj stranici (isti alat, ista firma), osim tamo gdje piše „računato“: tada je izmjeren jedan tok pa pomnožen. Drugi stupac je mjeren na prototipu skriptom koja broji svaki klik.</p>
+  <div class="ba" role="table" aria-label="Prije i poslije">
+    <div class="h" role="columnheader">Zadatak</div><div class="h" role="columnheader">Prije</div><div class="h" role="columnheader">Poslije</div>
+    <div class="k" role="rowheader">Potvrditi predaju na prijavljeni iznos</div><div>2 dodira; Enter ne radi; nema ni duga ni posljedice</div><div><b>__M_A_t1c__ dodira</b> (ili 1 + Enter), dug prije i poslije u listu</div>
+    <div class="k" role="rowheader">Evidentirati cijeli dug jednog kurira</div><div>__M_B_t2c__ dodira i __M_B_t2k__ znakova (tab, pretraga „30234“, dugme, polje, „164.00“, potvrda); računato iz izmjerenog toka</div><div><b>__M_A_t2c__ dodira, __M_A_t2k__ znakova</b> (izbor kurira, „Evidentiraj uplatu“, potvrda); iznos je već upisan</div>
+    <div class="k" role="rowheader">Isplatiti zaradu svih kurira (__M_A_planN__ kurira, __M_A_planTotal__ KM)</div><div>__M_B_t3c__ dodira i oko __M_B_t3k__ znakova (po kuriru: dugme, polje, iznos, potvrda); računato</div><div><b>__M_A_t3c__ dodira, 0 znakova</b>, __M_A_t3n__ isplata, jedna potvrda sa ukupnim iznosom</div>
+    <div class="k" role="rowheader">Vidjeti sve o jednom kuriru</div><div>6 dodira kroz dva taba i dva izbora kurira; predaje i isplate se ne vide zajedno</div><div><b>__M_A_t4c__ dodir</b>: računi, ugovor, račun za isplatu i zadnjih 30 dana prometa</div>
+    <div class="k" role="rowheader">Ko je blizu ili preko limita</div><div>Nije moguće na ovoj stranici (nema limita)</div><div><b>__M_A_t5c__ dodir</b> (filter „Limit“: __M_A_t5n__ kurira)</div>
+    <div class="k" role="rowheader">Šta je potvrđeno i isplaćeno danas</div><div>Dva birača datuma, bez zbira; zbir se računa napamet</div><div><b>__M_A_t6c__ dodira</b> („Promet“, „Danas“), zbirovi stoje iznad liste</div>
+    <div class="k" role="rowheader">Naći kurira kucanjem „zeljko djuric“</div><div>Ne nalazi (__M_B_searchFound__ od __M_B_searchTotal__ realnih upita)</div><div><b>__M_A_searchFound__ od __M_B_searchTotal__</b> upita</div>
+    <div class="k" role="rowheader">Saznati da je stigla nova predaja</div><div>Tek kad se stranica ponovo otvori (0 zahtjeva u __M_B_pollSec__ s)</div><div><b>Do 30 s</b>: obavještenje, istaknut red i značka u meniju</div>
+    <div class="k" role="rowheader">Redova iznad pregiba, računar 900 px</div><div>__M_B_foldBal__ (Balansi, red __M_B_balRowH__ px)</div><div>__M_A_fold__ (lista počinje na __M_A_listTop__ px; svaki red nosi mjerač, oznake i dva računa)</div>
+    <div class="k" role="rowheader">DOM sa 500 kurira</div><div>__M_B_scaleBalNodes__ (Balansi), __M_B_scaleHistNodes__ (Istorija)</div><div><b>__M_A_nodesStanje__</b> (Stanje), <b>__M_A_nodesPromet__</b> (Promet, 40 stavki)</div>
+    <div class="k" role="rowheader">Istorija od 500 redova, procesor 4× sporiji</div><div>__M_B_scaleHist4__ ms do prikaza</div><div><b>__M_A_journal4__ ms</b> (prvih 40 stavki, „Prikaži još“)</div>
+    <div class="k" role="rowheader">Najslabiji kontrast teksta</div><div>__M_B_minCAll__ : 1</div><div><b>__M_A_minC__ : 1</b> (svaki tekst u __M_A_states__ stanja na tri širine, __M_A_texts__ tekstova)</div>
+    <div class="k" role="rowheader">Mete ispod 44 px</div><div>__M_B_small_hand__ / __M_B_small_bal__ / __M_B_small_hist__ / __M_B_small_pay__ po tabu</div><div><b>0</b> u svim stanjima</div>
+    <div class="k" role="rowheader">Tab zaustavljanja za 17 kurira</div><div>__M_B_stopsBal__ (samo tab Balansi)</div><div><b>__M_A_stops__</b> na cijeloj stranici, a spisak je jedno zaustavljanje (strelice)</div>
+    <div class="k" role="rowheader">Telefon: dugmad za uplatu i isplatu</div><div>Izvan vidljivog dijela tabele</div><div><b>Uvijek vidljiva</b> u detalju kurira, bez vodoravnog klizanja</div>
+  </div>
+</section>

@@ -1,0 +1,13 @@
+<!doctype html><html lang="sr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>phone</title>
+<link rel="stylesheet" href="app.css">
+<style>html,body{margin:0;height:100%}body{background:#cfd5de}#p{position:relative;overflow:hidden;width:100vw;height:100vh}</style></head>
+<body>
+<div id="p" data-fx="phone" data-poll="6000" data-orders="10000" data-slow="20000"></div>
+<script src="icons.js"></script><script src="world.js"></script><script src="logic.js"></script>
+<script src="p0-core.js"></script><script src="p1-map.js"></script><script src="p2-panel.js"></script><script src="p3-sheets.js"></script><script src="p5-boot.js"></script>
+<script>
+window.__apps = LVBoot();
+window.fresh = function (id, opts) { var root = document.getElementById(id); if (root.__fx) root.__fx.destroy(); var app = LVApp.create(root, opts || {}); root.__fx = app; return true; };
+window.A = function (id) { return document.getElementById(id).__fx; };
+</script>
+</body></html>

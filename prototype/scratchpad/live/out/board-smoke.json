@@ -1,0 +1,71 @@
+{
+ "phoneOverflow": {
+  "sw": 390,
+  "iw": 390,
+  "bad": [],
+  "n": 0
+ },
+ "frames": [
+  {
+   "lv": true,
+   "rows": 0,
+   "orows": 0,
+   "sheet": false
+  },
+  {
+   "lv": true,
+   "rows": 12,
+   "orows": 0,
+   "sheet": false
+  },
+  {
+   "lv": true,
+   "rows": 12,
+   "orows": 0,
+   "sheet": false
+  },
+  {
+   "lv": true,
+   "rows": 0,
+   "orows": 0,
+   "sheet": false
+  },
+  {
+   "lv": true,
+   "rows": 0,
+   "orows": 0,
+   "sheet": false
+  },
+  {
+   "lv": true,
+   "rows": 12,
+   "orows": 0,
+   "sheet": false
+  },
+  {
+   "lv": true,
+   "rows": 12,
+   "orows": 0,
+   "sheet": false
+  },
+  {
+   "lv": true,
+   "rows": 12,
+   "orows": 0,
+   "sheet": true
+  },
+  {
+   "lv": true,
+   "rows": 0,
+   "orows": 3,
+   "sheet": false
+  },
+  {
+   "lv": true,
+   "rows": 3,
+   "orows": 0,
+   "sheet": false
+  }
+ ],
+ "checks": 42
+}

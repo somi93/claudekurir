@@ -12,8 +12,9 @@
         class="ss-in"
         :data-field="name"
         :checked="modelValue"
+        :disabled="disabled"
         :aria-describedby="hint ? `${uid}-hint` : undefined"
-        @change="emit('update:modelValue', ($event.target as HTMLInputElement).checked)"
+        @change="onChange"
       />
       <i aria-hidden="true" />
     </span>
@@ -21,23 +22,35 @@
 </template>
 
 <script setup lang="ts">
-import { useId } from "vue";
+import { nextTick, useId } from "vue";
 
 // Prekidač sa labelom i opisom (Firma: ograniči gotovinu, raspis cijene): pravi checkbox sa
 // role="switch", pa čitač ekrana kaže ime i stanje, a Space ga prebacuje. Meta je 56 × 44 px;
 // uključen je tamnozelen (≥ 3 : 1 prema podlozi), isključen siv, a stanje se vidi i po položaju
 // kuglice, ne samo po boji. Klik na naslov ga takođe prebacuje.
-defineProps<{
+const props = defineProps<{
   modelValue: boolean;
   label: string;
   hint?: string;
   // data-field: po njemu editor nalazi polje za fokus.
   name?: string;
+  // Zaključan (npr. dok se stanje ne učita): ne prebacuje se i ne pokazuje stanje.
+  disabled?: boolean;
 }>();
 
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
 
 const uid = `ss-${useId()}`;
+
+// Prekidač prati vrijednost koju roditelj drži: ako roditelj ne prihvati promjenu (npr. traži potvrdu prije
+// uključivanja), kuglica se vraća na staro umjesto da pokazuje stanje koje nije stvarno.
+const onChange = (event: Event) => {
+  const el = event.target as HTMLInputElement;
+  emit("update:modelValue", el.checked);
+  void nextTick(() => {
+    el.checked = props.modelValue;
+  });
+};
 </script>
 
 <style scoped>
@@ -119,6 +132,14 @@ const uid = `ss-${useId()}`;
 
 .ss-in:checked + i::after {
   transform: translateX(24px);
+}
+
+.ss-in:disabled {
+  cursor: not-allowed;
+}
+
+.ss-in:disabled + i {
+  opacity: 0.5;
 }
 
 .ss-in:focus-visible + i {

@@ -1,0 +1,149 @@
+<!-- ============================================ ANALIZA -->
+<section class="sec" id="analiza">
+  <div class="sec-head">
+    <span class="eyebrow">Analiza</span>
+    <h2>Šta danas ne radi, na stvarnim snimcima</h2>
+    <p class="small">Snimci su iz aplikacije (grana <span class="mono">master</span>, <span class="mono">nuxt dev</span>, računar 1440×900 i telefon 390×844 uz skaliranje 2). API je lažan: oblici tačno po <span class="mono">dispatcherWalletService.ts</span> i <span class="mono">types/courier-balance.ts</span>, <span class="mono">cash-handover.ts</span>, <span class="mono">payout.ts</span>, vrijednosti izmišljene (firma 24 u Banjoj Luci, 24 kurira, jedan kurir koji više nije u firmi i jedan dispečerski nalog u balansu, 4 predaje na čekanju, 41 predaja i 22 isplate u zadnjih 30 dana; <b>isti podaci kao u prototipu</b>). Brojevi 180.70 KM duga i 6.00 KM zarade su iz dokumenta od 30.09, a predaja 97.79 → 92.79 KM iz dokumenta od 04.10. Brojevi na slikama odgovaraju spisku ispod slike. Brojevi koji zavise od količine podataka važe za te probne podatke, a ponašanje koje ih izaziva je u kodu. <b>Šta backend radi (da li evidentirana uplata pravi red u istoriji predaja, koji je redoslijed istorije, šta znači tekst napomene o razlici) nije u repou dokumentovano i u lažnom API-ju je moja pretpostavka;</b> takvi nalazi vode na pitanja B1 do B10.</p>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Cijela stranica</span><h3>Stranica ne kaže čija je, ne pamti gdje si bio i ne javlja da se nešto desilo</h3></div>
+  <div class="scroll-x"><table class="wide stack">
+    <thead><tr><th>Nalaz</th><th>Kako je izmjereno</th><th>Šta to znači dispečeru</th></tr></thead>
+    <tbody>
+      <tr><td><b>Zaglavlje je samo naslov</b></td><td data-l="Kako je izmjereno">Naslov „Finansije“, bez firme, valute i vremena osvježavanja. Firma je samo u bočnoj traci. Firma, Cjenovnik i Raspored pišu firmu u podnaslovu.</td><td data-l="Značenje">Stranica ne kaže čije novce pokazuje; poslije promjene firme u meniju ništa na stranici to ne kaže.</td></tr>
+      <tr><td><b>Stanje nije u adresi</b></td><td data-l="Kako je izmjereno"><span class="mono">?tab=balances</span> se ignoriše (tab je lokalno <span class="mono">ref("handovers")</span>) i klik na tab ne mijenja adresu. Filteri Istorije i Isplata se gube pri napuštanju taba: status „Potvrđeno“ daje 38 redova, poslije povratka sa Isplata opet 41.</td><td data-l="Značenje">Nema veze „otvori ovog kurira“ (npr. iz Kuriri), osvježavanje vraća na prvi tab, a dispečer koji uporedi predaje i isplate jednog kurira bira kurira dva puta.</td></tr>
+      <tr><td><b>Nema osvježavanja</b></td><td data-l="Kako je izmjereno">__M_B_pollReq__ zahtjeva u __M_B_pollSec__ s (osim <span class="mono">GET /dispatcher/outbox/status</span> koji šalje ljuska aplikacije). Server je imao __M_B_srvPend__ predaja, stranica i značka na tabu __M_B_pagePend__. Nema slušaoca <span class="mono">visibilitychange</span>; u bočnoj traci i na početnoj nema značke.</td><td data-l="Značenje">Kurir koji prijavi predaju čeka dok dispečer ponovo ne otvori stranicu. Tačnije: dispečer ne zna da neko čeka.</td></tr>
+      <tr><td><b>Pad učitavanja liči na prazninu</b></td><td data-l="Kako je izmjereno">Lažni server vraća 500: Zahtjevi „Nema zahteva koji čekaju potvrdu.“ (uz zelenu kvačicu, a značka na tabu nestane), Balansi „Nema kurira sa evidentiranim balansom.“, Istorija „Nema predaja za zadati filter.“, Isplate „Nema isplata za zadati filter.“. Jedina poruka je crvena traka na vrhu; nigdje nema „Pokušaj ponovo“. Pad liste kurira: imena u predajama postanu „Kurir #30210“.</td><td data-l="Značenje">Dispečer koji vidi „Nema zahteva“ povjeruje da niko ne čeka, a kurir čeka. Za novac je to najgora vrsta greške: izgleda kao dobra vijest.</td></tr>
+      <tr><td><b>Prvi kadrovi lažu</b></td><td data-l="Kako je izmjereno">Snimak kadar po kadar uz kašnjenja API-ja od 150 do 600 ms: kartica piše „Nema zahteva koji čekaju potvrdu.“ od 168. do 1184. ms, pa „Učitavanje…“ do 1701. ms, pa redove. Prazna poruka je vidljiva __M_B_falseMs__ od __M_B_loadMs__ ms, prije nego što je učitavanje počelo.</td><td data-l="Značenje">Svako otvaranje stranice počinje porukom da je sve potvrđeno.</td></tr>
+      <tr><td><b>Trka pri promjeni firme</b></td><td data-l="Kako je izmjereno">Odgovor <span class="mono">couriers-balance</span> firme 24 kasni 1,8 s, a u međuvremenu se izabere firma 27: poslije 1,8 s tabela firme 27 pokazuje <b>__M_B_raceRows__ redova firme 24</b>. Uplata na prvom redu: <span class="mono">POST /dispatcher/couriers/30189/cash-receipt</span> sa <span class="mono">delivery_company_id: 27</span>. Odgovor se ne uparuje sa firmom za koju je tražen (mjereno na balansima; isti obrazac u kodu važi i za predaje, istoriju i isplate, to nije mjereno).</td><td data-l="Značenje">Radnja se šalje sa ID-jem firme izabrane sada, a za kurira iz tabele druge firme. Lažni server to ne provjerava. Pravi server po odgovoru od 01.09 (stavka 1.2) vraća 404 samo kad kurir nikad nije bio vezan za firmu iz zahtjeva, pa kurir koji je radio u obje firme prođe.</td></tr>
+      <tr><td><b>Tabele ne podnose telefon</b></td><td data-l="Kako je izmjereno">Red tabele je __M_B_rowW_bal__ px (Balansi), __M_B_rowW_hist__ px (Istorija), __M_B_rowW_pay__ px (Isplate) u kartici od __M_B_card_p__ px; dugmad Uplata i Isplata su u zadnjoj koloni, izvan vidljivog dijela. Tab bar je __M_B_tabbarP__ px visok, naslovi 11,2 px u tri reda.</td><td data-l="Značenje">Na telefonu se ne vidi kako se evidentira uplata ni isplata, dok se tabela ne povuče udesno.</td></tr>
+      <tr><td><b>Tastatura i čitač ekrana</b></td><td data-l="Kako je izmjereno">Zaglavlja kolona i redovi tabele nisu fokusabilni (<span class="mono">tabindex</span> i <span class="mono">role</span> ne postoje, kursor je „pointer“), pa se „Detalji kurira“ otvaraju samo mišem, a sortiranje samo klikom. Balansi: __M_B_stopsBal__ Tab zaustavljanja za __M_B_rowsBal__ kurira (dva dugmeta po redu). <span class="mono">role=tablist</span> nema ime, tabovi nemaju <span class="mono">aria-controls</span>, panela nema. Dijalog nema ulogu ni ime; poslije zatvaranja fokus ide na <span class="mono">body</span>; fokus pri otvaranju je na omotaču, pa Enter ne potvrđuje.</td><td data-l="Značenje">Isplata se evidentira samo mišem; čitač ekrana kaže „lista kartica“ bez naziva i ne javlja da se otvorio dijalog.</td></tr>
+      <tr><td><b>Kontrast i mete</b></td><td data-l="Kako je izmjereno">Najslabiji tekst po tabu: __M_B_minC_hand__ / __M_B_minC_bal__ / __M_B_minC_hist__ / __M_B_minC_pay__ : 1. Oznaka „Na čekanju“ __M_B_chipC__ : 1 (10 px), podnaslov kartice __M_B_subC__ : 1, <span class="mono">#ID</span> i zaglavlja kolona __M_B_idC__ : 1, negativan saldo __M_B_creditC__ : 1. Mete ispod 44 px: __M_B_small_hand__ / __M_B_small_bal__ / __M_B_small_hist__ / __M_B_small_pay__ po tabu (dugmad u redu 28 px, prekidač 33 px, izbori 24 px).</td><td data-l="Značenje">Novac je najsitniji tekst na stranici, a dugmad koja pomjera novac su najmanja.</td></tr>
+      <tr><td><b>Pretraga i sortiranje</b></td><td data-l="Kako je izmjereno">Dvanaest realnih upita nad balansima: nađeno __M_B_searchFound__ („Hodžić“, „željko“, „đurić“, „065/123-456“ i „30189“). Ne nalaze: „hodzic“, „zeljko“, „djuric“, „Zeljko Djuric“, „марковић“, „065123456“, „+387 65 123 456“. Sortiranje po „Kurir“ ide po ID-u, ne po abecedi (prvi je #29980).</td><td data-l="Značenje">Kurir se ne nalazi kad se kuca onako kako se kuca. Stranica Kuriri već koristi pretragu koja ih sve nalazi.</td></tr>
+      <tr><td><b>Skala</b></td><td data-l="Kako je izmjereno">500 kurira, 500 predaja, 300 isplata: Balansi crtaju __M_B_scaleBalRows__ redova i __M_B_scaleBalNodes__ DOM elemenata (sa „Prikaži i nulte“ __M_B_scaleAllRows__ redova i __M_B_scaleAllNodes__ elemenata), Istorija __M_B_scaleHistRows__ redova i __M_B_scaleHistNodes__ elemenata. Na procesoru 4× sporijem: Balansi __M_B_scaleBal4__ ms, „Prikaži i nulte“ __M_B_scaleAll4__ ms, Istorija __M_B_scaleHist4__ ms.</td><td data-l="Značenje">Nema straničenja ni ograničenja broja redova; svaki red je cijena na većim firmama.</td></tr>
+      <tr><td><b>Neočekivani oblik iznosa</b></td><td data-l="Kako je izmjereno">Ako <span class="mono">couriers-balance</span> vrati iznose kao tekst („180.70“, kako Laravel vraća decimale i kako već vraćaju predaje i isplate), tabela ne nacrta nijedan red: <span class="mono">TypeError: value.toFixed is not a function</span>, bez poruke. Kuriri koristi <span class="mono">toAmount</span> za isti podatak.</td><td data-l="Značenje">Jedna promjena oblika na serveru ostavlja dispečera sa praznom tabelom i bez objašnjenja.</td></tr>
+      <tr><td><b>Konzola je čista</b></td><td data-l="Kako je izmjereno">Kroz sva četiri taba i sve dijaloge: 0 izuzetaka (osim slučaja iznosa kao tekst), samo poznata upozorenja <span class="mono">$vuetify.*</span> (nedostaju prevodi ugrađenih komponenti, vidi stranicu Kuriri).</td><td data-l="Značenje">Nema skrivenih padova u uobičajenom toku; problemi su u ponašanju.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="sub-head"><span class="group-title">Zahtjevi, računar</span><h3>Red kaže iznos i starost, ali ne kaže da li kasni, koliki je dug i šta će biti poslije potvrde</h3></div>
+  <div class="shots shots--wide">
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-handovers__" alt="Računar: tab Zahtjevi za predaju gotovine, četiri reda sa dugmetom Potvrdi" width="1176" height="735"></div>
+      <figcaption><b>Zahtjevi za predaju gotovine, 1440×900</b><span>Četiri reda, ista težina, dugme „Potvrdi“ u svakom.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Zaglavlje je samo naslov.</b> Ni firma, ni valuta, ni kad je zadnji put osvježeno.</span></li>
+        <li data-n="2"><span><b>Tablist bez imena</b>, aktivan tab __M_B_tabLabelC__ : 1, naslovi 11,8 px. Značka „4“ na tabu ne raste kad stigne nova predaja.</span></li>
+        <li data-n="3"><span><b>Podnaslov __M_B_subC__ : 1</b> i obećava „Najstariji prvo“, što stranica ne provjerava: redoslijed je onaj koji server vrati.</span></li>
+        <li data-n="4"><span><b>„Potvrdi“ je 82×36 px.</b> Svaki dodir otvara dijalog; nema načina da se vidi koliko duguje kurir koji je predao.</span></li>
+        <li data-n="5"><span><b>Starost je običan tekst.</b> „Pre 3 dana“ i „pre 12 min“ izgledaju isto; dug kurira i limit nisu u redu.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-confirm__" alt="Računar: dijalog Potvrdi predaju gotovine sa poljem Potvrđeni iznos" width="1176" height="735"></div>
+      <figcaption><b>Dijalog potvrde</b><span>Iznos je unaprijed popunjen prijavljenim.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Pitanje bez konteksta.</b> Ne kaže koliko kurir duguje ni koliki će dug ostati; razlika od prijave se vidi tek kad se unese drugi iznos („Razlika: 20.00 KM“), i ni tada se ne kaže da je iznos veći od duga.</span></li>
+        <li data-n="2"><span><b>Fokus je na omotaču dijaloga, ne u polju.</b> Enter pri otvaranju ne potvrđuje (izmjereno: nula zahtjeva). Dijalog je 420 px i nema ulogu ni ime; poslije zatvaranja fokus ide na <span class="mono">body</span>.</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Balansi, računar i telefon</span><h3>Nema limita, nema zbira, a akcije su složene ili izvan ekrana</h3></div>
+  <div class="shots">
+    <figure class="shot" style="grid-column:1/-1;max-width:1176px">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-balances__" alt="Računar: tab Balansi kurira, 17 redova sa dugmadima Uplata od kurira i Isplata kurira jedno ispod drugog" width="1176" height="1194"></div>
+      <figcaption><b>Balansi kurira, 1440×900 (cijela stranica)</b><span>17 redova, __M_B_balRowH__ px po redu, __M_B_hBal__ px stranice.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Dugmad su jedno ispod drugog.</b> Kolona radnji je uska, pa se dva dugmeta prelome; red je __M_B_balRowH__ px (Istorija 52 px), stranica __M_B_hBal__ px. Na ekranu od 900 px stane __M_B_foldBal__ redova.</span></li>
+        <li data-n="2"><span><b><span class="mono">#ID</span> je sivo __M_B_idC__ : 1</b> uz svako ime; zaglavlja kolona isto.</span></li>
+        <li data-n="3"><span><b>Negativan saldo je zelen (__M_B_creditC__ : 1) i bez riječi.</b> „-45.50 KM“ pod „Saldo gotovine“; ne piše da firma duguje kuriru.</span></li>
+        <li data-n="4"><span><b>Nijedan podatak o limitu.</b> Stranica čita <span class="mono">finance-settings</span> samo radi valute; limit gotovine, procenat i „preko limita“ ne postoje, iako <span class="mono">utils/cashLimit.ts</span> ima pravilo.</span></li>
+        <li data-n="5"><span><b>Pretraga nađe __M_B_searchFound__ od __M_B_searchTotal__ upita</b>; „Prikaži i nulte“ je prekidač od 33×33 px koji krije nulte kurire.</span></li>
+        <li data-n="6"><span><b>Tri naziva za istu radnju:</b> „Uplata od kurira“ (red), „Primio sam gotovinu“ (dijalog) i „Evidentiraj uplatu“ (Kuriri). Isto za isplatu: „Isplata kurira“, „Isplati zaradu“.</span></li>
+      </ul>
+    </figure>
+  </div>
+  <div class="shots">
+    <figure class="shot">
+      <div class="shot-frame"><img src="__IMG_p-balances__" alt="Telefon: tab Balansi kurira, tabela sa tri kolone bez dugmadi za uplatu i isplatu" width="585" height="1266"></div>
+      <figcaption><b>Balansi, telefon 390×844</b><span>Prvi ekran poslije otvaranja taba.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Naslovi tabova u tri reda</b>, 11,2 px, aktivan __M_B_tabLabelCp__ : 1. Tab bar je __M_B_tabbarP__ px visok.</span></li>
+        <li data-n="2"><span><b>Tabela je __M_B_rowW_bal__ px u kartici od __M_B_card_p__ px.</b> Kolona sa dugmadima „Uplata od kurira“ i „Isplata kurira“ je desno od ove ivice i vidi se samo vodoravnim klizanjem unutar kartice.</span></li>
+        <li data-n="3"><span><b>„Prikaži i nulte“</b> je prekidač 33×33 px; tekst prelazi u zaglavlje tabele.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-details__" alt="Računar: dijalog Detalji kurira sa deset redova podataka i jednim dugmetom Zatvori" width="1176" height="735"></div>
+      <figcaption><b>Klik na red: „Detalji kurira“</b><span>Samo mišem; red nije fokusabilan.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Nazivi polja __M_B_idC__ : 1.</b> Deset redova podataka (telefon, vozilo, žiro račun, napomena, saldo).</span></li>
+        <li data-n="2"><span><b>Telefon nije veza</b> (nema <span class="mono">tel:</span>), a žiro račun se ne može kopirati jednim dodirom, iako je potreban pri isplati transferom.</span></li>
+        <li data-n="3"><span><b>Dijalog nema nijednu radnju osim „Zatvori“</b> i nema istoriju novca kurira: ni predaje, ni isplate. Za to treba otići na dva taba i dva puta izabrati kurira.</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Istorija i isplate</span><h3>Spor se ne može riješiti kad se razlika i razlog ne vide</h3></div>
+  <div class="shots shots--wide">
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-history__" alt="Računar: tab Istorija predaja, tabela sa kolonama Prijavljeno, Potvrđeno, Datum, Status i Potvrdio" width="1176" height="900"></div>
+      <figcaption><b>Istorija predaja (gornji dio, 41 red ukupno)</b><span>__M_B_hHist__ px stranice, bez zbira i bez perioda unaprijed.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Oznaka „Na čekanju“ je __M_B_chipC__ : 1</b>, 10 px, 65×20 px. Isto čip „Potvrđeno“ ima 10 px.</span></li>
+        <li data-n="2"><span><b>Nema kolone razlike ni napomene.</b> U probnim podacima <b>__M_B_diffN__ od __M_B_confirmedN__</b> potvrđenih predaja ima razliku (npr. 97.79 → 92.79 KM); server vraća <span class="mono">note</span> sa razlogom, a tabela ga ne prikazuje. Razlika se vidi samo poređenjem dva broja.</span></li>
+        <li data-n="3"><span><b>Filteri su polja od 24 px</b> (izbor kurira i statusa) i gube se pri promjeni taba.</span></li>
+        <li data-n="4"><span><b>Nema zbira.</b> Koliko je potvrđeno ove sedmice, koliko je razlika, ne piše nigdje; period se bira sa dva birača datuma, bez „Danas“ i „Ovaj mjesec“.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-payouts__" alt="Računar: tab Isplate kuririma, tabela sa kolonama Kurir, Iznos, Napomena i Datum" width="1176" height="1254"></div>
+      <figcaption><b>Isplate kuririma</b><span>Četiri kolone, __M_B_hPay__ px stranice.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Način isplate postoji samo u tekstu napomene</b> („Isplata kuriru (bankovni transfer)“). Nema kolone, nema filtera po načinu.</span></li>
+        <li data-n="2"><span><b>Ne piše ko je isplatio.</b> Polje ne postoji u odgovoru koji smo vidjeli (<span class="mono">types/payout.ts</span>); za firmu sa više dispečera to je prvo pitanje u sporu.</span></li>
+        <li data-n="3"><span><b>Nema zbira isplata</b> za period, a stranica postoji da bi se isplate mogle provjeriti.</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Kad nešto pođe po zlu</span><h3>Greška je ili nevidljiva, ili izgleda kao dobra vijest</h3></div>
+  <div class="shots">
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-fail__" alt="Računar: crvena traka Ne mogu da učitam zahteve ispod koje kartica piše Nema zahteva koji čekaju potvrdu uz kvačicu" width="1176" height="735"></div>
+      <figcaption><b>Učitavanje predaja je palo</b><span>Lažni server vraća 500.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Crvena traka na vrhu</b>: ostaje dok se ne zatvori, gura sadržaj nadolje, bez „Pokušaj ponovo“.</span></li>
+        <li data-n="2"><span><b>„Nema zahteva koji čekaju potvrdu.“ uz kvačicu.</b> Isti tekst kao kad zaista nema nikoga.</span></li>
+        <li data-n="3"><span><b>Značka na tabu je nestala</b> (nije „0“, nema je): tab izgleda kao da nema čega da se čeka.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-payfail__" alt="Računar: dijalog Isplati zaradu otvoren, iza zatamnjenja crvena traka Ne mogu da isplatim zaradu" width="1176" height="735"></div>
+      <figcaption><b>Isplata je pala dok je dijalog otvoren</b><span>Server vraća 500 na prvi pokušaj.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Poruka je u crvenoj traci iza zatamnjenja</b>, ne u dijalogu u kojem dispečer gleda.</span></li>
+        <li data-n="2"><span><b>Dijalog ostaje otvoren bez objašnjenja.</b> Ponovni pokušaj radi i šalje isti ključ (dobro), ali dispečer ne zna zašto je morao.</span></li>
+      </ul>
+    </figure>
+    <figure class="shot">
+      <div class="shot-frame shot-frame--desk"><img src="__IMG_d-over__" alt="Računar: red kurira sa saldom −953.50 KM zelenom bojom i narandžasto obavještenje Iznos je veći od duga" width="1176" height="735"></div>
+      <figcaption><b>Uplata od 999 KM na dug od 45.50 KM</b><span>Prošla je bez upozorenja prije slanja.</span></figcaption>
+      <ul class="leg">
+        <li data-n="1"><span><b>Saldo je „-953.50 KM“, zelen.</b> Isto polje u dijalogu nije imalo upozorenje ni ograničenje; polje je prazno pri otvaranju, pa se cijeli dug mora otkucati.</span></li>
+        <li data-n="2"><span><b>Upozorenje stiže poslije</b> (tekst servera, ovdje izmišljen), kad je uplata već evidentirana. Na Kuriri isti list upozorava prije slanja.</span></li>
+      </ul>
+    </figure>
+  </div>
+
+  <div class="sub-head"><span class="group-title">Šta je dobro i ostaje</span><h3>Ono što ne treba prepravljati</h3></div>
+  <div class="cols-3">
+    <div class="card"><h3>Isplata ima ključ</h3><p>Ključ se pravi pri otvaranju dijaloga i isti je na ponovnom pokušaju (izmjereno: dva zahtjeva, isti <span class="mono">idempotency_key</span>); novo otvaranje je nova isplata. Ostaje isto.</p></div>
+    <div class="card"><h3>Dupli dodir ne šalje dvaput</h3><p>Dva brza dodira na „Potvrdi“ pošalju jedan zahtjev; dugme je zaključano dok traje. Ostaje isto.</p></div>
+    <div class="card"><h3>Kurir kojeg više nema u firmi se vidi</h3><p>Balans nosi ime i telefon, pa se kurir sa otvorenim dugom (ovdje „Enis Čolić“) vidi i može mu se evidentirati uplata. Ostaje, uz oznaku zašto.</p></div>
+    <div class="card"><h3>Valuta firme se poštuje</h3><p>Iznosi i oznake polja koriste valutu iz <span class="mono">finance-settings</span> (fallback „KM“) u svim dijalozima. Ostaje.</p></div>
+    <div class="card"><h3>Negativan saldo je prepoznat</h3><p>Kurir koji je predao više nego što je dugovao ima poseban (zelen) prikaz. Pravilo ostaje, samo dobija riječi: „Firma duguje kuriru (gotovina)“.</p></div>
+    <div class="card"><h3>Razlika pri potvrdi je predviđena</h3><p>Potvrda dopušta drugi iznos i polje napomene o razlici; server sam piše napomenu ako je dispečer ne upiše. Ostaje, uz pregled prije slanja.</p></div>
+  </div>
+</section>

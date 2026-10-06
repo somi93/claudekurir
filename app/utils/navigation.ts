@@ -5,6 +5,9 @@ export type NavItem = {
   icon: string;
 };
 
+// Finansije dispečera: na nju upućuju stavka navigacije i veza „Pogledaj novac“ iz detalja kurira.
+export const FINANCE_PATH = "/dispatcher/finance";
+
 // Sanduče kurira - na njega upućuju pločica na početnoj i stavka navigacije, pa
 // im bedž nepročitanih poruka prepoznaje ovu putanju.
 export const COURIER_INBOX_PATH = "/courier/inbox";
@@ -52,9 +55,9 @@ export const dispatcherNavItems: NavItem[] = [
     icon: "mdi-account-search-outline",
   },
   {
-    to: "/dispatcher/finance",
+    to: FINANCE_PATH,
     title: "Finansije",
-    subtitle: "Kase kurira - predaje, balansi, isplate",
+    subtitle: "Predaje, stanje kurira, isplate i promet",
     icon: "mdi-cash-register",
   },
   {

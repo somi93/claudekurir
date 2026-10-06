@@ -1,0 +1,7 @@
+[
+ {"name":"p3-promet","mode":"phone","opts":{"tab":"promet"},"wait":1600},
+ {"name":"p4-confirm","mode":"phone","opts":{},"wait":1200,"js":"A('p').ctx.acts.confirm(903); await new Promise(r=>setTimeout(r,500)); const i=document.querySelector('#fc-amt'); i.value='90'; i.dispatchEvent(new Event('input',{bubbles:true})); return 1;"},
+ {"name":"p5-batch","mode":"phone","opts":{},"wait":1200,"js":"A('p').ctx.acts.batch(); return 1;"},
+ {"name":"d6-err","mode":"wide","opts":{},"wait":300,"js":"A('d').failNext(new RegExp('GET .*cash-handovers/pending'), 999); await new Promise(r=>setTimeout(r,200)); A('d').ctx.parts.stanje.load('pending'); await new Promise(r=>setTimeout(r,500)); return 1;"},
+ {"name":"d7-detail-far","mode":"wide","opts":{},"wait":1200,"js":"A('d').ctx.acts.open(29980); await new Promise(r=>setTimeout(r,800)); return 1;"}
+]

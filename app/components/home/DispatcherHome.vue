@@ -18,7 +18,15 @@
             <v-icon :icon="item.icon" color="#2f6fed" />
           </div>
           <div class="tile-text">
-            <h3>{{ item.title }}</h3>
+            <h3>
+              {{ item.title }}
+              <template v-if="item.to === FINANCE_PATH && cashBadge > 0">
+                <span class="tile-badge" data-home-badge="finance" aria-hidden="true">{{ cashBadge }}</span>
+                <span class="tile-badge-sr">
+                  {{ cashBadge }} {{ pluralizeSr(cashBadge, "predaja čeka", "predaje čekaju", "predaja čeka") }} potvrdu
+                </span>
+              </template>
+            </h3>
             <p>{{ item.subtitle }}</p>
           </div>
           <v-icon icon="mdi-arrow-right" class="tile-arrow" />
@@ -29,11 +37,17 @@
 </template>
 
 <script setup lang="ts">
-import { dispatcherNavItems } from "~/utils/navigation";
+import { storeToRefs } from "pinia";
+import { useCashDeskStore } from "~/stores/cashDesk";
+import { pluralizeSr } from "~/utils/datetime";
+import { FINANCE_PATH, dispatcherNavItems } from "~/utils/navigation";
 
 defineProps<{
   userName?: string;
 }>();
+
+// Predaje gotovine koje čekaju potvrdu: ista značka kao uz "Finansije" u meniju.
+const { badge: cashBadge } = storeToRefs(useCashDeskStore());
 </script>
 
 <style scoped>
@@ -124,6 +138,31 @@ h1 {
   margin: 2px 0 0;
   color: #6b7685;
   font-size: 0.85rem;
+}
+
+.tile-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #b42318;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile-badge-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .tile-arrow {

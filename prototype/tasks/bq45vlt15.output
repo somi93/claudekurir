@@ -1,0 +1,8 @@
+izvor: {"pass":396,"total":396}
+tabla, paketi: {"pass":322,"total":322}
+smoke: {"pass":42,"total":42} curenje: {"props":50600,"states":9,"diff":0,"only":0}
+board.html 1056 KB; neiskorištene mjere: B_reqOpenPage, B_rows500, B_searchFail, A_limit, A_susp, A_waitCrit, A_restCrit, A_stale, A_hand, A_pins, A_stripH, A_ready500, A_filter4_500, A_pan4_500, A_zo
+konačno, smoke: {"pass":42,"total":42} curenje: {"props":50600,"states":9,"diff":0,"only":0}
+SVE PROLAZI
+
+[exited with code 0]

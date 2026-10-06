@@ -1,0 +1,170 @@
+{{toc}}
+
+h1. Frontend → backend: pitanja (6. oktobar 2026)
+
+Legenda: 🔴 blokira/kvari podatak · 🟠 kvari/ograničava funkciju · 🟡 nejasno/treba potvrda ·
+🟢 niži prioritet
+
+Tema: dispečerski ekran *"Finansije"* (@/dispatcher/finance@). Frontend ga je preradio od temelja: dva taba (*Stanje* i
+*Promet*), red "Čeka potvrdu" sa potvrdom predaje u donjem listu, knjiga kurira sa gotovinom i zaradom odvojeno (nikad
+prebijeno), detalj kurira uz listu (na telefonu zasebna stranica), "Isplati sve" sa rezultatom po kuriru, Promet sa
+periodom, filterima i izvozom u CSV, i značka u meniju kad neka predaja čeka potvrdu. Sve što može bez backenda je
+urađeno. Ispod je ono što front sam ne može da završi, po prioritetu. *Nijedna stavka ne blokira* ono što je urađeno; uz
+svaku piše šta front radi dok odgovor ne stigne. Najmanje što pomaže odmah: *1, 2 i 4*. Dokumenti od ranijih dana se ne
+mijenjaju.
+
+---
+
+h2. ✅ Šta front od danas šalje: ekran Finansije (informativno, nema pitanja)
+
+Bitno za opterećenje i za provjeru na vašoj strani:
+
+* Pri otvaranju, svaki izvor posebno: @GET .../delivery-companies/{id}/couriers-balance@, @cash-handovers/pending@,
+  @couriers-status@ i @finance-settings@. Spajaju se po @courier_id@. Kad promijenite firmu, odgovori za prethodnu se
+  odbacuju.
+* Osvježavanje samo dok je kartica vidljiva: @cash-handovers/pending@ *svakih 30 s* na ekranu Finansije, a *svakih 60 s*
+  za značku u meniju (isti podatak, ne dupliraju se zahtjevi); @couriers-balance@ svakih 60 s. Dugme "Osvježi" čita sve
+  odmah.
+* Promet: dva poziva po izboru perioda ili kurira, @GET .../cash-handovers?courier_id&status&from&to@ i
+  @GET .../payouts?courier_id&from&to@ (@from@ i @to@ kao dan @YYYY-MM-DD@ po lokalnom vremenu).
+* Potvrda: @POST /dispatcher/cash-handovers/{id}/confirm@ sa @{ confirmed_amount, note? }@. Napomena se šalje samo kad
+  se iznos razlikuje od prijavljenog.
+* Uplata gotovine: @POST /dispatcher/couriers/{id}/cash-receipt@ sa @{ delivery_company_id, amount, note? }@.
+* Isplata: @POST /dispatcher/couriers/{id}/payout@ sa @{ delivery_company_id, amount, method, idempotency_key, note? }@.
+  Ključ se pravi pri otvaranju lista, pa neuspjeli i ponovljeni pokušaj nose *isti* ključ.
+* "Isplati sve": jedan @payout@ poziv po kuriru, svaki sa vlastitim ključem, *najviše 3 istovremeno*. Pad jednog ne
+  zaustavlja ostale; "Pokušaj ponovo" šalje samo neuspjele sa istim ključevima.
+* Detalj kurira: poziv prometa za jednog kurira (@courier_id@, zadnjih 30 dana), keširan 60 s.
+
+---
+
+h2. 🟠 1. Evidentirana uplata i isplata u listama
+
+* "Evidentiraj uplatu" šalje @POST .../cash-receipt@ i smanji dug. Ne znamo da li se ta uplata pojavi u
+  @GET .../cash-handovers@ (nigdje ne piše da pravi red). Ako ne, Promet i zbir "Potvrđene predaje" ne obuhvataju
+  gotovinu koju je dispečer sam primio. Isto pitanje je u dokumentu od 04.10. (stavka 3) sa kurirske strane.
+* Pojavi li se isplata koju dispečer evidentira *uvijek* u @GET .../payouts@?
+* Prijedlog: red u @cash-handovers@ sa @source: "dispatcher_entry"@ i @entered_by_name@ (ili ista informacija u
+  odgovoru).
+
+*Dok ne stigne:* zbir "Potvrđene predaje" na Prometu piše tačno šta obuhvata (predaje koje je kurir prijavio i dispečer
+potvrdio); ništa se ne izmišlja.
+
+---
+
+h2. 🟠 2. Isplata: ko je isplatio i način isplate kao polje
+
+Red isplate ima @id@, @amount@, @note@, @created_at@, @transaction_id@. Način (gotovina / bankovni transfer) postoji samo
+u tekstu napomene, a ko je isplatio ne postoji uopšte.
+
+* Prijedlog: @paid_by_id@, @paid_by_name@ i @method: "cash" | "bank_transfer"@ uz slobodan tekst napomene.
+
+*Dok ne stigne:* način se čita iz teksta napomene ("(gotovina)", "(bankovni transfer)"); stavka u Prometu piše "Ko je
+isplatio: server to ne vraća". Ako se tekst napomene promijeni, oznaka načina nestaje bez greške, a CSV kolona ostaje
+prazna.
+
+---
+
+h2. 🟠 3. Straničenje, redoslijed i @from@/@to@
+
+@cash-handovers@, @payouts@ i @couriers-balance@ vraćaju *sve*. Redoslijed nije dokumentovan. Ne znamo da li je
+@from@/@to@ UTC ili lokalni dan i da li je uključiv.
+
+# Prijedlog: @page@, @per_page@, @meta: { total, last_page }@, najnovije prvo, lokalni dan uključivo (kao
+  @/earnings?from=@).
+# Potvrdite ili recite kakav je danas redoslijed @cash-handovers@ i @payouts@.
+
+Veže se na dokument od 04.10. (stavka 8).
+
+*Dok ne stigne:* front čita sve, sortira u pregledniku i prikazuje 40 stavki odjednom ("Prikaži još" dodaje). Period je
+lokalni dan.
+
+---
+
+h2. 🟡 4. Zbirni podaci za pločice i značku
+
+Tri pločice i značka u meniju računaju se iz cijelih lista (balans svake minute za sve kurire). Pri 500 kurira je to
+veliki odgovor samo za četiri broja.
+
+* Prijedlog: @GET .../delivery-companies/{id}/cash-summary@ sa @cash_owed_total@, @wage_owed_total@,
+  @over_limit_count@, @pending_count@, @pending_total@, @oldest_pending_at@.
+
+*Dok ne stigne:* sve se računa u pregledniku iz @couriers-balance@ i @cash-handovers/pending@.
+
+---
+
+h2. 🟠 5. Događaj za dispečera kad kurir prijavi predaju
+
+Danas ničeg nema. Stranica provjerava @cash-handovers/pending@ svakih 30 s, a značka u meniju svake minute, pa dispečer
+sazna za novu predaju sa zakašnjenjem do pola minute (na drugim ekranima do minute).
+
+* Prijedlog: događaj na kanalu dispečera (naziv i @{ handover_id, courier_id, amount }@) i/ili push, kao za ponude.
+  Veže se na dokument od 04.10. (stavka 4) sa kurirske strane.
+
+*Dok ne stigne:* provjera na 30 s i 60 s. Ako backend ne voli stalne provjere, značka u meniju se može isključiti
+jednom izmjenom; recite.
+
+---
+
+h2. 🟡 6. @confirm@: saldo i upozorenje u odgovoru
+
+Odgovor je @{ success, handover }@, bez novog salda. Ne znamo da li je potvrda većeg iznosa od prijavljenog ili od duga
+dozvoljena i da li tada vraća @warning@ (kao @cash-receipt@).
+
+* Prijedlog: u odgovoru @cash_owed_to_company@ i opcioni @warning@ (običan tekst).
+
+*Dok ne stigne:* poslije potvrde front ponovo čita balans; prije slanja upozorava vlastita provjera ("iznos je veći od
+duga") i *dopušta* slanje.
+
+---
+
+h2. 🟡 7. Odbijanje prijave predaje
+
+Postoje samo @pending@ i @confirmed@. Dispečer ne može da odbije prijavu sa razlogom, a kurir ne može da je povuče
+(04.10., stavka 5).
+
+* Prijedlog: status @rejected@ sa @reject_reason@ i ruta za odbijanje.
+
+*Dok ne stigne:* nema dugmeta "Odbij"; predaja se potvrdi pravim iznosom i napomenom. Potvrda se *ne može poništiti*
+(nema rute), zato je iznos u dugmetu, dug poslije potvrde je u listu i nema skupne potvrde.
+
+---
+
+h2. 🟡 8. Ograničenje brzine i ključ za uplatu gotovine
+
+# "Isplati sve" šalje do tri istovremena @payout@ poziva. Ne znamo ograničenje brzine ni oblik odgovora (@429@,
+  @Retry-After@). Ako smeta, front ga spušta na jedan istovremeni poziv (jedna konstanta).
+# @cash-receipt@ nema @idempotency_key@ (već u dokumentu od 05.10., stavka 10). Front zaključava dugme dok zahtjev traje,
+  ali prekid veze usred zahtjeva i ponovni pokušaj mogu dvaput evidentirati istu uplatu. Prima li @cash-receipt@ ključ?
+
+---
+
+h2. 🟢 9. Šta je iza duga, za dispečera
+
+Dispečer vidi samo predaje i isplate jednog kurira, ne i dostave koje su napravile dug. @GET /couriers/{id}/earnings@ je
+kurirska ruta; nije provjereno smije li je dispečer čitati za kurira svoje firme.
+
+* Prijedlog: dozvola čitanja za kurire svoje firme ili ledger sa @balance_after@ za dispečera (04.10., stavka 2).
+
+*Dok ne stigne:* detalj kurira pokazuje samo predaje i isplate za zadnjih 30 dana.
+
+---
+
+h2. 🟢 10. @couriers-balance@: tip naloga i veza sa firmom
+
+Odgovor sadrži dispečerske naloge (nulti redovi) i kurire koji više nisu u firmi (namjerno, odgovor od 01.09., stavka
+1.2). Nema @account_type@ ni @link_active@.
+
+* Prijedlog: @account_type@ ("courier" | "dispatcher") i @link_active@ (bool).
+
+*Dok ne stigne:* nulti redovi bez dugovanja se kriju; "Nije u firmi" se izvodi iz izostanka kurira iz
+@couriers-status@. Ako dispečerski nalog ima dug, vidi se kao običan red.
+
+---
+
+h2. Šta nije provjereno
+
+* *Pravi backend.* Sve uz stavke 1 do 10, uključujući tekst napomene o razlici, redoslijed istorije, da li evidentirana
+  uplata ima red, ograničenje brzine i odnos @from@/@to@, pretpostavka je dok ne odgovorite.
+* Ekran je provjeren običnim Node-om nad logikom (218 provjera) i tipovima (@nuxi typecheck@, bez grešaka u novim
+  fajlovima). *Nije* provjeren u pravom pregledniku nad novim kodom, produkcijskom buildu, iOS-u i čitačima ekrana.

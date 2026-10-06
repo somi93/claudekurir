@@ -1,0 +1,226 @@
+{
+ "stopsList": {
+  "button.active": 1,
+  "button.status-chip": 3,
+  "div.leaflet-map": 1,
+  "a.leaflet-control-zoom-in": 1,
+  "a.leaflet-control-zoom-out": 1,
+  "input.v-field__input": 1,
+  "div.v-list": 1,
+  "div.v-list-item": 23
+ },
+ "afterRowClick": {
+  "card": {
+   "y": 716,
+   "h": 175,
+   "b": 891
+  },
+  "side": {
+   "y": 160,
+   "h": 751,
+   "b": 911
+  },
+  "list": {
+   "y": 268,
+   "h": 432,
+   "b": 700
+  },
+  "innerH": 900,
+  "scrollH": 935,
+  "scrollY": 0,
+  "cardText": "SELEKTOVAN KURIR\n\nAmir Hodžić\nU dostavi\nID #30189\n 062/519-315\n Motor\n6.1 m/s\npre 9s\nCentriraj na mapi",
+  "map": {
+   "lat": 44.773997,
+   "lng": 17.194796,
+   "zoom": 15
+  }
+ },
+ "markerPx": [
+  {
+   "w": 20,
+   "h": 20,
+   "x": 951,
+   "y": 702,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "h": 20,
+   "x": 420,
+   "y": 496,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "h": 20,
+   "x": 331,
+   "y": 584,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "h": 20,
+   "x": 862,
+   "y": 378,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "h": 20,
+   "x": 538,
+   "y": 614,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "h": 20,
+   "x": 715,
+   "y": 732,
+   "vis": true
+  },
+  {
+   "w": 26,
+   "h": 26,
+   "x": 774,
+   "y": 466,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "h": 20,
+   "x": 626,
+   "y": 319,
+   "vis": true
+  }
+ ],
+ "markerView13": [
+  {
+   "w": 20,
+   "x": 973,
+   "y": 563,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 840,
+   "y": 510,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 707,
+   "y": 459,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 726,
+   "y": 605,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 771,
+   "y": 643,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 685,
+   "y": 481,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 908,
+   "y": 382,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 818,
+   "y": 429,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 737,
+   "y": 488,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 682,
+   "y": 572,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 781,
+   "y": 518,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 789,
+   "y": 661,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 945,
+   "y": 301,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 834,
+   "y": 323,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 645,
+   "y": 597,
+   "vis": true
+  },
+  {
+   "w": 26,
+   "x": 796,
+   "y": 451,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 893,
+   "y": 360,
+   "vis": true
+  },
+  {
+   "w": 20,
+   "x": 759,
+   "y": 414,
+   "vis": true
+  }
+ ],
+ "popup": {
+  "text": "Nikola Radić | ID #30265 | Telefon: 064663235 | Vozilo: Bicikl | Status: Offline | Brzina: n/a | Ažurirano: pre 12 min | ×",
+  "w": 171,
+  "h": 170
+ },
+ "cardAfterMarker": "SELEKTOVAN KURIR\n\nNikola Radić\nOffline\nID #30265\n 064663235\n Bicikl\nstoji\npre 12 min\nCentriraj na mapi",
+ "refresh": {
+  "popupStill": true,
+  "mut": {
+   "removed": 11,
+   "added": 11
+  },
+  "polls": 0,
+  "requests": 1
+ },
+ "afterTab": {
+  "tag": "DIV",
+  "cls": "v-list-item v-list-item--link v-theme--delivery v-list-item-",
+  "inRow": true
+ }
+}

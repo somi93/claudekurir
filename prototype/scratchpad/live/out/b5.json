@@ -1,0 +1,50 @@
+{
+ "n26": {
+  "n": 26,
+  "withPosition": 23,
+  "msToFirstRow": 1104,
+  "domNodes": 1088,
+  "rows": 23,
+  "markers": 23,
+  "heapMB": 30,
+  "scriptMs": 68,
+  "layoutMs": 46,
+  "more": null,
+  "search4x_ms": 3,
+  "search4x_total_ms": 167,
+  "pill4x_ms": 9,
+  "select4x_ms": 30
+ },
+ "n150": {
+  "n": 150,
+  "withPosition": 134,
+  "msToFirstRow": 1158,
+  "domNodes": 3896,
+  "rows": 100,
+  "markers": 134,
+  "heapMB": 50,
+  "scriptMs": 66,
+  "layoutMs": 54,
+  "more": " Prikazano prvih 100 od 134 - suzi pretragu. ",
+  "search4x_ms": 8,
+  "search4x_total_ms": 507,
+  "pill4x_ms": 3,
+  "select4x_ms": 30
+ },
+ "n500": {
+  "n": 500,
+  "withPosition": 451,
+  "msToFirstRow": 1198,
+  "domNodes": 7336,
+  "rows": 100,
+  "markers": 451,
+  "heapMB": 59,
+  "scriptMs": 66,
+  "layoutMs": 54,
+  "more": " Prikazano prvih 100 od 451 - suzi pretragu. ",
+  "search4x_ms": 10,
+  "search4x_total_ms": 1229,
+  "pill4x_ms": 10,
+  "select4x_ms": 39
+ }
+}

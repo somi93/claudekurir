@@ -52,6 +52,15 @@ export const useDispatcherZones = () => {
   // Ponovo učitava zone za isti grad kao zadnji put (za "Pokušaj ponovo").
   const reload = () => load(lastCity, { silent: lastSilent });
 
+  // Firma bez grada (ili druga firma): zone prethodnog učitavanja ne smiju da ostanu na ekranu.
+  const clear = () => {
+    seq++;
+    zones.value = [];
+    loading.value = false;
+    loadFailed.value = false;
+    loadReason.value = "";
+  };
+
   const create = async (payload: DispatcherZonePayload): Promise<boolean> => {
     saving.value = true;
     try {
@@ -76,7 +85,7 @@ export const useDispatcherZones = () => {
     try {
       const zone = await updateDispatcherZone(zoneId, payload);
       zones.value = zones.value.map((z) => (z.id === zoneId ? zone : z));
-      alertStore.success("Izmene zone su sačuvane.");
+      alertStore.success("Izmjene zone su sačuvane.");
       return true;
     } catch (error) {
       const message =
@@ -107,5 +116,5 @@ export const useDispatcherZones = () => {
     }
   };
 
-  return { zones, loading, saving, loadFailed, loadReason, load, reload, create, update, remove };
+  return { zones, loading, saving, loadFailed, loadReason, load, reload, clear, create, update, remove };
 };

@@ -1,0 +1,48 @@
+logic: 150/150 OK
+t1: 117/118 GREŠKE
+     ✘ 'Proširi mapu' skriva panel i širi kartu  — 929.25
+     ✘ 'Proširi mapu' skriva panel i širi kartu — 929.25
+t2: 49/49 OK
+t4: 5/5 OK
+UKUPNO 321/322
+=== smoke
+  ✔ Sat +10 min: starost signala duha raste (14 → 24 min)  — Kurir #30234·U dostavi·Bez signala 14 min -> Kurir #30234·U dostavi·Bez signala 24 min
+  ✔ Vrati početno stanje: opet 3 bez signala, 5 čeka kurira, nema izbora  — 3 5
+  ✔ računar: bez izuzetaka  — []
+  ✔ računar: bez grešaka konzole  — []
+  ✔ stanja: deset okvira, svi imaju prototip  — 10 okvira
+  ✔ stanja[1]: tekst /Ne mogu da učitam kurire/  — Ordera Dispečer Kuriri uživo Legenda 2 km Ne mogu da učitam kurire Server ne odgovara. Prazna karta bi izgledala kao da nikoga nema, zato je
+  ✔ stanja[2]: tekst /Ne mogu da učitam pozicije kurira/  — Ordera Dispečer Kuriri uživo Svi 26 U dostavi — Slobodni — Offline — Blizu limita 4 Suspendovani 2 Kasne 3 Čeka kurira 5 Čeka restoran 3 Pre
+  ✔ stanja[3]: tekst /Pozicije nisu osvježene/  — Ordera Dispečer Kuriri uživo 26 kurira · 14 uživo · osvježeno pre 6 s Svi 26 U dostavi 6 Slobodni 8 Offline 12 Bez signala 3 Blizu limita 4 
+  ✔ stanja[4]: tekst /Ne mogu da učitam narudžbe/  — Ordera Dispečer Kuriri uživo 26 kurira · 14 uživo · osvježeno pre 6 s Svi 26 U dostavi 6 Slobodni 8 Offline 12 Bez signala 3 Blizu limita 4 
+  ✔ stanja[5]: tekst /Firma još nema kurira/  — Ordera Dispečer Kuriri uživo Legenda 2 km Firma još nema kurira Kad dodaš kurira, vidjećeš ga ovdje čim pošalje poziciju. Dodaj kurira Kurir
+  ✔ stanja[6]: tekst /Nijedan kurir ne šalje poziciju/  — Ordera Dispečer Kuriri uživo 26 kurira · 0 uživo · osvježeno pre 6 s Svi 26 U dostavi 0 Slobodni 0 Offline 26 Blizu limita 4 Suspendovani 2 
+  ✔ stanja[7]: tekst /Signal je izgubljen 14 min/  — Ordera Dispečer Kuriri uživo 26 kurira · 14 uživo · osvježeno pre 6 s Svi 26 U dostavi 6 Slobodni 8 Offline 12 Bez signala 3 Blizu limita 4 
+  ✘ stanja[8]: tekst /Poruka kuriru Željko Đurić/  — Ordera Dispečer Kuriri uživo 26 kurira · 14 uživo · osvježeno pre 6 s Svi 26 U dostavi 6 Slobodni 8 Offline 12 Bez signala 3 Blizu limita 4 
+  ✔ stanja[9]: kasne narudžbe (3 reda)  — 3
+  ✔ stanja[10]: filter 'Bez signala' (3 reda)  — 3
+  ✔ stanja[8]: list za poruku je otvoren
+  ✔ stanja: bez izuzetaka  — []
+  ✔ tabla: sve slike su učitane  — 7/7
+  ✔ tabla: nijedan neispunjen __M_/__IMG_ u tekstu
+  ✔ tabla: sva sidra u sadržaju vode na postojeći odjeljak  — [true,true,true,true,true,true,true,true,true,true]
+  ✘ tabla: u tekstu nema NaN, undefined ni [object
+
+Ukupno: 40/42 prošlo
+  ✘ stanja[8]: tekst /Poruka kuriru Željko Đurić/ — Ordera Dispečer Kuriri uživo 26 kurira · 14 uživo · osvježeno pre 6 s Svi 26 U dostavi 6 Slobodni 8 Offline 12 Bez signala 3 Blizu limita 4 
+  ✘ tabla: u tekstu nema NaN, undefined ni [object
+=== leak
+  pocetno: samo u dev button.lv-mk lv-mk--delivering
+  pocetno: samo u dev span.lv-mk-ar
+  pocetno: samo u dev button.lv-mk lv-mk--online
+  pocetno: samo u dev button.lv-cl
+  pocetno: samo u dev button.lv-mk lv-mk--offline is-dim
+  pocetno: samo u dev button.lv-op lv-op--calm
+  ✘ curenje stilova: 43700 svojstava u 9 stanja, razlika 0  — pocetno span.lv-upd margin-left: dev="223.938px" tabla="auto" | izabran-kurir span.lv-upd margin-left: dev="223.938px" tabla="auto" | izabran-kurir div.lv-scale display: dev="flex" tabla="none"
+  ✘ curenje stilova: isti skup elemenata u prototipu i na tabli  — pocetno: samo u dev circle. | pocetno: samo u dev button.lv-mk lv-mk--delivering is-lost | pocetno: samo u dev span.lv-mk-pulse
+
+Ukupno: 0/2 prošlo
+  ✘ curenje stilova: 43700 svojstava u 9 stanja, razlika 0 — pocetno span.lv-upd margin-left: dev="223.938px" tabla="auto" | izabran-kurir span.lv-upd margin-left: dev="223.938px" tabla="auto" | izabran-kurir div.lv-scale display: dev="flex" tabla="none"
+  ✘ curenje stilova: isti skup elemenata u prototipu i na tabli — pocetno: samo u dev circle. | pocetno: samo u dev button.lv-mk lv-mk--delivering is-lost | pocetno: samo u dev span.lv-mk-pulse
+
+[exited with code 0]

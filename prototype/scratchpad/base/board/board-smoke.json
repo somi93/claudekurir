@@ -1,0 +1,62 @@
+{
+ "phoneOverflow": {
+  "sw": 390,
+  "iw": 390,
+  "bad": [],
+  "n": 0
+ },
+ "stagePhone": {
+  "stage": {
+   "x": 16,
+   "y": -7790,
+   "w": 358,
+   "h": 1022.375,
+   "b": -6767.625,
+   "r": 374
+  },
+  "frame": {
+   "x": 24,
+   "y": -7622,
+   "w": 342,
+   "h": 780,
+   "b": -6842,
+   "r": 366
+  }
+ },
+ "phoneFrameContrast": {
+  "min": 4.63,
+  "bad": []
+ },
+ "deskScale": {
+  "transform": "matrix(0.2375, 0, 0, 0.2375, 0, 0)",
+  "rect": {
+   "x": 24,
+   "y": 552,
+   "w": 342,
+   "h": 214,
+   "b": 766,
+   "r": 366
+  }
+ },
+ "tabs": [
+  "Stanje44 predaje čekaju potvrdu",
+  "Promet"
+ ],
+ "afterPending": {
+  "before": "4",
+  "badge": "5"
+ },
+ "csvAccepted": {
+  "toast": {
+   "text": "Izvezeno 18 redova: finansije-2026-10-06.csv",
+   "err": false
+  },
+  "saved": {
+   "filename": "finansije-2026-10-06.csv",
+   "bom": true,
+   "header": "Datum;Vrijeme;Vrsta;Kurir;ID kurira;Pri",
+   "lines": 19
+  }
+ },
+ "checks": 26
+}

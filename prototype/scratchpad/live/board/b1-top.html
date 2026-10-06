@@ -1,0 +1,21 @@
+<main class="wrap">
+
+<header class="top">
+  <span class="eyebrow">Dispečer · Kuriri uživo · 06.10.2026</span>
+  <h1>Dizajn stranice Kuriri uživo</h1>
+  <p class="lede">Dispečer otvara ovu stranicu da vidi gdje su kuriri, ko je slobodan, ko vozi i kome treba pomoć, i da nekoga pozove ili mu pošalje poruku. Pokrenuo sam aplikaciju (grana <span class="mono">master</span>) u pravom Chrome-u nad lažnim API-jem, sa izmišljenom firmom u Banjoj Luci (__M_B_world__ kurira, __M_A_orders__ narudžbi, 7 zona od kojih 6 imaju krug na karti), i izmjerio šta stranica radi. Računar je prvi prikaz, jer dispečeri rade uglavnom na računaru; telefon je drugi.</p>
+  <p class="lede">Stranica danas radi jednu stvar: crta kurire koje je server vratio i dopušta da se jedan izabere. Sve ostalo dispečer radi na drugim stranicama. Predlog je radni prostor oko iste karte. <b>Karta</b> se otvara u pravom gradu i uvijek pokazuje sve. <b>Brojke</b> broje cijelu flotu, a kurir kojem se aplikacija ugasila ima posebnu oznaku „Bez signala“. <b>Izbor kurira</b> otvara detalj sa pozivom, porukom, trenutnom dostavom i gotovinom. <b>Oznake pažnje</b> i tab Narudžbe pokazuju šta kasni i šta čeka. <b>Greška</b> se piše kao greška, ne kao nula. Prototip ispod radi na računaru i na telefonu.</p>
+  <nav class="nav" aria-label="Sadržaj">
+    <a href="#analiza">Analiza</a><a href="#predlog">Predlog</a><a href="#stanja">Stanja</a><a href="#dijelovi">Dijelovi</a><a href="#podaci">Podaci</a><a href="#pravila">Pravila</a><a href="#odluke">Odluke</a><a href="#izrada">Redosled izrade</a><a href="#backend">Backend</a><a href="#provjera">Provjera</a>
+  </nav>
+</header>
+
+<section class="facts" aria-label="Ključni nalazi">
+  <div class="fact"><span class="tag">Karta</span><b>__M_B_visible__ od __M_B_total__</b><span>markera je u vidnom polju kad se stranica otvori. Karta počinje na Beogradu (44,8125; 20,4612; zum __M_B_zoom__), <strong>__M_B_openKm__ km</strong> od kurira firme u Banjoj Luci, i ne pomjera se kad stignu podaci: centar se čita jednom, dok je spisak još prazan.</span></div>
+  <div class="fact"><span class="tag">Brojke</span><b>__M_B_total__ umjesto __M_B_world__</b><span>kurira piše „Ukupno“: broje se samo oni sa pozicijom. „Slobodni 8“ uključuje <strong>dva kurira koji se nisu javili 2 h i 6 h</strong>, a „U dostavi 6“ kurira bez signala 14 min čija narudžba kasni 11 min. Stranica ne računa starost signala; stanje je ono što server kaže.</span></div>
+  <div class="fact"><span class="tag">Greška</span><b>__M_B_failPills__</b><span>piše stranica kad prvo učitavanje padne, uz <strong>„Nema kurira u ovoj kategoriji.“</strong> Isto piše firma bez ijedne pozicije i korisnik bez firme. Poruka o padu je mala crvena traka preko dugmeta „+“ na karti, bez radnje „Pokušaj ponovo“.</span></div>
+  <div class="fact"><span class="tag">Popup</span><b>__M_B_popupMs__ s</b><span>poslije otvaranja popupa kurira u dostavi osvježavanje ga zatvori sam (najkasnije za 15 s): marker nosi vrijeme signala u ključu, pa se <strong>__M_B_recreated__ od __M_B_markersAll__ markera pravi iznova</strong> pri svakom krugu. Popup piše „Brzina: n/a“ tamo gdje kartica piše „stoji“.</span></div>
+  <div class="fact"><span class="tag">Pretraga</span><b>__M_B_searchFound__ od __M_B_searchTotal__</b><span>realnih upita nađe kurira („hodzic“, „zeljko djuric“, ćirilica, telefon bez razdjelnika i #ID ne nalaze). Stranica Kuriri već ima pretragu koja ih nalazi sve: <strong>__M_A_searchFound__ od __M_B_searchTotal__</strong>.</span></div>
+  <div class="fact"><span class="tag">Šta fali</span><b>0 narudžbi, 0 novca</b><span>nijedna narudžba, nijedan dug kurira i nijedna veza kurir ↔ dostava nisu na stranici, a poruka kuriru ne postoji. Pitanja „šta kasni“ i „ko duguje“ vode na Dodelu narudžbi, Kuriri i Finansije.</span></div>
+  <div class="fact"><span class="tag">Telefon</span><b>__M_B_phoneRows0__ kurira</b><span>u prvom ekranu (844 px): traka i zaglavlje jedu __M_B_phoneBars__ px, pločice __M_B_pillsPhone__ px, mapa __M_B_phoneMapH__ px, a spisak počinje ispod ekrana. Poslije dodira na red mapa je u vidu <strong>__M_B_phoneMapPct__ %</strong>, a kartica kurira __M_B_phoneCardPct__ %.</span></div>
+</section>

@@ -907,6 +907,10 @@ export const checkAmount = (
 ): { valid: boolean; amount: number; message: FieldMsg | null; hint: string } => {
   const amount = parseMoneyText(amountText) ?? 0;
   if (!(amount > 0)) return { valid: false, amount: 0, message: null, hint: "Upiši iznos veći od 0." };
+  // [PRETPOSTAVKA] server ne prima tri decimale: ovo se hvata prije slanja (iznos je u KM sa feninzima).
+  if (Math.abs(amount * 100 - Math.round(amount * 100)) > 1e-6) {
+    return { valid: false, amount, message: null, hint: "Najviše dvije decimale." };
+  }
   const fmt = (v: number) => `${v.toFixed(2)} ${currency}`;
   if (owed == null) return { valid: true, amount, message: null, hint: "" };
   if (amount > owed) {

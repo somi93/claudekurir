@@ -1,0 +1,49 @@
+{
+ "fold": {
+  "rowsAbove": 4,
+  "listTop": 303,
+  "frameH": 900,
+  "firstRowH": 72
+ },
+ "t1": {
+  "clicks": 2,
+  "chars": 0,
+  "keys": 0
+ },
+ "t1b": {
+  "clicks": 1,
+  "chars": 0,
+  "keys": 1
+ },
+ "t2": {
+  "clicks": 3,
+  "chars": 0,
+  "keys": 0
+ },
+ "t3": {
+  "clicks": 2,
+  "chars": 0,
+  "keys": 0,
+  "n": 10
+ },
+ "t4": {
+  "clicks": 1,
+  "chars": 0,
+  "keys": 0
+ },
+ "t5": {
+  "clicks": 1,
+  "chars": 0,
+  "keys": 0
+ },
+ "t6": {
+  "clicks": 2,
+  "chars": 0,
+  "keys": 0
+ },
+ "t7": {
+  "clicks": 2,
+  "chars": 0,
+  "keys": 0
+ }
+}
