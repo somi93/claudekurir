@@ -1118,6 +1118,90 @@ const ITEMS: OpenItem[] = [
     priority: "backend",
     source: "06_10_2026_Frontend_pitanja_za_backend.textile",
   },
+  {
+    id: "uzivo-courier-locations-zastarjelo",
+    title: "Kuriri uživo: koliko dugo courier-locations vraća online/delivering za kurira koji se ne javlja",
+    pages: ["/dispatcher"],
+    api: ["GET .../courier-locations", "POST /courier/location"],
+    description:
+      "06.10: Kurir koji ugasi aplikaciju ostaje 'Slobodan' dok ga novi zapis ne pregazi (uzrok oznake 'Bez signala'). Predlog: status offline (ili stale: true) poslije 5 min bez signala + last_seen_at (nastavak 05.10. stavke 8). Pita se i prima li POST /courier/location pri zatvaranju aplikacije (keepalive, status offline). Front do tada računa svježinu iz updated_at (prag 5 min). Stavka 11.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "uzivo-courier-locations-polja",
+    title: "Kuriri uživo: dodatna polja u courier-locations (battery, accuracy, current_order_id, zone_id/zone_name)",
+    pages: ["/dispatcher"],
+    api: ["GET .../courier-locations"],
+    description:
+      "06.10: Red danas nema accuracy ni altitude, a kurirska aplikacija šalje battery: null. Do tada: narudžba iz active-deliveries (po courier.id), zona iz krugova zona, bez baterije. Stavka 12.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "uzivo-narudzbe-koordinate",
+    title: "Kuriri uživo: koordinate na redovima narudžbi (kupac i restoran)",
+    pages: ["/dispatcher"],
+    api: [
+      "GET .../orders/waiting",
+      "GET .../active-deliveries",
+      "GET .../pending-restaurant-confirmation",
+    ],
+    description:
+      "06.10: Potvrđeno samo za ponudu (03.10. stavka 12): kupac ima koordinate, restoran samo id. Bez koordinata nema pinova, linija ni udaljenosti na karti, a dodjela sa karte se ne gradi; red kaže 'Odredište nema koordinate'. Stavka 13.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "uzivo-centar-grada-firme",
+    title: "Kuriri uživo: centar grada firme u my-companies (city_lat, city_lng)",
+    pages: ["/dispatcher"],
+    api: ["GET /dispatcher/my-companies"],
+    description:
+      "06.10: Karta se otvara na pravom gradu i kad firma nema kurira ni zone. Do tada početni pogled ide: kuriri na terenu, svi sa pozicijom, zone, region (nikad Beograd). Stavka 14.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "uzivo-dogadjaji-umjesto-citanja",
+    title: "Kuriri uživo: događaji (Reverb) ili live-summary umjesto čitanja na 15/30/60 s",
+    pages: ["/dispatcher"],
+    api: ["Reverb kanal firme (novi)", "GET .../live-summary (novi)"],
+    description:
+      "06.10: 11 zahtjeva u minuti po otvorenoj stranici (danas 4), a velike firme imaju 500+ kurira. Pita se i granica ograničenja brzine za dispečera (429, Retry-After). Veže se na Finansije stavku 5. Do tada čitanje na 15 s (pozicije), 30 s (narudžbe), 60 s (novac). Stavka 15.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "uzivo-istorija-pozicija",
+    title: "Kuriri uživo: istorija pozicija kurira (trag kretanja)",
+    pages: ["/dispatcher"],
+    api: ["GET /couriers/{id}/locations?from&to (nova)"],
+    description:
+      "06.10: Trag izabranog kurira za zadnjih 30 min. Nije provjereno smije li dispečer čitati ovu rutu za kurire svoje firme (isto kao Finansije stavka 9). Do tada trag od otvaranja stranice. Stavka 16.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "uzivo-stanje-ponude-uz-narudzbu",
+    title: "Kuriri uživo: stanje ponude uz narudžbu (offer_round_status, offered_courier_ids)",
+    pages: ["/dispatcher"],
+    api: ["GET .../orders/waiting"],
+    description:
+      "06.10: Da se ne pošalje dupla ponuda kad se jednom bude dodjeljivalo sa karte (druga faza). Do tada dodjela ostaje samo u Dodeli narudžbi. Stavka 17.",
+    priority: "backend",
+    source: "06_10_2026_Frontend_pitanja_za_backend.textile",
+  },
+  {
+    id: "uzivo-odluke-veto",
+    title: "Kuriri uživo: tri odluke koje mijenjaju obim ili navigaciju (D1, D12, D13)",
+    pages: ["/dispatcher"],
+    api: [],
+    description:
+      "06.10: Tabla ima 16 odluka sa preporukom; ako ništa ne ospori, gradi se preporuka. Tri se mogu osporiti prije izrade: D1 (tab Narudžbe i oznake pažnje na ovoj stranici, 6 zahtjeva više u minuti), D12 (telefon: karta je prvo, spisak je donji list) i D13 (početna dispečera: preporuka je ne mijenjati; ne radi se bez odluke jer mijenja navigaciju cijele aplikacije). Svaka odluka kaže i kako se poništava; vidi odjeljak Odluke u tabli.",
+    priority: "decision",
+    source: "prototype/scratchpad/live/board/board.html",
+  },
 ];
 
 const GROUP_ORDER: { key: Priority; label: string }[] = [

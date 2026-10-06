@@ -162,9 +162,119 @@ Odgovor sadrži dispečerske naloge (nulti redovi) i kurire koji više nisu u fi
 
 ---
 
+h1. Dio 2: ekran "Kuriri uživo" (@/dispatcher@)
+
+Isti dan, druga tema. Za ekran *"Kuriri uživo"* (mapa i pregled kurira, prva stavka dispečerskog menija) izrađena je
+dokument-tabla sa prijedlogom redizajna: analiza stare stranice u pravoj aplikaciji nad lažnim API-jem, šesnaest odluka i
+prototip koji radi na računaru i telefonu (@prototype/scratchpad/live/board/board.html@). *Kod aplikacije još nije
+mijenjan*; pitanja idu sada da odgovori stignu prije izrade. Stranica radi i bez odgovora na sva pitanja, a prva faza
+(popravke na staroj stranici) ne traži backend. Nove stavke nastavljaju brojanje iz Dijela 1 (u tabli su B1 do B7).
+Stavka 8 iz dokumenta od 05.10. (kurir bez pozicije i @last_seen@) je već poslata i ne ponavlja se; stavka 11 je njen
+nastavak. Najmanje što pomaže odmah: *11 i 13*. Ono što front radi dok odgovor ne stigne piše uz svaku stavku.
+
+Šta front danas šalje i šta bi slao (informativno, bitno za opterećenje):
+
+* Danas: @GET .../delivery-companies/{id}/courier-locations@ svakih 15 s, to jest *4 zahtjeva u minuti*.
+* Prijedlog table (odluke D1 i D8): pozicije na 15 s, narudžbe na 30 s iz tri postojeća servisa (@orders/waiting@,
+  @active-deliveries@, @pending-restaurant-confirmation@) i novac (@couriers-balance@) na 60 s, što je *11 zahtjeva u
+  minuti* po otvorenoj stranici. Dok je kartica skrivena ne šalje se ništa, a po povratku se čita odmah.
+* Kurirska aplikacija: @POST /courier/location@ sa @status: "offline"@ danas šalje samo kad kurir sam isključi praćenje.
+  Pri zatvaranju aplikacije ne šalje ništa (prva faza to dodaje, vidi stavku 11).
+
+---
+
+h2. 🟠 11. Koliko dugo @courier-locations@ vraća "online" ili "delivering" za kurira koji se više ne javlja
+
+Front uzima @location.status@ onakav kakav server vrati (ne računa ga iz starosti zapisa). Kurir koji ugasi aplikaciju ili
+mu telefon izgubi vezu ostaje "Slobodan" (ili "U dostavi") dok ga novi zapis ne pregazi; to je uzrok oznake "Bez signala"
+koju stranica uvodi iz @updated_at@.
+
+# Vraća li backend nekad "offline" sam od sebe kad dugo nema signala, ili ostaje zadnji upisani status?
+# Prijedlog: @status: "offline"@ (ili @stale: true@) poslije 5 minuta bez signala, uz @last_seen_at@ (veže se na stavku 8
+  iz dokumenta od 05.10.). Postojeći filter @active_within@ (po @updated_at@) već postoji, pa je ovo isti prag na serveru.
+# Prima li @POST /courier/location@ pri zatvaranju aplikacije zahtjev sa @keepalive@ (isto zaglavlje @Authorization@;
+  @sendBeacon@ ne može da ga nosi), sa tijelom @driver_id@, zadnjom pozicijom i @status: "offline"@, i ostaje li kurir
+  "offline" dok ne stigne sljedeća pozicija?
+
+*Dok ne stigne:* svježina se računa iz @updated_at@ (prag 5 min, oznaka "Bez signala" iznad 5 min, svjež do 90 s); stanje
+ostaje onakvo kako ga server kaže, a prag je jedna konstanta. Prvu sedmicu treba posmatrati: kurirska aplikacija u
+pozadini telefona može da prestane da javlja i dok je kurir na terenu, pa bi takav bio lažno "Bez signala".
+
+---
+
+h2. 🟡 12. Dodatna polja u @courier-locations@: @battery@, @accuracy@, @current_order_id@, @zone_id@ / @zone_name@
+
+Red danas ima @courier_id@, @name@, @phone@, @suspended@, @vehicle@ i @location { latitude, longitude, heading, speed,
+status, updated_at }@. Nema @accuracy@ ni @altitude@ (iako ih payload @POST /courier/location@ ima), a kurirska aplikacija
+šalje @battery: null@.
+
+* Prijedlog: @battery@, @accuracy@, @current_order_id@ i @zone_id@ / @zone_name@ u redu. Baterija, trenutna narudžba i
+  zona bi se vidjele u kartici kurira bez drugog poziva i bez računanja na frontu.
+* Baterija ima smisla samo ako je kurirska aplikacija počne slati; front to radi samo gdje preglednik dozvoljava (nije
+  svuda), pa polje može ostati @null@.
+
+*Dok ne stigne:* trenutna narudžba iz @active-deliveries@ (po @courier.id@), zona iz krugova zona koje se već vide;
+baterije nema.
+
+---
+
+h2. 🟠 13. Koordinate na redovima narudžbi
+
+Nose li @orders/waiting@, @active-deliveries@ i @pending-restaurant-confirmation@ @location.coordination@ (kupac), i može
+li se dodati lokacija restorana? Potvrđeno je samo za ponudu (dokument od 03.10., stavka 12): kupac ima koordinate, a
+@order.restaurant@ samo @id@.
+
+* Prijedlog: @{ lat, lng }@ za kupca i za restoran u svakom od tri servisa, da se jedan pogled računa isto kao ponuda.
+
+*Dok ne stigne:* bez koordinata nema pinova ni linija na karti, a udaljenost do odredišta se ne računa; red kaže
+"Odredište nema koordinate". Narudžbe se na ovoj stranici vide samo u spisku, a dodjela sa karte (druga faza) se ne gradi.
+
+---
+
+h2. 🟡 14. Centar grada firme u @my-companies@: @city_lat@, @city_lng@
+
+Karta se otvara na pravom gradu i kad firma nema nijednog kurira na terenu ni zonu.
+
+*Dok ne stigne:* početni pogled ide redom: kuriri na terenu, svi sa pozicijom, zone, pa region (nikad Beograd), uz dugme
+"Prikaži sve". Firma bez ijednog od njih dobije pregled regije.
+
+---
+
+h2. 🟡 15. Događaji umjesto čitanja na 15, 30 i 60 s
+
+Prijedlog, jedno od dva: (a) Reverb kanal firme sa grupisanim promjenama pozicija i događajima "narudžba kasni" i "narudžba
+čeka" (isti kanal dispečera kao u stavci 5), ili (b) jedan @GET .../live-summary@ sa brojkama i pozicijama.
+
+Zašto: 11 zahtjeva u minuti po otvorenoj stranici (danas 4), a velike firme imaju 500 i više kurira. Ako je ograničenje
+brzine za dispečera nisko (@429@, @Retry-After@; vidi i dokument od 05.10., stavka 17), recite granicu.
+
+*Dok ne stigne:* čitanje na 15 s (pozicije), 30 s (narudžbe) i 60 s (novac); sve su to konstante.
+
+---
+
+h2. 🟢 16. Istorija pozicija kurira: @GET /couriers/{id}/locations?from&to@
+
+Trag kretanja izabranog kurira (gdje je bio u zadnjih 30 minuta). Ne znamo ni smije li dispečer čitati ovu rutu za kurire
+svoje firme (isto pitanje kao stavka 9).
+
+*Dok ne stigne:* trag se crta od trenutka otvaranja stranice (prototip ga već crta).
+
+---
+
+h2. 🟡 17. Stanje ponude uz narudžbu na @orders/waiting@: @offer_round_status@ i @offered_courier_ids@
+
+Da se vidi da je ponuda već u toku i da se ne pošalje duplo kad se jednom bude dodjeljivalo sa karte.
+
+*Dok ne stigne:* dodjela ostaje samo u Dodeli narudžbi; ova stranica ne šalje ponude.
+
+---
+
 h2. Šta nije provjereno
 
 * *Pravi backend.* Sve uz stavke 1 do 10, uključujući tekst napomene o razlici, redoslijed istorije, da li evidentirana
   uplata ima red, ograničenje brzine i odnos @from@/@to@, pretpostavka je dok ne odgovorite.
 * Ekran je provjeren običnim Node-om nad logikom (218 provjera) i tipovima (@nuxi typecheck@, bez grešaka u novim
   fajlovima). *Nije* provjeren u pravom pregledniku nad novim kodom, produkcijskom buildu, iOS-u i čitačima ekrana.
+* *Kuriri uživo (stavke 11 do 17).* Sve je pretpostavka dok ne odgovorite: koliko dugo ostaje "online", nose li redovi
+  narudžbi koordinate, pragovi 90 s i 5 min na stvarnim podacima. Tabla je provjerena u pravom Chrome-u nad lažnim
+  API-jem; *nije* probano sa pravim Leaflet-om (prototip crta shematsku kartu), na iOS Safari-ju i čitačem ekrana.
